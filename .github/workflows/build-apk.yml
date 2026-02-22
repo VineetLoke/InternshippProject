@@ -48,7 +48,7 @@ jobs:
 
       - name: Create Release
         if: github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}
           name: FocusLock v1.0.${{ github.run_number }}
@@ -56,11 +56,12 @@ jobs:
             FocusLock APK - Auto-built from main branch
             
             Download the APK and install on your Android phone:
-            1. Download `app-release.apk`
-            2. Enable "Install from Unknown Sources" in Settings
+            1. Download app-release.apk
+            2. Enable Install from Unknown Sources in Settings
             3. Open the APK file to install
           files: |
             build/app/outputs/flutter-apk/app-release.apk
             build/app/outputs/flutter-apk/app-debug.apk
+          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
