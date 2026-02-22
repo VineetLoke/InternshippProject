@@ -1,4 +1,4 @@
-import 'package:pedometer/pedometer.dart';
+import 'package:pedometer_2/pedometer_2.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 
@@ -7,18 +7,20 @@ typedef StepCallback = void Function(int);
 class StepChallengeService {
   static const String _challengeStartDayKey = 'challenge_start_day';
   static const String _stepsCompletedKey = 'steps_completed_today';
+  static const String _stepsBaselineKey = 'steps_baseline';
   static const int _stepTarget = 10000;
 
-  late StreamSubscription<StepCount> _stepCountStream;
+  StreamSubscription<StepCount>? _stepCountStream;
   int _currentSteps = 0;
+  int _baselineSteps = 0;
   StepCallback? _onStepUpdate;
 
   /// Initialize step counter (request permissions if needed)
   Future<bool> initialize() async {
     try {
-      // Check step count permission
-      StepCount steps = await Pedometer.stepCountStream.first;
-      _currentSteps = steps.steps;
+      final prefs = await SharedPreferences.getInstance();
+      _baselineSteps = prefs.getInt(_stepsBaselineKey) ?? 0;
+      _currentSteps = prefs.getInt(_stepsCompletedKey) ?? 0;
       return true;
     } catch (e) {
       print('Error initializing step counter: $e');
@@ -32,8 +34,14 @@ class StepChallengeService {
     _resetIfNewDay();
     
     _stepCountStream = Pedometer.stepCountStream.listen(
-      (StepCount stepCount) {
-        _currentSteps = stepCount.steps;
+      (StepCount stepCount) async {
+        if (_baselineSteps == 0) {
+          _baselineSteps = stepCount.steps;
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setInt(_stepsBaselineKey, _baselineSteps);
+        }
+        _currentSteps = stepCount.steps - _baselineSteps;
+        if (_currentSteps < 0) _currentSteps = 0;
         _onStepUpdate?.call(_currentSteps);
       },
       onError: (error) {
@@ -44,7 +52,7 @@ class StepChallengeService {
 
   /// Stop monitoring steps
   void stopMonitoring() {
-    _stepCountStream.cancel();
+    _stepCountStream?.cancel();
   }
 
   /// Check if challenge is completed
