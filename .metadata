@@ -1,0 +1,24 @@
+# This file tracks properties of this Flutter project.
+# Used by Flutter tool to assess capabilities and perform upgrades etc.
+#
+# This file should be version controlled.
+
+version:
+  revision: "UNKNOWN"
+  channel: "stable"
+
+project_type: app
+
+# Tracks metadata for the flutter migrate command
+migration:
+  platforms:
+    - platform: root
+      create_revision: "UNKNOWN"
+      base_revision: "UNKNOWN"
+    - platform: android
+      create_revision: "UNKNOWN"
+      base_revision: "UNKNOWN"
+
+  unmanaged_files:
+    - 'lib/main.dart'
+    - 'android/app/src/main/kotlin/com/example/focus_lock/MainActivity.kt'
