@@ -10,7 +10,8 @@ class StepChallengeService {
   static const String _stepsBaselineKey = 'steps_baseline';
   static const int _stepTarget = 10000;
 
-  StreamSubscription<StepCount>? _stepCountStream;
+  final Pedometer _pedometer = Pedometer();
+  StreamSubscription<int>? _stepCountStream;
   int _currentSteps = 0;
   int _baselineSteps = 0;
   StepCallback? _onStepUpdate;
@@ -32,15 +33,15 @@ class StepChallengeService {
   void startMonitoring(StepCallback onUpdate) {
     _onStepUpdate = onUpdate;
     _resetIfNewDay();
-    
-    _stepCountStream = Pedometer.stepCountStream.listen(
-      (StepCount stepCount) async {
+
+    _stepCountStream = _pedometer.stepCountStream().listen(
+      (int steps) async {
         if (_baselineSteps == 0) {
-          _baselineSteps = stepCount.steps;
+          _baselineSteps = steps;
           final prefs = await SharedPreferences.getInstance();
           await prefs.setInt(_stepsBaselineKey, _baselineSteps);
         }
-        _currentSteps = stepCount.steps - _baselineSteps;
+        _currentSteps = steps - _baselineSteps;
         if (_currentSteps < 0) _currentSteps = 0;
         _onStepUpdate?.call(_currentSteps);
       },
