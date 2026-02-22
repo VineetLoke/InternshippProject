@@ -60,7 +60,7 @@ class AppBlockingService : Service() {
         }
     }
 
-    private fun createNotification(): androidx.core.app.Notification {
+    private fun createNotification(): android.app.Notification {
         val intent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
             this,
