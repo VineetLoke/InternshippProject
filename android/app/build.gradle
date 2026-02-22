@@ -41,7 +41,7 @@ android {
 
     defaultConfig {
         applicationId "com.example.focus_lock"
-        minSdk 21
+        minSdk 29
         targetSdk 34
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
