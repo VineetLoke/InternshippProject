@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/app_block_service.dart';
 import '../services/password_manager.dart';
+import '../services/permission_service.dart';
 import '../services/step_challenge.dart';
 import '../services/timer_service.dart';
 
@@ -9,6 +10,7 @@ class LockStateProvider extends ChangeNotifier {
   final _passwordManager = PasswordManager();
   final _stepChallenge = StepChallengeService();
   final _timerService = TimerService();
+  final _permissionService = PermissionService();
 
   bool _isLocked = false;
   bool _passwordSet = false;
@@ -36,12 +38,23 @@ class LockStateProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Update lock status from service
+  /// Update lock status from service — also reloads persisted password flag.
   Future<void> updateLockStatus() async {
-    final status = await _appBlockService.getLockStatus();
-    _isLocked = status['locked'] ?? false;
-    _remainingDays = status['remainingDays'] ?? 0;
-    _lockEndDate = status['endDate'];
+    try {
+      final status = await _appBlockService.getLockStatus();
+      _isLocked = status['locked'] ?? false;
+      _remainingDays = status['remainingDays'] ?? 0;
+      _lockEndDate = status['endDate'];
+    } catch (e) {
+      debugPrint('Error updating lock status: $e');
+    }
+    try {
+      // Reload persisted password flag so splash routing is correct after
+      // a cold start (the in-memory field resets to false each launch).
+      _passwordSet = await _passwordManager.hasPassword();
+    } catch (e) {
+      debugPrint('Error checking password: $e');
+    }
     notifyListeners();
   }
 
@@ -64,20 +77,25 @@ class LockStateProvider extends ChangeNotifier {
   Future<void> requestEmergencyUnlock() async {
     await _timerService.requestEmergencyUnlock();
     _emergencyUnlockRequested = true;
-    
+
     // Start countdown
     _timerService.startCountdown((remaining) {
       _remainingDelay = remaining;
       notifyListeners();
     });
-    
-    // Initialize step challenge
-    await _stepChallenge.initialize();
-    _stepChallenge.startMonitoring((steps) {
-      _currentSteps = steps;
-      notifyListeners();
-    });
-    
+
+    // Guard step challenge behind runtime permission
+    final hasPermission = await _permissionService.requestActivityRecognition();
+    if (hasPermission) {
+      await _stepChallenge.initialize();
+      _stepChallenge.startMonitoring((steps) {
+        _currentSteps = steps;
+        notifyListeners();
+      });
+    } else {
+      debugPrint('ACTIVITY_RECOGNITION not granted — step challenge disabled');
+    }
+
     notifyListeners();
   }
 

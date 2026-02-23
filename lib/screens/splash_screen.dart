@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/lock_state_provider.dart';
+import '../services/permission_service.dart';
 import 'setup_screen.dart';
 import 'home_screen.dart';
 import 'lock_screen.dart';
@@ -20,26 +21,33 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _initializeApp() async {
+    // Request essential permissions early — before using any platform features.
+    // This prevents crashes from accessing sensors/notifications without them.
+    try {
+      final permService = PermissionService();
+      await permService.requestNotificationPermission();
+      await permService.requestActivityRecognition();
+    } catch (e) {
+      debugPrint('Permission request error (non-fatal): $e');
+    }
+
     await Future.delayed(const Duration(seconds: 2));
-    
+
     if (!mounted) return;
 
     final lockProvider = context.read<LockStateProvider>();
+    // updateLockStatus now also reloads the persisted passwordSet flag.
     await lockProvider.updateLockStatus();
 
-    // Navigate based on lock status
+    if (!mounted) return;
+
+    // Navigate based on state
     if (lockProvider.isLocked) {
-      if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/lock');
-      }
+      Navigator.of(context).pushReplacementNamed('/lock');
     } else if (lockProvider.passwordSet) {
-      if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/home');
-      }
+      Navigator.of(context).pushReplacementNamed('/home');
     } else {
-      if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/setup');
-      }
+      Navigator.of(context).pushReplacementNamed('/setup');
     }
   }
 

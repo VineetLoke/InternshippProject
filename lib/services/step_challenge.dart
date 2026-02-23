@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:pedometer_2/pedometer_2.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 
@@ -29,26 +31,45 @@ class StepChallengeService {
     }
   }
 
-  /// Start monitoring steps
+  /// Start monitoring steps – silently skips if permission not granted.
   void startMonitoring(StepCallback onUpdate) {
     _onStepUpdate = onUpdate;
     _resetIfNewDay();
 
-    _stepCountStream = _pedometer.stepCountStream().listen(
-      (int steps) async {
-        if (_baselineSteps == 0) {
-          _baselineSteps = steps;
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setInt(_stepsBaselineKey, _baselineSteps);
-        }
-        _currentSteps = steps - _baselineSteps;
-        if (_currentSteps < 0) _currentSteps = 0;
-        _onStepUpdate?.call(_currentSteps);
-      },
-      onError: (error) {
-        print('Step count error: $error');
-      },
-    );
+    // Check permission synchronously via cached status before subscribing
+    // to avoid a crash when ACTIVITY_RECOGNITION is not granted.
+    Permission.activityRecognition.status.then((status) {
+      if (!status.isGranted) {
+        debugPrint('StepChallenge: ACTIVITY_RECOGNITION not granted, skipping');
+        return;
+      }
+      _subscribeToSteps();
+    }).catchError((e) {
+      debugPrint('StepChallenge permission check error: $e');
+    });
+  }
+
+  void _subscribeToSteps() {
+    _stepCountStream?.cancel();
+    try {
+      _stepCountStream = _pedometer.stepCountStream().listen(
+        (int steps) async {
+          if (_baselineSteps == 0) {
+            _baselineSteps = steps;
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setInt(_stepsBaselineKey, _baselineSteps);
+          }
+          _currentSteps = steps - _baselineSteps;
+          if (_currentSteps < 0) _currentSteps = 0;
+          _onStepUpdate?.call(_currentSteps);
+        },
+        onError: (error) {
+          debugPrint('Step count error: $error');
+        },
+      );
+    } catch (e) {
+      debugPrint('StepChallenge stream error: $e');
+    }
   }
 
   /// Stop monitoring steps

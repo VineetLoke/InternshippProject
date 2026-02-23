@@ -9,6 +9,14 @@ import 'providers/lock_state_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Global Flutter error handler — prevents unhandled async exceptions from
+  // crashing the process silently.
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    debugPrint('FlutterError: ${details.exception}\n${details.stack}');
+  };
+
   runApp(const FocusLockApp());
 }
 

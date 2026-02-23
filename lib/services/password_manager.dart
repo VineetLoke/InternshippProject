@@ -1,12 +1,21 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
-import 'package:device_info_plus/device_info_plus.dart';
 
 class PasswordManager {
   static const String _passwordKey = 'focus_lock_password';
   static const String _encryptionKeyKey = 'encryption_key_part';
-  final _secureStorage = const FlutterSecureStorage();
-  final _deviceInfo = DeviceInfoPlugin();
+
+  // Explicitly use EncryptedSharedPreferences on Android to avoid
+  // BadPaddingException / keystore errors on first install.
+  static const _androidOptions = AndroidOptions(
+    encryptedSharedPreferences: true,
+    resetOnError: true, // wipe corrupted keystore instead of crashing
+  );
+
+  final _secureStorage = const FlutterSecureStorage(
+    aOptions: _androidOptions,
+  );
 
   /// Encrypt and store password securely
   Future<bool> setPassword(String password) async {
@@ -92,9 +101,24 @@ class PasswordManager {
     }
   }
 
+  /// Check if a password has already been saved
+  Future<bool> hasPassword() async {
+    try {
+      final value = await _secureStorage.read(key: _passwordKey);
+      return value != null && value.isNotEmpty;
+    } catch (e) {
+      debugPrint('Error checking password existence: $e');
+      return false;
+    }
+  }
+
   /// Clear password (for reset)
   Future<void> clearPassword() async {
-    await _secureStorage.delete(key: _passwordKey);
-    await _secureStorage.delete(key: _encryptionKeyKey);
+    try {
+      await _secureStorage.delete(key: _passwordKey);
+      await _secureStorage.delete(key: _encryptionKeyKey);
+    } catch (e) {
+      debugPrint('Error clearing password: $e');
+    }
   }
 }
