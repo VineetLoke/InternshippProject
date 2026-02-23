@@ -11,34 +11,37 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import android.util.Log
 
-class MainActivity: FlutterActivity() {
+class MainActivity : FlutterActivity() {
     companion object {
         const val TAG = "MainActivity"
-        const val CHANNEL = "com.example.focus_lock/app_block"
         const val REQUEST_NOTIFICATION_PERMISSION = 1001
     }
 
+    // Flag prevents starting the service more than once per process lifetime.
+    private var serviceStarted = false
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        // Do NOT start service here — Activity is not fully ready yet
     }
 
-    override fun onResume() {
-        super.onResume()
-        Log.d(TAG, "MainActivity resumed")
-        checkAccessibilityService()
-        requestNotificationPermissionAndStartService()
+    override fun onStart() {
+        super.onStart()
+        // Use onStart (not onResume) so this fires only when the Activity
+        // transitions from stopped → started, not on every foreground event.
+        if (!serviceStarted) {
+            requestNotificationPermissionThenStart()
+        }
     }
 
-    private fun requestNotificationPermissionAndStartService() {
+    private fun requestNotificationPermissionThenStart() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            // Android 13+ requires runtime POST_NOTIFICATIONS permission
             if (ContextCompat.checkSelfPermission(
                     this, Manifest.permission.POST_NOTIFICATIONS
                 ) == PackageManager.PERMISSION_GRANTED
             ) {
-                startAppBlockingService()
+                startMonitoringService()
             } else {
+                // Request; result handled below — service starts regardless
                 ActivityCompat.requestPermissions(
                     this,
                     arrayOf(Manifest.permission.POST_NOTIFICATIONS),
@@ -46,7 +49,7 @@ class MainActivity: FlutterActivity() {
                 )
             }
         } else {
-            startAppBlockingService()
+            startMonitoringService()
         }
     }
 
@@ -57,38 +60,23 @@ class MainActivity: FlutterActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_NOTIFICATION_PERMISSION) {
-            // Start service whether permission granted or denied
-            // (service will run without visible notification if denied)
-            startAppBlockingService()
+            startMonitoringService() // start with or without notification permission
         }
     }
 
-    private fun startAppBlockingService() {
+    /**
+     * Starts the lightweight background watchdog service using a plain
+     * startService() call — no foreground type, no notification required.
+     */
+    private fun startMonitoringService() {
+        if (serviceStarted) return
+        serviceStarted = true
         try {
-            val serviceIntent = Intent(this, AppBlockingService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(serviceIntent)
-            } else {
-                startService(serviceIntent)
-            }
-            Log.d(TAG, "App blocking service started")
+            val intent = Intent(this, AppBlockingService::class.java)
+            startService(intent)
+            Log.d(TAG, "Monitoring service started")
         } catch (e: Exception) {
-            Log.e(TAG, "Error starting service: ${e.message}")
-        }
-    }
-
-    private fun checkAccessibilityService() {
-        val accessibilityEnabled = try {
-            Settings.Secure.getInt(
-                contentResolver,
-                Settings.Secure.ACCESSIBILITY_ENABLED,
-                0
-            ) == 1
-        } catch (e: Exception) {
-            false
-        }
-        if (!accessibilityEnabled) {
-            Log.w(TAG, "Accessibility service not enabled")
+            Log.e(TAG, "Could not start monitoring service: ${e.message}")
         }
     }
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/splash_screen.dart';
@@ -10,14 +11,20 @@ import 'providers/lock_state_provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Global Flutter error handler — prevents unhandled async exceptions from
-  // crashing the process silently.
+  // Catch Flutter framework errors (widget build / layout errors).
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
     debugPrint('FlutterError: ${details.exception}\n${details.stack}');
   };
 
-  runApp(const FocusLockApp());
+  // Catch all async errors that escape the widget tree entirely
+  // (plugin init, dart:io failures, etc.).
+  runZonedGuarded(
+    () => runApp(const FocusLockApp()),
+    (error, stack) {
+      debugPrint('Unhandled async error: $error\n$stack');
+    },
+  );
 }
 
 class FocusLockApp extends StatelessWidget {
