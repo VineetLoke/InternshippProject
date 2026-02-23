@@ -1,8 +1,11 @@
 package com.example.focus_lock
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -12,24 +15,52 @@ class MainActivity: FlutterActivity() {
     companion object {
         const val TAG = "MainActivity"
         const val CHANNEL = "com.example.focus_lock/app_block"
+        const val REQUEST_NOTIFICATION_PERMISSION = 1001
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-
-        // Start app blocking service
-        startAppBlockingService()
+        // Do NOT start service here — Activity is not fully ready yet
     }
 
     override fun onResume() {
         super.onResume()
         Log.d(TAG, "MainActivity resumed")
-        
-        // Check and request accessibility service permission
         checkAccessibilityService()
-        
-        // Start foreground service
-        startAppBlockingService()
+        requestNotificationPermissionAndStartService()
+    }
+
+    private fun requestNotificationPermissionAndStartService() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Android 13+ requires runtime POST_NOTIFICATIONS permission
+            if (ContextCompat.checkSelfPermission(
+                    this, Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+            ) {
+                startAppBlockingService()
+            } else {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    REQUEST_NOTIFICATION_PERMISSION
+                )
+            }
+        } else {
+            startAppBlockingService()
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_NOTIFICATION_PERMISSION) {
+            // Start service whether permission granted or denied
+            // (service will run without visible notification if denied)
+            startAppBlockingService()
+        }
     }
 
     private fun startAppBlockingService() {
@@ -56,11 +87,8 @@ class MainActivity: FlutterActivity() {
         } catch (e: Exception) {
             false
         }
-
         if (!accessibilityEnabled) {
             Log.w(TAG, "Accessibility service not enabled")
-            // Show dialog asking user to enable accessibility service
-            // This would be handled via Flutter platform channel
         }
     }
 }
