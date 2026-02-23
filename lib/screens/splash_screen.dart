@@ -47,7 +47,8 @@ class _SplashScreenState extends State<SplashScreen> {
     } else if (lockProvider.passwordSet) {
       Navigator.of(context).pushReplacementNamed('/home');
     } else {
-      Navigator.of(context).pushReplacementNamed('/setup');
+      // New user — must grant permissions before setup
+      Navigator.of(context).pushReplacementNamed('/permissions');
     }
   }
 

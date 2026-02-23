@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/splash_screen.dart';
+import 'screens/permissions_screen.dart';
 import 'screens/setup_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/lock_screen.dart';
@@ -45,6 +46,7 @@ class FocusLockApp extends StatelessWidget {
         initialRoute: '/',
         routes: {
           '/': (context) => const SplashScreen(),
+          '/permissions': (context) => const PermissionsScreen(),
           '/setup': (context) => const SetupScreen(),
           '/home': (context) => const HomeScreen(),
           '/lock': (context) => const LockScreen(),

@@ -27,6 +27,16 @@ class LockScreenOverlayService : Service() {
 
     private fun showOverlay() {
         try {
+            // Guard: if SYSTEM_ALERT_WINDOW not granted the addView() call
+            // throws WindowManager$BadTokenException and crashes the process.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+                !android.provider.Settings.canDrawOverlays(this)
+            ) {
+                Log.w(TAG, "Overlay permission not granted — skipping overlay")
+                stopSelf()
+                return
+            }
+
             windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
             // Create overlay view

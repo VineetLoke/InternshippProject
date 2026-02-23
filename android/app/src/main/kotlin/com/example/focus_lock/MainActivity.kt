@@ -9,25 +9,43 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
 import android.util.Log
 
 class MainActivity : FlutterActivity() {
     companion object {
         const val TAG = "MainActivity"
+        const val CHANNEL = "com.example.focus_lock/app_block"
         const val REQUEST_NOTIFICATION_PERMISSION = 1001
     }
 
-    // Flag prevents starting the service more than once per process lifetime.
     private var serviceStarted = false
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        // Flutter ↔ Native channel: accessibility helpers
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "isAccessibilityEnabled" -> {
+                        result.success(isAccessibilityServiceEnabled())
+                    }
+                    "openAccessibilitySettings" -> {
+                        try {
+                            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                            result.success(null)
+                        } catch (e: Exception) {
+                            result.error("OPEN_SETTINGS_FAILED", e.message, null)
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
     }
 
     override fun onStart() {
         super.onStart()
-        // Use onStart (not onResume) so this fires only when the Activity
-        // transitions from stopped → started, not on every foreground event.
         if (!serviceStarted) {
             requestNotificationPermissionThenStart()
         }
@@ -41,7 +59,6 @@ class MainActivity : FlutterActivity() {
             ) {
                 startMonitoringService()
             } else {
-                // Request; result handled below — service starts regardless
                 ActivityCompat.requestPermissions(
                     this,
                     arrayOf(Manifest.permission.POST_NOTIFICATIONS),
@@ -60,14 +77,10 @@ class MainActivity : FlutterActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_NOTIFICATION_PERMISSION) {
-            startMonitoringService() // start with or without notification permission
+            startMonitoringService()
         }
     }
 
-    /**
-     * Starts the lightweight background watchdog service using a plain
-     * startService() call — no foreground type, no notification required.
-     */
     private fun startMonitoringService() {
         if (serviceStarted) return
         serviceStarted = true
@@ -77,6 +90,18 @@ class MainActivity : FlutterActivity() {
             Log.d(TAG, "Monitoring service started")
         } catch (e: Exception) {
             Log.e(TAG, "Could not start monitoring service: ${e.message}")
+        }
+    }
+
+    private fun isAccessibilityServiceEnabled(): Boolean {
+        return try {
+            Settings.Secure.getInt(
+                contentResolver,
+                Settings.Secure.ACCESSIBILITY_ENABLED,
+                0
+            ) == 1
+        } catch (e: Exception) {
+            false
         }
     }
 }
