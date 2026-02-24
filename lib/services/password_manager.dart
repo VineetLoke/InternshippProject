@@ -1,124 +1,73 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:encrypt/encrypt.dart' as encrypt;
 
+/// Stores and verifies the user's lock password.
+///
+/// flutter_secure_storage already performs AES-256-GCM encryption via the
+/// Android Keystore on every read/write, so we do NOT need a separate
+/// `encrypt`/`pointycastle` layer. Removing that layer eliminates the
+/// AOT tree-shaking crash (ArgumentError: No block cipher implementation)
+/// that only appears in release builds.
 class PasswordManager {
   static const String _passwordKey = 'focus_lock_password';
-  static const String _encryptionKeyKey = 'encryption_key_part';
 
-  // Explicitly use EncryptedSharedPreferences on Android to avoid
-  // BadPaddingException / keystore errors on first install.
   static const _androidOptions = AndroidOptions(
     encryptedSharedPreferences: true,
-    resetOnError: true, // wipe corrupted keystore instead of crashing
+    // Wipe corrupted Keystore on first install instead of crashing.
+    resetOnError: true,
   );
 
-  final _secureStorage = const FlutterSecureStorage(
-    aOptions: _androidOptions,
-  );
+  final _storage = const FlutterSecureStorage(aOptions: _androidOptions);
 
-  /// Encrypt and store password securely
+  /// Persist the password. Returns true on success.
   Future<bool> setPassword(String password) async {
     try {
-      // Generate encryption key
-      final key = encrypt.Key.fromSecureRandom(32);
-      final keyString = key.base64;
-
-      // Store key part 1 (locally)
-      await _secureStorage.write(
-        key: _encryptionKeyKey,
-        value: keyString,
-      );
-
-      // Encrypt password
-      final iv = encrypt.IV.fromSecureRandom(16);
-      final encrypter = encrypt.Encrypter(encrypt.AES(key));
-      final encrypted = encrypter.encrypt(password, iv: iv);
-
-      // Store encrypted password with IV
-      String encryptedData = '${iv.base64}:${encrypted.base64}';
-      await _secureStorage.write(
-        key: _passwordKey,
-        value: encryptedData,
-      );
-
+      await _storage.write(key: _passwordKey, value: password);
       return true;
     } catch (e) {
-      print('Error setting password: $e');
+      debugPrint('PasswordManager.setPassword error: $e');
       return false;
     }
   }
 
-  /// Verify password during unlock attempt
+  /// Returns true if [inputPassword] matches the stored password.
   Future<bool> verifyPassword(String inputPassword) async {
     try {
-      final encryptedData = await _secureStorage.read(key: _passwordKey);
-      final keyString = await _secureStorage.read(key: _encryptionKeyKey);
-
-      if (encryptedData == null || keyString == null) {
-        return false;
-      }
-
-      // Parse encrypted data
-      final parts = encryptedData.split(':');
-      final iv = encrypt.IV.fromBase64(parts[0]);
-      final encrypted = encrypt.Encrypted.fromBase64(parts[1]);
-
-      // Decrypt
-      final key = encrypt.Key.fromBase64(keyString);
-      final encrypter = encrypt.Encrypter(encrypt.AES(key));
-      final decrypted = encrypter.decrypt(encrypted, iv: iv);
-
-      return decrypted == inputPassword;
+      final stored = await _storage.read(key: _passwordKey);
+      return stored != null && stored == inputPassword;
     } catch (e) {
-      print('Error verifying password: $e');
+      debugPrint('PasswordManager.verifyPassword error: $e');
       return false;
     }
   }
 
-  /// Retrieve password after challenge completion (for emergency unlock)
+  /// Returns the stored password (used after the emergency challenge).
   Future<String?> getPasswordAfterChallenge() async {
     try {
-      final encryptedData = await _secureStorage.read(key: _passwordKey);
-      final keyString = await _secureStorage.read(key: _encryptionKeyKey);
-
-      if (encryptedData == null || keyString == null) {
-        return null;
-      }
-
-      final parts = encryptedData.split(':');
-      final iv = encrypt.IV.fromBase64(parts[0]);
-      final encrypted = encrypt.Encrypted.fromBase64(parts[1]);
-
-      final key = encrypt.Key.fromBase64(keyString);
-      final encrypter = encrypt.Encrypter(encrypt.AES(key));
-      final decrypted = encrypter.decrypt(encrypted, iv: iv);
-
-      return decrypted;
+      return await _storage.read(key: _passwordKey);
     } catch (e) {
-      print('Error retrieving password: $e');
+      debugPrint('PasswordManager.getPasswordAfterChallenge error: $e');
       return null;
     }
   }
 
-  /// Check if a password has already been saved
+  /// Returns true if a password has previously been saved.
   Future<bool> hasPassword() async {
     try {
-      final value = await _secureStorage.read(key: _passwordKey);
+      final value = await _storage.read(key: _passwordKey);
       return value != null && value.isNotEmpty;
     } catch (e) {
-      debugPrint('Error checking password existence: $e');
+      debugPrint('PasswordManager.hasPassword error: $e');
       return false;
     }
   }
 
-  /// Clear password (for reset)
+  /// Wipe the stored password (for reset / testing).
   Future<void> clearPassword() async {
     try {
-      await _secureStorage.delete(key: _passwordKey);
-      await _secureStorage.delete(key: _encryptionKeyKey);
+      await _storage.delete(key: _passwordKey);
     } catch (e) {
-      debugPrint('Error clearing password: $e');
+      debugPrint('PasswordManager.clearPassword error: $e');
     }
   }
 }
