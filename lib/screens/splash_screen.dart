@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/lock_state_provider.dart';
-import '../services/permission_service.dart';
-import 'setup_screen.dart';
-import 'home_screen.dart';
-import 'lock_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -21,36 +17,86 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _initializeApp() async {
-    // Request essential permissions early — before using any platform features.
-    // This prevents crashes from accessing sensors/notifications without them.
+    // Hard cap: splash MUST navigate within 3 seconds no matter what.
+    // Heavy work (permissions, secure storage) is done on the destination
+    // screens — not here.
+    await Future.any([
+      _tryLoadState(),
+      Future.delayed(const Duration(seconds: 3)),
+    ]);
+
+    if (!mounted) return;
+    _navigate();
+  }
+
+  Future<void> _tryLoadState() async {
+    // Minimum visual delay so the splash doesn't flash.
+    await Future.delayed(const Duration(milliseconds: 800));
+
+    if (!mounted) return;
     try {
-      final permService = PermissionService();
-      await permService.requestNotificationPermission();
-      await permService.requestActivityRecognition();
+      // updateLockStatus reads SharedPreferences (fast) + secure storage.
+      // It has its own internal timeout so it cannot block forever.
+      await context
+          .read<LockStateProvider>()
+          .updateLockStatus()
+          .timeout(const Duration(seconds: 2));
     } catch (e) {
-      debugPrint('Permission request error (non-fatal): $e');
+      // Timeout or error — navigate anyway using default (unlocked) state.
+      debugPrint('Splash init error (non-fatal): $e');
     }
+  }
 
-    await Future.delayed(const Duration(seconds: 2));
-
+  void _navigate() {
     if (!mounted) return;
-
     final lockProvider = context.read<LockStateProvider>();
-    // updateLockStatus now also reloads the persisted passwordSet flag.
-    await lockProvider.updateLockStatus();
-
-    if (!mounted) return;
-
-    // Navigate based on state
     if (lockProvider.isLocked) {
       Navigator.of(context).pushReplacementNamed('/lock');
     } else if (lockProvider.passwordSet) {
       Navigator.of(context).pushReplacementNamed('/home');
     } else {
-      // New user — must grant permissions before setup
+      // New user — walk through permissions then setup.
       Navigator.of(context).pushReplacementNamed('/permissions');
     }
   }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.lock_outline,
+              size: 80,
+              color: Colors.blue.shade700,
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'FocusLock',
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue.shade700,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Stay focused on what matters',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(height: 40),
+            CircularProgressIndicator(color: Colors.blue.shade700),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
   @override
   Widget build(BuildContext context) {

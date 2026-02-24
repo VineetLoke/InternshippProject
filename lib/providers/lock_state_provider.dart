@@ -39,9 +39,13 @@ class LockStateProvider extends ChangeNotifier {
   }
 
   /// Update lock status from service — also reloads persisted password flag.
+  /// Internal operations are individually time-boxed so this never blocks
+  /// the caller for more than ~2 seconds total.
   Future<void> updateLockStatus() async {
     try {
-      final status = await _appBlockService.getLockStatus();
+      final status = await _appBlockService
+          .getLockStatus()
+          .timeout(const Duration(seconds: 2));
       _isLocked = status['locked'] ?? false;
       _remainingDays = status['remainingDays'] ?? 0;
       _lockEndDate = status['endDate'];
@@ -49,9 +53,11 @@ class LockStateProvider extends ChangeNotifier {
       debugPrint('Error updating lock status: $e');
     }
     try {
-      // Reload persisted password flag so splash routing is correct after
-      // a cold start (the in-memory field resets to false each launch).
-      _passwordSet = await _passwordManager.hasPassword();
+      // Secure storage read is time-boxed: Keystore init can stall on first
+      // launch and must not freeze the splash screen.
+      _passwordSet = await _passwordManager
+          .hasPassword()
+          .timeout(const Duration(seconds: 2), onTimeout: () => false);
     } catch (e) {
       debugPrint('Error checking password: $e');
     }
