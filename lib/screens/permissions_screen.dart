@@ -21,6 +21,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
   bool _accessibilityEnabled = false;
   bool _activityRecognitionGranted = false;
   bool _notificationGranted = false;
+  bool _usageAccessGranted = false;
 
   bool get _allRequiredGranted => _overlayGranted && _accessibilityEnabled;
 
@@ -51,6 +52,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
       _checkAccessibility(),
       _checkActivityRecognition(),
       _checkNotification(),
+      _checkUsageAccess(),
     ]);
   }
 
@@ -92,6 +94,17 @@ class _PermissionsScreenState extends State<PermissionsScreen>
     }
   }
 
+  Future<void> _checkUsageAccess() async {
+    try {
+      final result = await _platform
+          .invokeMethod<bool>('hasUsageStatsPermission')
+          .timeout(const Duration(seconds: 2), onTimeout: () => false);
+      if (mounted) setState(() => _usageAccessGranted = result ?? false);
+    } catch (_) {
+      if (mounted) setState(() => _usageAccessGranted = false);
+    }
+  }
+
   // ── Actions ──────────────────────────────────────────────────────────────
 
   Future<void> _requestOverlay() async {
@@ -128,6 +141,14 @@ class _PermissionsScreenState extends State<PermissionsScreen>
       await _checkNotification();
     } catch (e) {
       debugPrint('Notification permission error: $e');
+    }
+  }
+
+  Future<void> _openUsageAccessSettings() async {
+    try {
+      await _platform.invokeMethod('openUsageStatsSettings');
+    } catch (_) {
+      await openAppSettings();
     }
   }
 
@@ -211,6 +232,16 @@ class _PermissionsScreenState extends State<PermissionsScreen>
             granted: _notificationGranted,
             onTap: _requestNotification,
             buttonLabel: 'Allow',
+          ),
+          const SizedBox(height: 12),
+
+          _permTile(
+            icon: Icons.bar_chart,
+            title: 'Usage Access',
+            subtitle: 'Enables screen time tracking for Instagram, Reddit & Twitter/X.',
+            granted: _usageAccessGranted,
+            onTap: _openUsageAccessSettings,
+            buttonLabel: 'Open Settings',
           ),
           const SizedBox(height: 36),
 

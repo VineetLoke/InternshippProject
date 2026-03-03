@@ -17,6 +17,8 @@
     <queries>
         <package android:name="com.instagram.android" />
         <package android:name="com.reddit.frontpage" />
+        <package android:name="com.twitter.android" />
+        <package android:name="com.android.chrome" />
     </queries>
 
     <application
@@ -70,6 +72,18 @@
         <!-- Background App Blocking Service -->
         <service
             android:name=".AppBlockingService"
+            android:enabled="true"
+            android:exported="false" />
+
+        <!-- Discipline Warning Overlay (3-second Chrome keyword warning) -->
+        <service
+            android:name=".DisciplineWarningOverlayService"
+            android:enabled="true"
+            android:exported="false" />
+
+        <!-- Chrome Lock Overlay (persistent until Chrome exits) -->
+        <service
+            android:name=".ChromeLockOverlayService"
             android:enabled="true"
             android:exported="false" />
 

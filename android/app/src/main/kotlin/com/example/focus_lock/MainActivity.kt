@@ -1,6 +1,8 @@
 package com.example.focus_lock
 
 import android.Manifest
+import android.app.AppOpsManager
+import android.app.usage.UsageStatsManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -12,11 +14,13 @@ import android.text.TextUtils
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.example.focus_lock.database.AppDatabase
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import java.time.LocalDate
+import java.util.Calendar
 
 class MainActivity : FlutterActivity() {
     companion object {
@@ -115,6 +119,48 @@ class MainActivity : FlutterActivity() {
                     "redeemPushups" -> {
                         val redeemed = redeemPushupsForRedditTime()
                         result.success(redeemed)
+                    }
+
+                    // ── Screen time (UsageStatsManager) ──────────
+                    "getScreenTimeData" -> {
+                        if (hasUsageStatsPermission()) {
+                            result.success(getScreenTimeData())
+                        } else {
+                            result.success(mapOf<String, Any>())
+                        }
+                    }
+                    "hasUsageStatsPermission" -> {
+                        result.success(hasUsageStatsPermission())
+                    }
+                    "openUsageStatsSettings" -> {
+                        try {
+                            startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            })
+                            result.success(null)
+                        } catch (e: Exception) {
+                            result.error("OPEN_SETTINGS_FAILED", e.message, null)
+                        }
+                    }
+
+                    // ── App open logs (Room DB) ───────────────────
+                    "getAppOpenLogs" -> {
+                        result.success(getAppOpenLogs())
+                    }
+                    "getAppOpenCount" -> {
+                        val pkg = call.argument<String>("packageName") ?: ""
+                        result.success(getAppOpenCount(pkg))
+                    }
+                    "getAllAppOpenCounts" -> {
+                        result.success(getAllAppOpenCounts())
+                    }
+
+                    // ── Chrome filter ─────────────────────────────
+                    "getChromeFilterStatus" -> {
+                        result.success(mapOf(
+                            "isActive" to AppBlockingAccessibilityService.isRunning,
+                            "blockedKeywordCount" to AppBlockingAccessibilityService.BLOCKED_KEYWORDS.size
+                        ))
                     }
 
                     else -> result.notImplemented()
@@ -290,7 +336,119 @@ class MainActivity : FlutterActivity() {
         val currentExtra = prefs.getLong(REDDIT_EXTRA_MS_KEY, 0L)
         prefs.edit().putLong(REDDIT_EXTRA_MS_KEY, currentExtra + PUSHUP_REWARD_MS).apply()
         pushupDetector?.reset()
-        Log.d(TAG, "✅ Redeemed $PUSHUPS_REQUIRED pushups → +10 min Reddit time")
+        Log.d(TAG, "Redeemed $PUSHUPS_REQUIRED pushups → +10 min Reddit time")
         return true
+    }
+
+    // ── Usage stats helpers ────────────────────────────────────────
+
+    private fun hasUsageStatsPermission(): Boolean {
+        return try {
+            val appOps = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+            val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                appOps.unsafeCheckOpNoThrow(
+                    AppOpsManager.OPSTR_GET_USAGE_STATS,
+                    android.os.Process.myUid(),
+                    packageName
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                appOps.checkOpNoThrow(
+                    AppOpsManager.OPSTR_GET_USAGE_STATS,
+                    android.os.Process.myUid(),
+                    packageName
+                )
+            }
+            mode == AppOpsManager.MODE_ALLOWED
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking usage stats permission: ${e.message}")
+            false
+        }
+    }
+
+    private fun getScreenTimeData(): Map<String, Any> {
+        val trackedApps = mapOf(
+            "com.instagram.android" to "Instagram",
+            "com.reddit.frontpage" to "Reddit",
+            "com.twitter.android" to "Twitter/X"
+        )
+
+        val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val calendar = Calendar.getInstance()
+        val endTime = calendar.timeInMillis
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        val startTime = calendar.timeInMillis
+
+        val usageStatsList = usageStatsManager.queryUsageStats(
+            UsageStatsManager.INTERVAL_DAILY, startTime, endTime
+        )
+
+        val result = mutableMapOf<String, Any>()
+        for ((pkg, name) in trackedApps) {
+            var screenTimeMs = 0L
+            for (stats in usageStatsList) {
+                if (stats.packageName == pkg) {
+                    screenTimeMs = stats.totalTimeInForeground
+                    break
+                }
+            }
+            result[pkg] = mapOf(
+                "name" to name,
+                "screenTimeMs" to screenTimeMs
+            )
+        }
+        return result
+    }
+
+    // ── App open log helpers ───────────────────────────────────────
+
+    private fun getAppOpenLogs(): List<Map<String, String>> {
+        return try {
+            val db = AppDatabase.getDatabase(applicationContext)
+            val today = LocalDate.now().toString()
+            val logs = db.appOpenLogDao().getLogsForDate(today)
+            logs.map { log ->
+                mapOf(
+                    "appName" to log.appName,
+                    "packageName" to log.packageName,
+                    "timestamp" to log.timestamp
+                )
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting app open logs: ${e.message}")
+            emptyList()
+        }
+    }
+
+    private fun getAppOpenCount(packageName: String): Int {
+        return try {
+            val db = AppDatabase.getDatabase(applicationContext)
+            val today = LocalDate.now().toString()
+            db.appOpenLogDao().getOpenCountForDate(today, packageName)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting open count: ${e.message}")
+            0
+        }
+    }
+
+    private fun getAllAppOpenCounts(): Map<String, Int> {
+        return try {
+            val db = AppDatabase.getDatabase(applicationContext)
+            val today = LocalDate.now().toString()
+            val packages = listOf(
+                "com.instagram.android",
+                "com.reddit.frontpage",
+                "com.twitter.android"
+            )
+            packages.associateWith { pkg ->
+                db.appOpenLogDao().getOpenCountForDate(today, pkg)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting all open counts: ${e.message}")
+            emptyMap()
+        }
     }
 }
