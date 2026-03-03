@@ -196,13 +196,19 @@ class MainActivity : FlutterActivity() {
     private fun isOurAccessibilityServiceEnabled(): Boolean {
         return try {
             val expected = ComponentName(this, AppBlockingAccessibilityService::class.java)
-                .flattenToString()
             val enabledServices = Settings.Secure.getString(
                 contentResolver,
                 Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
             ) ?: return false
+
+            Log.d(TAG, "Expected component: ${expected.flattenToString()}")
+            Log.d(TAG, "Enabled services: $enabledServices")
+
             TextUtils.SimpleStringSplitter(':').apply { setString(enabledServices) }
-                .any { ComponentName.unflattenFromString(it)?.equals(expected) == true }
+                .any { componentString ->
+                    val component = ComponentName.unflattenFromString(componentString)
+                    component == expected
+                }
         } catch (e: Exception) {
             Log.e(TAG, "Error checking accessibility: ${e.message}")
             false
