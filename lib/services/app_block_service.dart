@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart';
 import 'dart:async';
 
 class AppBlockService {
@@ -7,22 +8,32 @@ class AppBlockService {
   static const String _lockDurationDaysKey = 'lock_duration_days';
   static const int _defaultLockDays = 30;
 
+  static const _channel = MethodChannel('com.example.focus_lock/app_block');
+
   /// Initialize lock with default 30-day duration
   Future<bool> initializeLock() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final now = DateTime.now();
-      
+
       await prefs.setString(
         _lockStartTimeKey,
-        now.toIso8601String(),
+        now.toUtc().toIso8601String(),
       );
-      
+
       await prefs.setInt(
         _lockDurationDaysKey,
         _defaultLockDays,
       );
-      
+
+      // Tell native side to start the blocking service
+      try {
+        final result = await _channel.invokeMethod('startBlocking');
+        print('Native startBlocking result: $result');
+      } catch (e) {
+        print('Error calling startBlocking: $e');
+      }
+
       return true;
     } catch (e) {
       print('Error initializing lock: $e');

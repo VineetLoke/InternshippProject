@@ -1,16 +1,18 @@
 package com.example.focus_lock
 
 import android.Manifest
+import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
+import android.text.TextUtils
+import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
-import android.util.Log
 
 class MainActivity : FlutterActivity() {
     companion object {
@@ -24,12 +26,13 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        // Flutter ↔ Native channel: accessibility helpers
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "isAccessibilityEnabled" -> {
-                        result.success(isAccessibilityServiceEnabled())
+                        val enabled = isOurAccessibilityServiceEnabled()
+                        Log.d(TAG, "isAccessibilityEnabled → $enabled")
+                        result.success(enabled)
                     }
                     "openAccessibilitySettings" -> {
                         try {
@@ -37,6 +40,33 @@ class MainActivity : FlutterActivity() {
                             result.success(null)
                         } catch (e: Exception) {
                             result.error("OPEN_SETTINGS_FAILED", e.message, null)
+                        }
+                    }
+                    "startBlocking" -> {
+                        Log.d(TAG, "startBlocking called from Flutter")
+                        startMonitoringService()
+                        result.success(isOurAccessibilityServiceEnabled())
+                    }
+                    "isServiceRunning" -> {
+                        result.success(AppBlockingAccessibilityService.isRunning)
+                    }
+                    "hasOverlayPermission" -> {
+                        val has = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+                            Settings.canDrawOverlays(this) else true
+                        result.success(has)
+                    }
+                    "openOverlaySettings" -> {
+                        try {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                val intent = Intent(
+                                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                    android.net.Uri.parse("package:$packageName")
+                                )
+                                startActivity(intent)
+                            }
+                            result.success(null)
+                        } catch (e: Exception) {
+                            result.error("OPEN_OVERLAY_FAILED", e.message, null)
                         }
                     }
                     else -> result.notImplemented()
@@ -87,20 +117,36 @@ class MainActivity : FlutterActivity() {
         try {
             val intent = Intent(this, AppBlockingService::class.java)
             startService(intent)
-            Log.d(TAG, "Monitoring service started")
+            Log.d(TAG, "✅ Monitoring service started")
         } catch (e: Exception) {
             Log.e(TAG, "Could not start monitoring service: ${e.message}")
         }
     }
 
-    private fun isAccessibilityServiceEnabled(): Boolean {
+    /**
+     * Check whether *our* accessibility service is enabled (not just any).
+     * Reads Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES and looks for our
+     * component name in the colon-separated list.
+     */
+    private fun isOurAccessibilityServiceEnabled(): Boolean {
         return try {
-            Settings.Secure.getInt(
+            val expected = ComponentName(this, AppBlockingAccessibilityService::class.java)
+                .flattenToString() // e.g. "com.example.focus_lock/.AppBlockingAccessibilityService"
+
+            val enabledServices = Settings.Secure.getString(
                 contentResolver,
-                Settings.Secure.ACCESSIBILITY_ENABLED,
-                0
-            ) == 1
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+            ) ?: return false
+
+            Log.d(TAG, "Enabled accessibility services: $enabledServices")
+
+            TextUtils.SimpleStringSplitter(':').apply { setString(enabledServices) }
+                .any { componentStr ->
+                    ComponentName.unflattenFromString(componentStr)
+                        ?.equals(expected) == true
+                }
         } catch (e: Exception) {
+            Log.e(TAG, "Error checking accessibility: ${e.message}")
             false
         }
     }

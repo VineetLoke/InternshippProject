@@ -1,15 +1,18 @@
 package com.example.focus_lock
 
 import android.app.Service
+import android.content.Context
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.PixelFormat
+import android.os.Build
 import android.os.IBinder
 import android.util.Log
-import android.view.LayoutInflater
+import android.view.Gravity
 import android.view.WindowManager
+import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.content.Context
-import android.os.Build
 
 class LockScreenOverlayService : Service() {
     companion object {
@@ -20,56 +23,93 @@ class LockScreenOverlayService : Service() {
     private var overlayView: LinearLayout? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d(TAG, "LockScreenOverlayService started")
+        Log.d(TAG, "LockScreenOverlayService onStartCommand")
         showOverlay()
         return START_STICKY
     }
 
     private fun showOverlay() {
+        // Don't add a second overlay if one is already showing
+        if (overlayView != null) {
+            Log.d(TAG, "Overlay already visible — skipping")
+            return
+        }
+
         try {
-            // Guard: if SYSTEM_ALERT_WINDOW not granted the addView() call
-            // throws WindowManager$BadTokenException and crashes the process.
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
                 !android.provider.Settings.canDrawOverlays(this)
             ) {
-                Log.w(TAG, "Overlay permission not granted — skipping overlay")
+                Log.w(TAG, "⚠️ Overlay permission not granted — skipping overlay")
                 stopSelf()
                 return
             }
 
             windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
-            // Create overlay view
             overlayView = LinearLayout(this).apply {
-                setBackgroundColor(android.graphics.Color.RED)
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.MATCH_PARENT
-                )
+                setBackgroundColor(Color.parseColor("#DD000000")) // dark scrim
                 orientation = LinearLayout.VERTICAL
-                gravity = android.view.Gravity.CENTER
+                gravity = Gravity.CENTER
+                // Consume all clicks so they don't pass through
+                isClickable = true
+                isFocusable = true
 
-                // Add lock message
-                val textView = TextView(this@LockScreenOverlayService).apply {
-                    text = "Instagram is Locked\n\nFor your focus period"
-                    textSize = 24f
-                    setTextColor(android.graphics.Color.WHITE)
-                    gravity = android.view.Gravity.CENTER
+                val icon = TextView(this@LockScreenOverlayService).apply {
+                    text = "🔒"
+                    textSize = 64f
+                    gravity = Gravity.CENTER
                 }
-                addView(textView)
+                addView(icon)
+
+                val title = TextView(this@LockScreenOverlayService).apply {
+                    text = "Instagram is Locked"
+                    textSize = 28f
+                    setTextColor(Color.WHITE)
+                    gravity = Gravity.CENTER
+                    setPadding(0, 32, 0, 16)
+                }
+                addView(title)
+
+                val subtitle = TextView(this@LockScreenOverlayService).apply {
+                    text = "Stay focused! This app is blocked\nduring your focus period."
+                    textSize = 16f
+                    setTextColor(Color.parseColor("#CCCCCC"))
+                    gravity = Gravity.CENTER
+                    setPadding(0, 0, 0, 48)
+                }
+                addView(subtitle)
+
+                val goHomeBtn = Button(this@LockScreenOverlayService).apply {
+                    text = "Go Home"
+                    textSize = 18f
+                    setOnClickListener {
+                        Log.d(TAG, "User tapped Go Home — removing overlay")
+                        hideOverlay()
+                        // Launch home screen
+                        val home = Intent(Intent.ACTION_MAIN).apply {
+                            addCategory(Intent.CATEGORY_HOME)
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        }
+                        startActivity(home)
+                        stopSelf()
+                    }
+                }
+                addView(goHomeBtn)
             }
 
-            // Add to window
+            val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            } else {
+                @Suppress("DEPRECATION")
+                WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
+            }
+
             val params = WindowManager.LayoutParams().apply {
-                type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                } else {
-                    @Suppress("DEPRECATION")
-                    WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
-                }
-                format = android.graphics.PixelFormat.TRANSLUCENT
-                flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                        WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                type = layoutType
+                format = PixelFormat.TRANSLUCENT
+                // FLAG_NOT_FOCUSABLE removed so the overlay captures all touch/key events
+                // FLAG_NOT_TOUCHABLE removed so touches do NOT pass through
+                flags = WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                         WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
                 width = WindowManager.LayoutParams.MATCH_PARENT
                 height = WindowManager.LayoutParams.MATCH_PARENT
@@ -78,9 +118,9 @@ class LockScreenOverlayService : Service() {
             }
 
             windowManager?.addView(overlayView, params)
-            Log.d(TAG, "Overlay displayed successfully")
+            Log.d(TAG, "✅ Overlay displayed — Instagram is visually blocked")
         } catch (e: Exception) {
-            Log.e(TAG, "Error showing overlay: ${e.message}")
+            Log.e(TAG, "Error showing overlay: ${e.message}", e)
         }
     }
 
@@ -92,7 +132,7 @@ class LockScreenOverlayService : Service() {
                 Log.d(TAG, "Overlay removed")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error hiding overlay: ${e.message}")
+            Log.e(TAG, "Error hiding overlay: ${e.message}", e)
         }
     }
 

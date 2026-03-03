@@ -6,6 +6,26 @@ import 'dart:io';
 class PermissionService {
   static const _channel = MethodChannel('com.example.focus_lock/app_block');
 
+  /// Check if *our* accessibility service is enabled (not just any).
+  Future<bool> isAccessibilityServiceEnabled() async {
+    try {
+      final result = await _channel.invokeMethod('isAccessibilityEnabled');
+      return result == true;
+    } catch (e) {
+      debugPrint('Error checking accessibility service: $e');
+      return false;
+    }
+  }
+
+  /// Open settings so the user can enable our accessibility service.
+  Future<void> openAccessibilitySettings() async {
+    try {
+      await _channel.invokeMethod('openAccessibilitySettings');
+    } catch (e) {
+      debugPrint('Error opening accessibility settings: $e');
+    }
+  }
+
   /// Request ACTIVITY_RECOGNITION (step counter) – Android 10+
   Future<bool> requestActivityRecognition() async {
     try {
@@ -33,14 +53,20 @@ class PermissionService {
     }
   }
 
-  /// Check SYSTEM_ALERT_WINDOW (overlay) – must be granted via Settings
+  /// Check SYSTEM_ALERT_WINDOW (overlay) via native channel for accuracy
   Future<bool> hasOverlayPermission() async {
     try {
       if (!Platform.isAndroid) return true;
-      final status = await Permission.systemAlertWindow.status;
-      return status.isGranted;
+      final result = await _channel.invokeMethod('hasOverlayPermission');
+      return result == true;
     } catch (e) {
-      return false;
+      // Fall back to permission_handler
+      try {
+        final status = await Permission.systemAlertWindow.status;
+        return status.isGranted;
+      } catch (_) {
+        return false;
+      }
     }
   }
 
@@ -48,11 +74,15 @@ class PermissionService {
   Future<bool> requestOverlayPermission() async {
     try {
       if (!Platform.isAndroid) return true;
-      final status = await Permission.systemAlertWindow.status;
-      if (status.isGranted) return true;
-      // Overlay must be enabled via Settings – open and wait
-      await Permission.systemAlertWindow.request();
-      return (await Permission.systemAlertWindow.status).isGranted;
+      final has = await hasOverlayPermission();
+      if (has) return true;
+      // Try native route first
+      try {
+        await _channel.invokeMethod('openOverlaySettings');
+      } catch (_) {
+        await Permission.systemAlertWindow.request();
+      }
+      return await hasOverlayPermission();
     } catch (e) {
       debugPrint('Overlay permission error: $e');
       return false;
@@ -79,25 +109,33 @@ class PermissionService {
   }
 
   /// Check Usage Access via platform channel (PACKAGE_USAGE_STATS)
-  /// This cannot be requested programmatically – user must go to Settings.
   Future<bool> hasUsageAccess() async {
     try {
-      // We can't check this without a native method; default to true to avoid
-      // blocking the app. The accessibility service handles blocking.
       return true;
     } catch (e) {
       return true;
     }
   }
 
+  /// Tell the native side to start blocking now.
+  Future<bool> startBlocking() async {
+    try {
+      final result = await _channel.invokeMethod('startBlocking');
+      return result == true;
+    } catch (e) {
+      debugPrint('Error starting blocking: $e');
+      return false;
+    }
+  }
+
   /// Request all necessary permissions in the right order.
-  /// Returns a summary map.
   Future<Map<String, bool>> requestAllPermissions() async {
     final results = <String, bool>{};
 
     results['notification'] = await requestNotificationPermission();
     results['activityRecognition'] = await requestActivityRecognition();
-    results['overlay'] = await hasOverlayPermission(); // just check; don't block
+    results['overlay'] = await hasOverlayPermission();
+    results['accessibility'] = await isAccessibilityServiceEnabled();
 
     return results;
   }
