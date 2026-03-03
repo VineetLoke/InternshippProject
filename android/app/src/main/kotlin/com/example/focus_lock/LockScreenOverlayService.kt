@@ -23,13 +23,13 @@ class LockScreenOverlayService : Service() {
     private var overlayView: LinearLayout? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d(TAG, "LockScreenOverlayService onStartCommand")
-        showOverlay()
+        val source = intent?.getStringExtra("source") ?: "instagram"
+        Log.d(TAG, "LockScreenOverlayService onStartCommand (source=$source)")
+        showOverlay(source)
         return START_STICKY
     }
 
-    private fun showOverlay() {
-        // Don't add a second overlay if one is already showing
+    private fun showOverlay(source: String) {
         if (overlayView != null) {
             Log.d(TAG, "Overlay already visible — skipping")
             return
@@ -46,23 +46,31 @@ class LockScreenOverlayService : Service() {
 
             windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
+            val isReddit = source == "reddit"
+            val bgColor = if (isReddit) "#DD1A1A2E" else "#DD000000"
+            val emoji = if (isReddit) "⏰" else "🔒"
+            val titleText = if (isReddit) "Reddit Time's Up!" else "Instagram is Locked"
+            val subtitleText = if (isReddit)
+                "You've used your 1 hour of Reddit today.\nDo 100 pushups in FocusLock to earn\n10 more minutes!"
+            else
+                "Stay focused! This app is blocked\nduring your focus period."
+
             overlayView = LinearLayout(this).apply {
-                setBackgroundColor(Color.parseColor("#DD000000")) // dark scrim
+                setBackgroundColor(Color.parseColor(bgColor))
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
-                // Consume all clicks so they don't pass through
                 isClickable = true
                 isFocusable = true
 
                 val icon = TextView(this@LockScreenOverlayService).apply {
-                    text = "🔒"
+                    text = emoji
                     textSize = 64f
                     gravity = Gravity.CENTER
                 }
                 addView(icon)
 
                 val title = TextView(this@LockScreenOverlayService).apply {
-                    text = "Instagram is Locked"
+                    text = titleText
                     textSize = 28f
                     setTextColor(Color.WHITE)
                     gravity = Gravity.CENTER
@@ -71,7 +79,7 @@ class LockScreenOverlayService : Service() {
                 addView(title)
 
                 val subtitle = TextView(this@LockScreenOverlayService).apply {
-                    text = "Stay focused! This app is blocked\nduring your focus period."
+                    text = subtitleText
                     textSize = 16f
                     setTextColor(Color.parseColor("#CCCCCC"))
                     gravity = Gravity.CENTER
@@ -79,13 +87,40 @@ class LockScreenOverlayService : Service() {
                 }
                 addView(subtitle)
 
+                if (isReddit) {
+                    // Button to open FocusLock's pushup challenge
+                    val pushupBtn = Button(this@LockScreenOverlayService).apply {
+                        text = "💪 Do 100 Pushups"
+                        textSize = 18f
+                        setOnClickListener {
+                            Log.d(TAG, "User tapped Do Pushups — opening app")
+                            hideOverlay()
+                            val launchIntent = packageManager.getLaunchIntentForPackage(
+                                applicationContext.packageName
+                            )?.apply {
+                                putExtra("navigate_to", "pushup_challenge")
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                                        Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            }
+                            if (launchIntent != null) startActivity(launchIntent)
+                            stopSelf()
+                        }
+                    }
+                    addView(pushupBtn)
+
+                    // Add some spacing
+                    val spacer = TextView(this@LockScreenOverlayService).apply {
+                        textSize = 8f
+                    }
+                    addView(spacer)
+                }
+
                 val goHomeBtn = Button(this@LockScreenOverlayService).apply {
                     text = "Go Home"
                     textSize = 18f
                     setOnClickListener {
                         Log.d(TAG, "User tapped Go Home — removing overlay")
                         hideOverlay()
-                        // Launch home screen
                         val home = Intent(Intent.ACTION_MAIN).apply {
                             addCategory(Intent.CATEGORY_HOME)
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK
@@ -107,8 +142,6 @@ class LockScreenOverlayService : Service() {
             val params = WindowManager.LayoutParams().apply {
                 type = layoutType
                 format = PixelFormat.TRANSLUCENT
-                // FLAG_NOT_FOCUSABLE removed so the overlay captures all touch/key events
-                // FLAG_NOT_TOUCHABLE removed so touches do NOT pass through
                 flags = WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                         WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
                 width = WindowManager.LayoutParams.MATCH_PARENT
@@ -118,7 +151,7 @@ class LockScreenOverlayService : Service() {
             }
 
             windowManager?.addView(overlayView, params)
-            Log.d(TAG, "✅ Overlay displayed — Instagram is visually blocked")
+            Log.d(TAG, "✅ Overlay displayed ($source)")
         } catch (e: Exception) {
             Log.e(TAG, "Error showing overlay: ${e.message}", e)
         }

@@ -13,9 +13,10 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- Android 11+: enumerate Instagram package for PackageManager queries -->
+    <!-- Android 11+: enumerate app packages for PackageManager queries -->
     <queries>
         <package android:name="com.instagram.android" />
+        <package android:name="com.reddit.frontpage" />
     </queries>
 
     <application

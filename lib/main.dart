@@ -7,6 +7,7 @@ import 'screens/setup_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/lock_screen.dart';
 import 'screens/emergency_unlock_screen.dart';
+import 'screens/pushup_challenge_screen.dart';
 import 'providers/lock_state_provider.dart';
 
 void main() async {
@@ -51,6 +52,7 @@ class FocusLockApp extends StatelessWidget {
           '/home': (context) => const HomeScreen(),
           '/lock': (context) => const LockScreen(),
           '/emergency': (context) => const EmergencyUnlockScreen(),
+          '/pushup_challenge': (context) => const PushupChallengeScreen(),
         },
       ),
     );

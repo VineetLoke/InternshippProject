@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/lock_state_provider.dart';
+import '../services/reddit_usage_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -10,14 +11,23 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final _redditService = RedditUsageService();
+  Map<String, dynamic> _redditStatus = {};
+
   @override
   void initState() {
     super.initState();
-    _refreshLockStatus();
+    _refreshAll();
   }
 
-  Future<void> _refreshLockStatus() async {
+  Future<void> _refreshAll() async {
     await context.read<LockStateProvider>().updateLockStatus();
+    await _refreshRedditStatus();
+  }
+
+  Future<void> _refreshRedditStatus() async {
+    final status = await _redditService.getUsageStatus();
+    if (mounted) setState(() => _redditStatus = status);
   }
 
   @override
@@ -29,12 +39,12 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _refreshLockStatus,
+            onPressed: _refreshAll,
           ),
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _refreshLockStatus,
+        onRefresh: _refreshAll,
         child: Consumer<LockStateProvider>(
           builder: (context, lockProvider, _) {
             return SingleChildScrollView(
@@ -61,6 +71,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
 
                   // Info Section
+                  _buildRedditUsageCard(),
+                  const SizedBox(height: 20),
                   _buildInfoCard(),
                 ],
               ),
@@ -253,6 +265,109 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildRedditUsageCard() {
+    final usedSec = (_redditStatus['usedSeconds'] ?? 0) as int;
+    final limitSec = (_redditStatus['limitSeconds'] ?? 3600) as int;
+    final remainSec = (_redditStatus['remainingSeconds'] ?? 3600) as int;
+    final isLimitReached = (_redditStatus['isLimitReached'] ?? false) as bool;
+    final extraMin = (_redditStatus['extraMinutesEarned'] ?? 0) as int;
+    final progress = limitSec > 0 ? (usedSec / limitSec).clamp(0.0, 1.0) : 0.0;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isLimitReached ? Colors.deepOrange.shade50 : Colors.indigo.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isLimitReached ? Colors.deepOrange.shade200 : Colors.indigo.shade200,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isLimitReached ? Icons.block : Icons.timer,
+                color: isLimitReached
+                    ? Colors.deepOrange.shade700
+                    : Colors.indigo.shade700,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Reddit Daily Limit',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: isLimitReached
+                      ? Colors.deepOrange.shade700
+                      : Colors.indigo.shade700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 10,
+              backgroundColor: Colors.grey.shade200,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isLimitReached ? Colors.deepOrange : Colors.indigo.shade400,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Used: ${RedditUsageService.formatDuration(usedSec)}',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+              ),
+              Text(
+                'Remaining: ${RedditUsageService.formatDuration(remainSec)}',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: isLimitReached ? Colors.deepOrange : Colors.grey.shade700,
+                ),
+              ),
+            ],
+          ),
+          if (extraMin > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '💪 +${extraMin}min earned from pushups today',
+                style: TextStyle(fontSize: 12, color: Colors.green.shade700),
+              ),
+            ),
+          if (isLimitReached) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.fitness_center, size: 20),
+                label: const Text('Do 100 Pushups for +10min'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepOrange.shade700,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+                onPressed: () async {
+                  await Navigator.of(context).pushNamed('/pushup_challenge');
+                  _refreshRedditStatus(); // refresh after returning
+                },
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildInfoCard() {
     return Container(
       padding: const EdgeInsets.all(15),
@@ -272,6 +387,8 @@ class _HomeScreenState extends State<HomeScreen> {
           const Text(
             '• Instagram is automatically blocked when launched\n'
             '• Lock expires after 30 days\n'
+            '• Reddit has a 1-hour daily limit\n'
+            '• Do 100 pushups to earn 10 extra minutes\n'
             '• Your password is securely encrypted\n'
             '• Emergency unlock requires physical effort',
             style: TextStyle(fontSize: 12),
