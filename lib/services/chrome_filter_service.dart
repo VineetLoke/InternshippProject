@@ -25,7 +25,23 @@ class ChromeFilterService {
 
   /// List of blocked keywords (read-only, matches native side).
   static const List<String> blockedKeywords = [
-    'porn', 'fucked', 'bang', 'onlyfans', 'fansly',
-    'sex', 'nsfw', 'xxx', 'hentai',
+    // Core explicit terms
+    'porn', 'pornhub', 'pornography', 'pornographic',
+    'xxx', 'xvideos', 'xnxx', 'redtube', 'youporn', 'tube8',
+    'hentai', 'nsfw', 'adultvideo', 'adultvideos', 'adultcontent',
+    'sexvideo', 'sexvideos', 'pornvideo', 'pornvideos',
+    // Platform related
+    'onlyfans', 'fansly', 'chaturbate', 'camgirl', 'camgirls',
+    'camshow', 'webcamgirls', 'camsite', 'adultcams', 'livecams',
+    // Explicit action terms
+    'sex', 'sexual', 'sexy', 'fuck', 'fucking', 'fucked',
+    'blowjob', 'handjob', 'anal', 'milf', 'threesome',
+    'orgy', 'deepthroat', 'cumshot', 'creampie', 'hardcore', 'softcore',
+    // Adult industry terms
+    'escort', 'escorts', 'escortservice', 'adultdating',
+    'hookup', 'adultchat', 'sexchat', 'dirtychat', 'adultstream',
+    // Fetish / category terms
+    'bdsm', 'fetish', 'kink', 'kinky', 'dominatrix', 'submissive',
+    'latex', 'leatherfetish', 'roleplaysex', 'erotic', 'rule34',
   ];
 }

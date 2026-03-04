@@ -44,11 +44,20 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
   }
 
   Future<void> _loadRedditStatus() async {
-    final remaining = await _redditService.getRemainingSeconds();
-    if (mounted) {
-      setState(() {
-        _redditRemaining = RedditUsageService.formatDuration(remaining);
-      });
+    final tempUnlock = await _redditService.getTempUnlockRemainingSeconds();
+    if (tempUnlock > 0) {
+      if (mounted) {
+        setState(() {
+          _redditRemaining =
+              'Unlock active: ${RedditUsageService.formatDuration(tempUnlock)}';
+        });
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _redditRemaining = 'Reddit is locked';
+        });
+      }
     }
   }
 
@@ -102,8 +111,8 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
         builder: (_) => AlertDialog(
           title: const Text('🎉 Challenge Complete!'),
           content: const Text(
-            'You earned 10 extra minutes of Reddit!\n\n'
-            'Great workout — keep it up!',
+            'Reddit unlocked for 10 minutes.\n\n'
+            'Discipline is forged in resistance.',
           ),
           actions: [
             TextButton(
@@ -111,7 +120,7 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
                 Navigator.of(context).pop(); // close dialog
                 Navigator.of(context).pop(); // back to home
               },
-              child: const Text('Done'),
+              child: const Text('Open Reddit'),
             ),
           ],
         ),
@@ -165,7 +174,7 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  'Reddit time remaining: $_redditRemaining',
+                  _redditRemaining,
                   style: TextStyle(
                       color: Colors.orange.shade200, fontSize: 14),
                 ),

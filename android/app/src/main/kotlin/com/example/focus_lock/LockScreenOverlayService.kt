@@ -48,10 +48,10 @@ class LockScreenOverlayService : Service() {
 
             val isReddit = source == "reddit"
             val bgColor = if (isReddit) "#DD1A1A2E" else "#DD000000"
-            val emoji = if (isReddit) "⏰" else "🔒"
-            val titleText = if (isReddit) "Reddit Time's Up!" else "Instagram is Locked"
+            val emoji = if (isReddit) "🔒" else "🔒"
+            val titleText = if (isReddit) "Reddit is locked." else "Instagram is Locked"
             val subtitleText = if (isReddit)
-                "You've used your 1 hour of Reddit today.\nDo 100 pushups in FocusLock to earn\n10 more minutes!"
+                "Complete 100 pushups to earn\n10 minutes of access."
             else
                 "Stay focused! This app is blocked\nduring your focus period."
 
@@ -90,10 +90,12 @@ class LockScreenOverlayService : Service() {
                 if (isReddit) {
                     // Button to open FocusLock's pushup challenge
                     val pushupBtn = Button(this@LockScreenOverlayService).apply {
-                        text = "💪 Do 100 Pushups"
+                        text = "💪 Earn 10 minutes access"
                         textSize = 18f
                         setOnClickListener {
-                            Log.d(TAG, "User tapped Do Pushups — opening app")
+                            Log.d(TAG, "User tapped Earn Access — notifying accessibility service, opening app")
+                            // Notify the accessibility service that challenge has started
+                            AppBlockingAccessibilityService.instance?.onRedditChallengeStarted()
                             hideOverlay()
                             val launchIntent = packageManager.getLaunchIntentForPackage(
                                 applicationContext.packageName
@@ -143,7 +145,8 @@ class LockScreenOverlayService : Service() {
                 type = layoutType
                 format = PixelFormat.TRANSLUCENT
                 flags = WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                        WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                        WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                 width = WindowManager.LayoutParams.MATCH_PARENT
                 height = WindowManager.LayoutParams.MATCH_PARENT
                 x = 0
@@ -160,9 +163,9 @@ class LockScreenOverlayService : Service() {
     private fun hideOverlay() {
         try {
             if (overlayView != null && windowManager != null) {
-                windowManager?.removeView(overlayView)
+                windowManager?.removeViewImmediate(overlayView)
                 overlayView = null
-                Log.d(TAG, "Overlay removed")
+                Log.d(TAG, "Overlay removed (immediate)")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error hiding overlay: ${e.message}", e)

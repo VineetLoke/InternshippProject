@@ -163,6 +163,16 @@ class MainActivity : FlutterActivity() {
                         ))
                     }
 
+                    // ── Discipline state machine ──────────────────
+                    "getDisciplineState" -> {
+                        result.success(AppBlockingAccessibilityService.currentState.name)
+                    }
+                    "getRedditTempUnlockRemaining" -> {
+                        val remainingMs = AppBlockingAccessibilityService.instance
+                            ?.getRedditTempUnlockRemainingMs() ?: 0L
+                        result.success(remainingMs / 1000)
+                    }
+
                     else -> result.notImplemented()
                 }
             }
@@ -332,11 +342,19 @@ class MainActivity : FlutterActivity() {
             Log.d(TAG, "Cannot redeem — only $count/$PUSHUPS_REQUIRED pushups")
             return false
         }
-        resetIfNewDay()
-        val currentExtra = prefs.getLong(REDDIT_EXTRA_MS_KEY, 0L)
-        prefs.edit().putLong(REDDIT_EXTRA_MS_KEY, currentExtra + PUSHUP_REWARD_MS).apply()
         pushupDetector?.reset()
-        Log.d(TAG, "Redeemed $PUSHUPS_REQUIRED pushups → +10 min Reddit time")
+
+        // Trigger the accessibility service state machine for 10-min temp unlock
+        val svc = AppBlockingAccessibilityService.instance
+        if (svc != null) {
+            svc.onRedditChallengeCompleted()
+            Log.d(TAG, "Redeemed $PUSHUPS_REQUIRED pushups → Reddit temp unlock for 10 min")
+        } else {
+            Log.w(TAG, "Accessibility service not running — granting extra time via prefs")
+            resetIfNewDay()
+            val currentExtra = prefs.getLong(REDDIT_EXTRA_MS_KEY, 0L)
+            prefs.edit().putLong(REDDIT_EXTRA_MS_KEY, currentExtra + PUSHUP_REWARD_MS).apply()
+        }
         return true
     }
 

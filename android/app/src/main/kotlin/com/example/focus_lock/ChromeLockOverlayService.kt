@@ -122,7 +122,8 @@ class ChromeLockOverlayService : Service() {
                 type = layoutType
                 format = PixelFormat.TRANSLUCENT
                 flags = WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                        WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                        WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                 width = WindowManager.LayoutParams.MATCH_PARENT
                 height = WindowManager.LayoutParams.MATCH_PARENT
             }
@@ -137,7 +138,7 @@ class ChromeLockOverlayService : Service() {
     private fun hideOverlay() {
         try {
             if (overlayView != null && windowManager != null) {
-                windowManager?.removeView(overlayView)
+                windowManager?.removeViewImmediate(overlayView)
                 overlayView = null
             }
         } catch (e: Exception) {

@@ -90,7 +90,7 @@ class DisciplineWarningOverlayService : Service() {
 
                 // Subtitle
                 val subtitleView = TextView(this@DisciplineWarningOverlayService).apply {
-                    text = "Focus is forged in resistance."
+                    text = "Discipline is forged in resistance."
                     textSize = 14f
                     setTextColor(Color.parseColor("#88FFFFFF"))
                     gravity = Gravity.CENTER
@@ -141,7 +141,7 @@ class DisciplineWarningOverlayService : Service() {
     private fun hideOverlay() {
         try {
             if (overlayView != null && windowManager != null) {
-                windowManager?.removeView(overlayView)
+                windowManager?.removeViewImmediate(overlayView)
                 overlayView = null
             }
         } catch (e: Exception) {
