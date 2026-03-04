@@ -120,6 +120,9 @@ class AppBlockingAccessibilityService : AccessibilityService() {
 
         // State machine — shared so Flutter can read it
         @Volatile var currentState: DisciplineState = DisciplineState.IDLE
+
+        // Singleton reference for inter-service communication
+        @Volatile var instance: AppBlockingAccessibilityService? = null
     }
 
     private lateinit var prefs: SharedPreferences
