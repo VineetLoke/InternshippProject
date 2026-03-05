@@ -1,30 +1,65 @@
 package com.example.focus_lock
 
+import android.accessibilityservice.AccessibilityService
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.PixelFormat
+import android.graphics.Typeface
+import android.graphics.drawable.ClipDrawable
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.util.Log
+import android.util.TypedValue
 import android.view.Gravity
+import android.view.View
 import android.view.WindowManager
-import android.widget.Button
+import android.view.animation.AlphaAnimation
+import android.view.animation.DecelerateInterpolator
+import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.TextView
 
+/**
+ * Psychologically designed blocking overlay (PART 6 & 7).
+ *
+ * Design intent: create a pause-and-reflection moment, not punishment.
+ * - Dark minimal design, calm but authoritative tone
+ * - Centered typography with breathing space
+ * - Slow fade transitions (800ms)
+ * - 3-second delay before interaction buttons appear
+ * - Progress bar during initial display
+ * - Subtle animations to calm the user
+ */
 class LockScreenOverlayService : Service() {
     companion object {
         const val TAG = "LockScreenOverlay"
+        private const val BG_COLOR = "#F20A0A0F"          // near-black with slight blue
+        private const val TEXT_PRIMARY = "#E8E8EC"          // soft white
+        private const val TEXT_SECONDARY = "#7A7A8C"        // muted grey
+        private const val TEXT_QUOTE = "#C0C0CC"            // slightly brighter for quote
+        private const val ACCENT_COLOR = "#3A3A52"          // dark muted accent
+        private const val BUTTON_BG = "#1A1A2E"            // dark button background
+        private const val BUTTON_TEXT = "#CCCCDD"           // soft button text
+        private const val PROGRESS_COLOR = "#2E2E48"        // subtle progress bar
+        private const val PROGRESS_BG = "#12121A"           // progress background
+        private const val FADE_DURATION_MS = 800L           // slow fade-in (PART 6)
+        private const val BUTTON_DELAY_MS = 3000L           // 3s delay before buttons (PART 7)
     }
 
     private var windowManager: WindowManager? = null
-    private var overlayView: LinearLayout? = null
+    private var overlayView: FrameLayout? = null
+    private val handler = Handler(Looper.getMainLooper())
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val source = intent?.getStringExtra("source") ?: "instagram"
-        Log.d(TAG, "LockScreenOverlayService onStartCommand (source=$source)")
+        Log.d(TAG, "LockScreenOverlayService started (source=$source)")
         showOverlay(source)
         return START_STICKY
     }
@@ -39,108 +74,185 @@ class LockScreenOverlayService : Service() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
                 !android.provider.Settings.canDrawOverlays(this)
             ) {
-                Log.w(TAG, "⚠️ Overlay permission not granted — skipping overlay")
+                Log.w(TAG, "Overlay permission not granted — skipping")
                 stopSelf()
                 return
             }
 
             windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-
             val isReddit = source == "reddit"
-            val bgColor = if (isReddit) "#DD1A1A2E" else "#DD000000"
-            val emoji = if (isReddit) "🔒" else "🔒"
-            val titleText = if (isReddit) "Reddit is locked." else "Instagram is Locked"
-            val subtitleText = if (isReddit)
-                "Complete 100 pushups to earn\n10 minutes of access."
-            else
-                "Stay focused! This app is blocked\nduring your focus period."
 
-            overlayView = LinearLayout(this).apply {
-                setBackgroundColor(Color.parseColor(bgColor))
-                orientation = LinearLayout.VERTICAL
-                gravity = Gravity.CENTER
+            // ── Root container ───────────────────────────────────────
+            overlayView = FrameLayout(this).apply {
+                setBackgroundColor(Color.parseColor(BG_COLOR))
                 isClickable = true
                 isFocusable = true
-
-                val icon = TextView(this@LockScreenOverlayService).apply {
-                    text = emoji
-                    textSize = 64f
-                    gravity = Gravity.CENTER
-                }
-                addView(icon)
-
-                val title = TextView(this@LockScreenOverlayService).apply {
-                    text = titleText
-                    textSize = 28f
-                    setTextColor(Color.WHITE)
-                    gravity = Gravity.CENTER
-                    setPadding(0, 32, 0, 16)
-                }
-                addView(title)
-
-                val subtitle = TextView(this@LockScreenOverlayService).apply {
-                    text = subtitleText
-                    textSize = 16f
-                    setTextColor(Color.parseColor("#CCCCCC"))
-                    gravity = Gravity.CENTER
-                    setPadding(0, 0, 0, 48)
-                }
-                addView(subtitle)
-
-                if (isReddit) {
-                    // Button to open FocusLock's pushup challenge
-                    val pushupBtn = Button(this@LockScreenOverlayService).apply {
-                        text = "💪 Earn 10 minutes access"
-                        textSize = 18f
-                        setOnClickListener {
-                            Log.d(TAG, "User tapped Earn Access — notifying accessibility service, opening app")
-                            // Notify the accessibility service that challenge has started
-                            AppBlockingAccessibilityService.instance?.onRedditChallengeStarted()
-                            hideOverlay()
-                            val launchIntent = packageManager.getLaunchIntentForPackage(
-                                applicationContext.packageName
-                            )?.apply {
-                                putExtra("navigate_to", "pushup_challenge")
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                                        Intent.FLAG_ACTIVITY_CLEAR_TOP
-                            }
-                            if (launchIntent != null) startActivity(launchIntent)
-                            stopSelf()
-                        }
-                    }
-                    addView(pushupBtn)
-
-                    // Add some spacing
-                    val spacer = TextView(this@LockScreenOverlayService).apply {
-                        textSize = 8f
-                    }
-                    addView(spacer)
-                }
-
-                val goHomeBtn = Button(this@LockScreenOverlayService).apply {
-                    text = "Go Home"
-                    textSize = 18f
-                    setOnClickListener {
-                        Log.d(TAG, "User tapped Go Home — removing overlay")
-                        hideOverlay()
-                        val home = Intent(Intent.ACTION_MAIN).apply {
-                            addCategory(Intent.CATEGORY_HOME)
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                        }
-                        startActivity(home)
-                        stopSelf()
-                    }
-                }
-                addView(goHomeBtn)
             }
 
+            // ── Content layout ───────────────────────────────────────
+            val content = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                setPadding(dp(48), dp(80), dp(48), dp(48))
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+            }
+
+            // Top breathing space
+            content.addView(createSpacer(1f))
+
+            // Lock icon — subtle, not aggressive
+            val lockIcon = TextView(this).apply {
+                text = "\uD83D\uDD12"
+                textSize = 48f
+                gravity = Gravity.CENTER
+                setPadding(0, 0, 0, dp(24))
+            }
+            content.addView(lockIcon)
+
+            // Title — calm, authoritative
+            val titleText = when {
+                isReddit -> "Reddit Locked"
+                source == "twitter" -> "Twitter/X Locked"
+                else -> "Instagram Locked"
+            }
+            val title = TextView(this).apply {
+                text = titleText
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 28f)
+                setTextColor(Color.parseColor(TEXT_PRIMARY))
+                gravity = Gravity.CENTER
+                typeface = Typeface.create("sans-serif-light", Typeface.NORMAL)
+                letterSpacing = 0.06f
+                setPadding(0, 0, 0, dp(40))
+            }
+            content.addView(title)
+
+            // Divider — thin, subtle
+            val divider = View(this).apply {
+                setBackgroundColor(Color.parseColor("#15FFFFFF"))
+                layoutParams = LinearLayout.LayoutParams(dp(120), dp(1)).apply {
+                    gravity = Gravity.CENTER
+                    bottomMargin = dp(40)
+                }
+            }
+            content.addView(divider)
+
+            // Main quote (PART 6)
+            val quote = TextView(this).apply {
+                text = "\u201CKill the boy and let the man be born.\u201D"
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
+                setTextColor(Color.parseColor(TEXT_QUOTE))
+                gravity = Gravity.CENTER
+                typeface = Typeface.create("serif", Typeface.ITALIC)
+                letterSpacing = 0.02f
+                setLineSpacing(6f, 1.2f)
+                setPadding(0, 0, 0, dp(20))
+            }
+            content.addView(quote)
+
+            // Subtitle (PART 6)
+            val subtitle = TextView(this).apply {
+                text = "Discipline is forged in resistance."
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+                setTextColor(Color.parseColor(TEXT_SECONDARY))
+                gravity = Gravity.CENTER
+                typeface = Typeface.create("sans-serif-light", Typeface.NORMAL)
+                letterSpacing = 0.08f
+                setPadding(0, 0, 0, dp(48))
+            }
+            content.addView(subtitle)
+
+            // Progress bar — subtle visual timer (PART 7)
+            val progressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+                isIndeterminate = false
+                max = 100
+                progress = 0
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, dp(3)
+                ).apply {
+                    bottomMargin = dp(48)
+                    leftMargin = dp(32)
+                    rightMargin = dp(32)
+                }
+                val bgDrawable = GradientDrawable().apply {
+                    setColor(Color.parseColor(PROGRESS_BG))
+                    cornerRadius = 4f
+                }
+                val progressShape = GradientDrawable().apply {
+                    setColor(Color.parseColor(PROGRESS_COLOR))
+                    cornerRadius = 4f
+                }
+                val clip = ClipDrawable(progressShape, Gravity.START, ClipDrawable.HORIZONTAL)
+                progressDrawable = LayerDrawable(arrayOf(bgDrawable, clip)).apply {
+                    setId(0, android.R.id.background)
+                    setId(1, android.R.id.progress)
+                }
+            }
+            content.addView(progressBar)
+
+            // Animate progress bar over 3 seconds
+            animateProgress(progressBar)
+
+            // ── Buttons container (hidden for 3 seconds — PART 7) ────
+            val buttonContainer = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                visibility = View.INVISIBLE
+                alpha = 0f
+            }
+
+            if (isReddit) {
+                // "Earn access" button for Reddit (PART 4 & 7)
+                val earnBtn = createButton("Earn 10 minutes access") {
+                    Log.d(TAG, "User tapped Earn Access — starting pushup challenge")
+                    AppBlockingAccessibilityService.instance?.onRedditChallengeStarted()
+                    hideOverlay()
+                    val launchIntent = packageManager.getLaunchIntentForPackage(
+                        applicationContext.packageName
+                    )?.apply {
+                        putExtra("navigate_to", "pushup_challenge")
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    }
+                    if (launchIntent != null) startActivity(launchIntent)
+                    stopSelf()
+                }
+                buttonContainer.addView(earnBtn)
+
+                // Spacer between buttons
+                buttonContainer.addView(View(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, dp(12)
+                    )
+                })
+            }
+
+            // "Return to focus" button (PART 7)
+            val focusBtn = createButton("Return to focus") {
+                Log.d(TAG, "User tapped Return to focus")
+                hideOverlay()
+                // Navigate back (not to home screen)
+                val svc = AppBlockingAccessibilityService.instance
+                svc?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
+                stopSelf()
+            }
+            buttonContainer.addView(focusBtn)
+
+            content.addView(buttonContainer)
+
+            // Bottom breathing space
+            content.addView(createSpacer(1f))
+
+            overlayView?.addView(content)
+
+            // ── Window params ────────────────────────────────────────
             val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             } else {
                 @Suppress("DEPRECATION")
                 WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
             }
-
             val params = WindowManager.LayoutParams().apply {
                 type = layoutType
                 format = PixelFormat.TRANSLUCENT
@@ -149,19 +261,83 @@ class LockScreenOverlayService : Service() {
                         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                 width = WindowManager.LayoutParams.MATCH_PARENT
                 height = WindowManager.LayoutParams.MATCH_PARENT
-                x = 0
-                y = 0
             }
 
             windowManager?.addView(overlayView, params)
-            Log.d(TAG, "✅ Overlay displayed ($source)")
+
+            // ── Slow fade-in animation (PART 6) ─────────────────────
+            overlayView?.startAnimation(AlphaAnimation(0f, 1f).apply {
+                duration = FADE_DURATION_MS
+                interpolator = DecelerateInterpolator()
+                fillAfter = true
+            })
+
+            // ── Reveal buttons after 3-second delay (PART 7) ────────
+            handler.postDelayed({
+                buttonContainer.visibility = View.VISIBLE
+                buttonContainer.animate()
+                    .alpha(1f)
+                    .setDuration(600)
+                    .setInterpolator(DecelerateInterpolator())
+                    .start()
+            }, BUTTON_DELAY_MS)
+
+            Log.d(TAG, "Overlay displayed ($source) with psychological UI")
         } catch (e: Exception) {
             Log.e(TAG, "Error showing overlay: ${e.message}", e)
         }
     }
 
+    /** Animate the progress bar from 0 to 100 over 3 seconds. */
+    private fun animateProgress(progressBar: ProgressBar) {
+        val totalSteps = 100
+        val intervalMs = BUTTON_DELAY_MS / totalSteps
+        for (i in 1..totalSteps) {
+            handler.postDelayed({ progressBar.progress = i }, intervalMs * i)
+        }
+    }
+
+    /** Create a styled button with dark minimal design. */
+    private fun createButton(text: String, onClick: () -> Unit): TextView {
+        return TextView(this).apply {
+            this.text = text
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+            setTextColor(Color.parseColor(BUTTON_TEXT))
+            gravity = Gravity.CENTER
+            typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+            letterSpacing = 0.04f
+            setPadding(dp(24), dp(16), dp(24), dp(16))
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor(BUTTON_BG))
+                cornerRadius = dp(12).toFloat()
+                setStroke(1, Color.parseColor("#22FFFFFF"))
+            }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            setOnClickListener { onClick() }
+        }
+    }
+
+    private fun createSpacer(weight: Float): View {
+        return View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, weight
+            )
+        }
+    }
+
+    private fun dp(value: Int): Int {
+        return TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP, value.toFloat(), resources.displayMetrics
+        ).toInt()
+    }
+
+    /** Remove overlay using removeViewImmediate (PART 8). */
     private fun hideOverlay() {
         try {
+            handler.removeCallbacksAndMessages(null)
             if (overlayView != null && windowManager != null) {
                 windowManager?.removeViewImmediate(overlayView)
                 overlayView = null

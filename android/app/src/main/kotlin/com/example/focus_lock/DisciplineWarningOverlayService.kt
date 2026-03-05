@@ -6,29 +6,45 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.Typeface
+import android.graphics.drawable.ClipDrawable
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.util.Log
+import android.util.TypedValue
 import android.view.Gravity
+import android.view.View
 import android.view.WindowManager
 import android.view.animation.AlphaAnimation
+import android.view.animation.DecelerateInterpolator
+import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.TextView
 
 /**
- * Full-screen discipline warning overlay.
+ * Full-screen discipline warning overlay (PART 5 & 6).
  *
- * Shown for exactly 3 seconds when a blocked keyword is detected in Chrome.
- * Premium dark UI with a centered motivational quote.
+ * Shown for exactly 3 seconds when a blocked keyword is detected
+ * in Chrome incognito. Premium dark UI with centered motivational quote,
+ * progress bar countdown, and slow fade animations.
+ *
  * The AccessibilityService handles the 3-second timer and dismissal.
  */
 class DisciplineWarningOverlayService : Service() {
     companion object {
         const val TAG = "DisciplineWarning"
+        private const val BG_COLOR = "#F5050505"
+        private const val FADE_DURATION_MS = 800L
+        private const val COUNTDOWN_MS = 3000L
     }
 
     private var windowManager: WindowManager? = null
-    private var overlayView: LinearLayout? = null
+    private var overlayView: FrameLayout? = null
+    private val handler = Handler(Looper.getMainLooper())
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "DisciplineWarningOverlayService started")
@@ -50,77 +66,102 @@ class DisciplineWarningOverlayService : Service() {
 
             windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
-            overlayView = LinearLayout(this).apply {
-                setBackgroundColor(Color.parseColor("#F0050505"))
-                orientation = LinearLayout.VERTICAL
-                gravity = Gravity.CENTER
+            overlayView = FrameLayout(this).apply {
+                setBackgroundColor(Color.parseColor(BG_COLOR))
                 isClickable = true
                 isFocusable = true
-                setPadding(64, 0, 64, 0)
-
-                // Top spacer
-                val topSpacer = android.view.View(this@DisciplineWarningOverlayService)
-                topSpacer.layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
-                )
-                addView(topSpacer)
-
-                // Main quote
-                val quoteView = TextView(this@DisciplineWarningOverlayService).apply {
-                    text = "\u201CKill the boy and let the man be born.\u201D"
-                    textSize = 26f
-                    setTextColor(Color.WHITE)
-                    gravity = Gravity.CENTER
-                    typeface = Typeface.create("serif", Typeface.BOLD)
-                    setPadding(0, 0, 0, 40)
-                    letterSpacing = 0.02f
-                    setLineSpacing(8f, 1.1f)
-                }
-                addView(quoteView)
-
-                // Subtle divider line
-                val divider = android.view.View(this@DisciplineWarningOverlayService).apply {
-                    setBackgroundColor(Color.parseColor("#22FFFFFF"))
-                    layoutParams = LinearLayout.LayoutParams(160, 1).apply {
-                        gravity = Gravity.CENTER
-                        bottomMargin = 40
-                    }
-                }
-                addView(divider)
-
-                // Subtitle
-                val subtitleView = TextView(this@DisciplineWarningOverlayService).apply {
-                    text = "Discipline is forged in resistance."
-                    textSize = 14f
-                    setTextColor(Color.parseColor("#88FFFFFF"))
-                    gravity = Gravity.CENTER
-                    typeface = Typeface.create("sans-serif-light", Typeface.ITALIC)
-                    letterSpacing = 0.08f
-                }
-                addView(subtitleView)
-
-                // Bottom spacer
-                val bottomSpacer = android.view.View(this@DisciplineWarningOverlayService)
-                bottomSpacer.layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
-                )
-                addView(bottomSpacer)
-
-                // Fade-in animation
-                val fadeIn = AlphaAnimation(0f, 1f).apply {
-                    duration = 500
-                    fillAfter = true
-                }
-                startAnimation(fadeIn)
             }
 
+            val content = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                setPadding(dp(64), 0, dp(64), 0)
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+            }
+
+            // Top spacer
+            content.addView(createSpacer(1f))
+
+            // Main quote (PART 6)
+            val quoteView = TextView(this).apply {
+                text = "\u201CKill the boy and let the man be born.\u201D"
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f)
+                setTextColor(Color.WHITE)
+                gravity = Gravity.CENTER
+                typeface = Typeface.create("serif", Typeface.BOLD)
+                setPadding(0, 0, 0, dp(40))
+                letterSpacing = 0.02f
+                setLineSpacing(8f, 1.1f)
+            }
+            content.addView(quoteView)
+
+            // Subtle divider
+            val divider = View(this).apply {
+                setBackgroundColor(Color.parseColor("#22FFFFFF"))
+                layoutParams = LinearLayout.LayoutParams(dp(160), dp(1)).apply {
+                    gravity = Gravity.CENTER
+                    bottomMargin = dp(40)
+                }
+            }
+            content.addView(divider)
+
+            // Subtitle (PART 6)
+            val subtitleView = TextView(this).apply {
+                text = "Discipline is forged in resistance."
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                setTextColor(Color.parseColor("#88FFFFFF"))
+                gravity = Gravity.CENTER
+                typeface = Typeface.create("sans-serif-light", Typeface.ITALIC)
+                letterSpacing = 0.08f
+                setPadding(0, 0, 0, dp(56))
+            }
+            content.addView(subtitleView)
+
+            // Progress bar countdown (PART 7)
+            val progressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+                isIndeterminate = false
+                max = 100
+                progress = 0
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, dp(2)
+                ).apply {
+                    leftMargin = dp(48)
+                    rightMargin = dp(48)
+                }
+                val bgDrawable = GradientDrawable().apply {
+                    setColor(Color.parseColor("#12121A"))
+                    cornerRadius = 4f
+                }
+                val progressShape = GradientDrawable().apply {
+                    setColor(Color.parseColor("#2E2E48"))
+                    cornerRadius = 4f
+                }
+                val clip = ClipDrawable(progressShape, Gravity.START, ClipDrawable.HORIZONTAL)
+                progressDrawable = LayerDrawable(arrayOf(bgDrawable, clip)).apply {
+                    setId(0, android.R.id.background)
+                    setId(1, android.R.id.progress)
+                }
+            }
+            content.addView(progressBar)
+
+            // Animate progress bar over 3 seconds
+            animateProgress(progressBar)
+
+            // Bottom spacer
+            content.addView(createSpacer(1f))
+
+            overlayView?.addView(content)
+
+            // Window params
             val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             } else {
                 @Suppress("DEPRECATION")
                 WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
             }
-
             val params = WindowManager.LayoutParams().apply {
                 type = layoutType
                 format = PixelFormat.TRANSLUCENT
@@ -132,14 +173,46 @@ class DisciplineWarningOverlayService : Service() {
             }
 
             windowManager?.addView(overlayView, params)
+
+            // Slow fade-in (PART 6: 600-900ms)
+            overlayView?.startAnimation(AlphaAnimation(0f, 1f).apply {
+                duration = FADE_DURATION_MS
+                interpolator = DecelerateInterpolator()
+                fillAfter = true
+            })
+
             Log.d(TAG, "Discipline warning overlay displayed")
         } catch (e: Exception) {
             Log.e(TAG, "Error showing overlay: ${e.message}", e)
         }
     }
 
+    private fun animateProgress(progressBar: ProgressBar) {
+        val totalSteps = 100
+        val intervalMs = COUNTDOWN_MS / totalSteps
+        for (i in 1..totalSteps) {
+            handler.postDelayed({ progressBar.progress = i }, intervalMs * i)
+        }
+    }
+
+    private fun createSpacer(weight: Float): View {
+        return View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, weight
+            )
+        }
+    }
+
+    private fun dp(value: Int): Int {
+        return TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP, value.toFloat(), resources.displayMetrics
+        ).toInt()
+    }
+
+    /** Remove overlay using removeViewImmediate (PART 8). */
     private fun hideOverlay() {
         try {
+            handler.removeCallbacksAndMessages(null)
             if (overlayView != null && windowManager != null) {
                 windowManager?.removeViewImmediate(overlayView)
                 overlayView = null
