@@ -34,9 +34,10 @@ import android.widget.TextView
 class ChromeLockOverlayService : Service() {
     companion object {
         const val TAG = "ChromeLockOverlay"
-        private const val BG_COLOR = "#F5050505"
-        private const val FADE_DURATION_MS = 800L
+        private const val BG_COLOR = "#0D0D0D"
+        private const val FADE_DURATION_MS = 700L
         private const val BUTTON_DELAY_MS = 3000L
+        private const val ACCENT_COLOR = "#C6A85A"
     }
 
     private var windowManager: WindowManager? = null
@@ -113,9 +114,10 @@ class ChromeLockOverlayService : Service() {
             }
             content.addView(subtitle)
 
-            // Divider
+            // Divider — muted gold accent
             val divider = View(this).apply {
-                setBackgroundColor(Color.parseColor("#15FFFFFF"))
+                setBackgroundColor(Color.parseColor(ACCENT_COLOR))
+                alpha = 0.3f
                 layoutParams = LinearLayout.LayoutParams(dp(120), dp(1)).apply {
                     gravity = Gravity.CENTER
                     bottomMargin = dp(56)

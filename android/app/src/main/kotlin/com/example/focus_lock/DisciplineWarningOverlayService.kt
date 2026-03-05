@@ -37,9 +37,10 @@ import android.widget.TextView
 class DisciplineWarningOverlayService : Service() {
     companion object {
         const val TAG = "DisciplineWarning"
-        private const val BG_COLOR = "#F5050505"
-        private const val FADE_DURATION_MS = 800L
+        private const val BG_COLOR = "#0D0D0D"
+        private const val FADE_DURATION_MS = 700L
         private const val COUNTDOWN_MS = 3000L
+        private const val ACCENT_COLOR = "#C6A85A"
     }
 
     private var windowManager: WindowManager? = null
@@ -98,9 +99,10 @@ class DisciplineWarningOverlayService : Service() {
             }
             content.addView(quoteView)
 
-            // Subtle divider
+            // Subtle divider — muted gold accent
             val divider = View(this).apply {
-                setBackgroundColor(Color.parseColor("#22FFFFFF"))
+                setBackgroundColor(Color.parseColor(ACCENT_COLOR))
+                alpha = 0.3f
                 layoutParams = LinearLayout.LayoutParams(dp(160), dp(1)).apply {
                     gravity = Gravity.CENTER
                     bottomMargin = dp(40)
@@ -136,7 +138,7 @@ class DisciplineWarningOverlayService : Service() {
                     cornerRadius = 4f
                 }
                 val progressShape = GradientDrawable().apply {
-                    setColor(Color.parseColor("#2E2E48"))
+                    setColor(Color.parseColor(ACCENT_COLOR))
                     cornerRadius = 4f
                 }
                 val clip = ClipDrawable(progressShape, Gravity.START, ClipDrawable.HORIZONTAL)

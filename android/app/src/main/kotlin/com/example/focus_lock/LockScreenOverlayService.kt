@@ -40,16 +40,16 @@ import android.widget.TextView
 class LockScreenOverlayService : Service() {
     companion object {
         const val TAG = "LockScreenOverlay"
-        private const val BG_COLOR = "#F20A0A0F"          // near-black with slight blue
-        private const val TEXT_PRIMARY = "#E8E8EC"          // soft white
+        private const val BG_COLOR = "#0D0D0D"              // solid near-black (PART 6 spec)
+        private const val TEXT_PRIMARY = "#EAEAEA"          // soft white (PART 6 spec)
         private const val TEXT_SECONDARY = "#7A7A8C"        // muted grey
         private const val TEXT_QUOTE = "#C0C0CC"            // slightly brighter for quote
-        private const val ACCENT_COLOR = "#3A3A52"          // dark muted accent
+        private const val ACCENT_COLOR = "#C6A85A"          // muted gold accent (PART 6 spec)
         private const val BUTTON_BG = "#1A1A2E"            // dark button background
         private const val BUTTON_TEXT = "#CCCCDD"           // soft button text
-        private const val PROGRESS_COLOR = "#2E2E48"        // subtle progress bar
+        private const val PROGRESS_COLOR = "#C6A85A"        // muted gold progress bar
         private const val PROGRESS_BG = "#12121A"           // progress background
-        private const val FADE_DURATION_MS = 800L           // slow fade-in (PART 6)
+        private const val FADE_DURATION_MS = 700L           // slow fade-in (PART 6 spec: 700ms)
         private const val BUTTON_DELAY_MS = 3000L           // 3s delay before buttons (PART 7)
     }
 
@@ -129,9 +129,10 @@ class LockScreenOverlayService : Service() {
             }
             content.addView(title)
 
-            // Divider — thin, subtle
+            // Divider — thin, muted gold accent
             val divider = View(this).apply {
-                setBackgroundColor(Color.parseColor("#15FFFFFF"))
+                setBackgroundColor(Color.parseColor(ACCENT_COLOR))
+                alpha = 0.3f
                 layoutParams = LinearLayout.LayoutParams(dp(120), dp(1)).apply {
                     gravity = Gravity.CENTER
                     bottomMargin = dp(40)

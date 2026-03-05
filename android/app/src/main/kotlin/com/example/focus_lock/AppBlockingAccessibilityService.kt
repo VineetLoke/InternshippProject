@@ -171,7 +171,8 @@ class AppBlockingAccessibilityService : AccessibilityService() {
             packageNames = null  // monitor ALL packages to detect foreground changes
             flags = AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS or
                     AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS or
-                    AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
+                    AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or
+                    AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS
         }
         serviceInfo = info
         restoreRedditTempUnlock()
