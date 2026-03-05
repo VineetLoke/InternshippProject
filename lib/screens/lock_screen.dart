@@ -75,7 +75,7 @@ class _LockScreenState extends State<LockScreen> {
                     child: Column(
                       children: [
                         const Text(
-                          'Instagram is Locked',
+                          'Apps Locked',
                           style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
@@ -85,7 +85,7 @@ class _LockScreenState extends State<LockScreen> {
                         ),
                         const SizedBox(height: 15),
                         const Text(
-                          'Instagram is locked for your focus period.',
+                          'Instagram, Reddit & Twitter/X are locked for your focus period.',
                           style: TextStyle(
                             fontSize: 16,
                             color: Colors.white70,

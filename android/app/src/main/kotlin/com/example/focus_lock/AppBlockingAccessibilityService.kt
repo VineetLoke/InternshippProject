@@ -221,7 +221,6 @@ class AppBlockingAccessibilityService : AccessibilityService() {
         overlayShownAt = 0L
         backPressCount = 0
         stopOverlayService(DisciplineWarningOverlayService::class.java)
-        stopOverlayService(ChromeLockOverlayService::class.java)
         stopOverlayService(LockScreenOverlayService::class.java)
     }
 
@@ -238,7 +237,12 @@ class AppBlockingAccessibilityService : AccessibilityService() {
                 AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
                     // Debounce: ignore same-package events within 2 seconds
                     val now = System.currentTimeMillis()
-                    if (pkg == lastEventPackage && now - lastEventTime < EVENT_DEBOUNCE_MS) return
+                    if (pkg == lastEventPackage && now - lastEventTime < EVENT_DEBOUNCE_MS) {
+                        // Still update foreground package even when debounced,
+                        // so BACK press guards use fresh data
+                        currentForegroundPackage = pkg
+                        return
+                    }
                     lastEventTime = now
                     lastEventPackage = pkg
                     handleWindowStateChanged(pkg)
@@ -481,8 +485,7 @@ class AppBlockingAccessibilityService : AccessibilityService() {
         handler.removeCallbacks(redditLockRunnable)
 
         if (currentForegroundPackage == REDDIT_PACKAGE) {
-            // Close Reddit automatically via BACK
-            performGlobalAction(GLOBAL_ACTION_BACK)
+            // Close Reddit automatically — blockReddit() already fires BACK
             blockReddit()
         } else {
             transitionTo(DisciplineState.IDLE)
@@ -745,7 +748,6 @@ class AppBlockingAccessibilityService : AccessibilityService() {
         backPressCount = 0
 
         stopOverlayService(DisciplineWarningOverlayService::class.java)
-        stopOverlayService(ChromeLockOverlayService::class.java)
         stopOverlayService(LockScreenOverlayService::class.java)
 
         // Re-schedule Reddit lock timer if in temp unlock

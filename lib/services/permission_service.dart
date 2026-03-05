@@ -111,9 +111,11 @@ class PermissionService {
   /// Check Usage Access via platform channel (PACKAGE_USAGE_STATS)
   Future<bool> hasUsageAccess() async {
     try {
-      return true;
+      final result = await _channel.invokeMethod<bool>('hasUsageStatsPermission');
+      return result == true;
     } catch (e) {
-      return true;
+      debugPrint('Error checking usage access: $e');
+      return false;
     }
   }
 

@@ -61,7 +61,7 @@ class LockScreenOverlayService : Service() {
         val source = intent?.getStringExtra("source") ?: "instagram"
         Log.d(TAG, "LockScreenOverlayService started (source=$source)")
         showOverlay(source)
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     private fun showOverlay(source: String) {

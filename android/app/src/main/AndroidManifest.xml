@@ -81,12 +81,6 @@
             android:enabled="true"
             android:exported="false" />
 
-        <!-- Chrome Lock Overlay (persistent until Chrome exits) -->
-        <service
-            android:name=".ChromeLockOverlayService"
-            android:enabled="true"
-            android:exported="false" />
-
         <!-- Boot Receiver to restart blocking after reboot -->
         <receiver
             android:name=".BootReceiver"

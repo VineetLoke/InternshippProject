@@ -137,11 +137,15 @@ class PushupDetectorService(private val context: Context) : SensorEventListener 
             if (cycleTime in MIN_REP_MS..MAX_REP_MS) {
                 // Also check interval between reps
                 val timeSinceLastRep = if (lastRepTimestamp > 0) now - lastRepTimestamp else MIN_REP_MS
-                if (timeSinceLastRep >= MIN_REP_MS) {
+                // Gate on accelerometer motion if sensor is available
+                val motionOk = accelerometer == null || motionDetected
+                if (timeSinceLastRep >= MIN_REP_MS && motionOk) {
                     pushupCount++
                     lastRepTimestamp = now
-                    Log.d(TAG, "✅ Valid pushup #$pushupCount (cycle=${cycleTime}ms)")
+                    Log.d(TAG, "✅ Valid pushup #$pushupCount (cycle=${cycleTime}ms, motion=$motionDetected)")
                     onPushupCount?.invoke(pushupCount)
+                } else if (!motionOk) {
+                    Log.d(TAG, "⚠️ No body motion detected — skipped")
                 } else {
                     Log.d(TAG, "⚠️ Rep too fast after previous (${timeSinceLastRep}ms) — skipped")
                 }

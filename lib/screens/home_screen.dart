@@ -566,7 +566,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 10),
           Text(
-            lockProvider.isLocked ? 'Instagram is Locked' : 'Instagram is Unlocked',
+            lockProvider.isLocked ? 'Apps Locked' : 'Apps Unlocked',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -820,12 +820,11 @@ class _HomeScreenState extends State<HomeScreen> {
               style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
           const Text(
-            '• Instagram is automatically blocked when launched\n'
+            '• Instagram, Reddit & Twitter/X are blocked when launched\n'
             '• Lock expires after 30 days\n'
-            '• Reddit has a 1-hour daily limit\n'
-            '• Twitter/X screen time is tracked\n'
-            '• Chrome filters harmful content\n'
-            '• Do 100 pushups to earn 10 extra Reddit minutes\n'
+            '• Reddit offers a pushup challenge for 10-min access\n'
+            '• Chrome filters harmful content in incognito mode\n'
+            '• Do 100 pushups to earn 10 minutes of Reddit\n'
             '• Emergency unlock requires physical effort',
             style: TextStyle(fontSize: 12),
           ),
