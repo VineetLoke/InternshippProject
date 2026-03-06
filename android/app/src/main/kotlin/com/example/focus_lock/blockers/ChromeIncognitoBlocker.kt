@@ -74,6 +74,19 @@ object ChromeIncognitoBlocker {
     // Detection — called by AccessibilityService on Chrome events
     // ══════════════════════════════════════════════════════════════
 
+    // Chrome URL bar resource IDs (used for direct keyword scanning)
+    private val CHROME_URL_BAR_IDS = listOf(
+        "com.android.chrome:id/url_bar",
+        "com.android.chrome:id/search_box_text",
+        "com.android.chrome:id/omnibox_text_field"
+    )
+
+    // Chrome incognito indicator view IDs
+    private val CHROME_INCOGNITO_IDS = listOf(
+        "com.android.chrome:id/incognito_badge",
+        "com.android.chrome:id/incognito_icon"
+    )
+
     /**
      * Evaluate a Chrome content/text change event.
      *
@@ -105,6 +118,7 @@ object ChromeIncognitoBlocker {
         for (cs in eventTexts) {
             val text = cs?.toString() ?: continue
             if (matchesKeyword(text)) {
+                Log.d(TAG, "Keyword found in event text")
                 keywordFound = true
                 break
             }
@@ -113,13 +127,24 @@ object ChromeIncognitoBlocker {
         // 2. Check content description
         if (!keywordFound && eventDesc != null) {
             if (matchesKeyword(eventDesc.toString())) {
+                Log.d(TAG, "Keyword found in content description")
                 keywordFound = true
             }
         }
 
-        // 3. Check source node tree (depth-limited)
+        // 3. Check Chrome URL bar directly (most reliable source)
+        if (!keywordFound) {
+            keywordFound = scanUrlBar(rootNode)
+        }
+
+        // 4. Check source node tree (depth-limited)
         if (!keywordFound && sourceNode != null) {
             keywordFound = scanNodeForKeyword(sourceNode, 0)
+        }
+
+        // 5. Broader root tree scan for keywords (deeper, catches page content)
+        if (!keywordFound) {
+            keywordFound = scanNodeForKeyword(rootNode, 0)
         }
 
         if (keywordFound) {
@@ -134,25 +159,91 @@ object ChromeIncognitoBlocker {
     }
 
     // ══════════════════════════════════════════════════════════════
+    // URL bar scanning — direct view ID lookup
+    // ══════════════════════════════════════════════════════════════
+
+    /**
+     * Scan Chrome URL bar by known resource IDs.
+     * This is the most reliable way to detect keyword searches.
+     */
+    private fun scanUrlBar(rootNode: AccessibilityNodeInfo): Boolean {
+        for (viewId in CHROME_URL_BAR_IDS) {
+            val nodes = try {
+                rootNode.findAccessibilityNodeInfosByViewId(viewId)
+            } catch (_: Exception) { null }
+
+            if (nodes != null) {
+                for (node in nodes) {
+                    val text = node.text?.toString() ?: ""
+                    val desc = node.contentDescription?.toString() ?: ""
+                    try {
+                        if (text.isNotEmpty() && matchesKeyword(text)) {
+                            Log.d(TAG, "Keyword found in URL bar ($viewId): text")
+                            return true
+                        }
+                        if (desc.isNotEmpty() && matchesKeyword(desc)) {
+                            Log.d(TAG, "Keyword found in URL bar ($viewId): desc")
+                            return true
+                        }
+                    } finally {
+                        try { node.recycle() } catch (_: Exception) {}
+                    }
+                }
+            }
+        }
+        return false
+    }
+
+    // ══════════════════════════════════════════════════════════════
     // Incognito detection
     // ══════════════════════════════════════════════════════════════
 
     /**
-     * Detect Chrome incognito by scanning for "incognito" in the
-     * accessibility node tree (content descriptions, text).
-     * Max depth 3 to keep performance acceptable.
+     * Detect Chrome incognito mode using multiple strategies:
+     *  1. findAccessibilityNodeInfosByText("incognito") — full tree search
+     *  2. Known Chrome incognito view IDs
+     *  3. Manual tree scan as fallback (depth 8)
      */
     private fun isIncognito(node: AccessibilityNodeInfo): Boolean {
+        // Strategy 1: Use Android's built-in full-tree text search (most reliable)
+        try {
+            val matches = node.findAccessibilityNodeInfosByText("incognito")
+            if (matches != null && matches.isNotEmpty()) {
+                for (match in matches) {
+                    try { match.recycle() } catch (_: Exception) {}
+                }
+                Log.d(TAG, "Incognito detected via findByText (${matches.size} nodes)")
+                return true
+            }
+        } catch (_: Exception) {}
+
+        // Strategy 2: Check known Chrome incognito view IDs
+        for (viewId in CHROME_INCOGNITO_IDS) {
+            try {
+                val nodes = node.findAccessibilityNodeInfosByViewId(viewId)
+                if (nodes != null && nodes.isNotEmpty()) {
+                    for (n in nodes) {
+                        try { n.recycle() } catch (_: Exception) {}
+                    }
+                    Log.d(TAG, "Incognito detected via view ID: $viewId")
+                    return true
+                }
+            } catch (_: Exception) {}
+        }
+
+        // Strategy 3: Manual fallback scan (depth 8) for edge cases
         return scanForIncognito(node, 0)
     }
 
     private fun scanForIncognito(node: AccessibilityNodeInfo?, depth: Int): Boolean {
-        if (node == null || depth > 3) return false
+        if (node == null || depth > 8) return false
 
         val desc = node.contentDescription?.toString()?.lowercase(Locale.ROOT) ?: ""
         val text = node.text?.toString()?.lowercase(Locale.ROOT) ?: ""
 
         if ("incognito" in desc || "incognito" in text) return true
+        // Also check for "private" browsing indicators
+        if ("private tab" in desc || "private browsing" in desc) return true
 
         for (i in 0 until node.childCount) {
             val child = try { node.getChild(i) } catch (_: Exception) { null }
@@ -174,9 +265,9 @@ object ChromeIncognitoBlocker {
         return KEYWORD_REGEX.matcher(text).find()
     }
 
-    /** Recursively scan node tree for keywords (max depth 4). */
+    /** Recursively scan node tree for keywords (max depth 6). */
     private fun scanNodeForKeyword(node: AccessibilityNodeInfo?, depth: Int): Boolean {
-        if (node == null || depth > 4) return false
+        if (node == null || depth > 6) return false
 
         val text = node.text?.toString() ?: ""
         val desc = node.contentDescription?.toString() ?: ""

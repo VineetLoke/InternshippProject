@@ -1,17 +1,17 @@
 import 'package:flutter/services.dart';
 
-/// Service for Chrome keyword filtering status and configuration.
+/// Service for Chrome incognito keyword filtering status (isolated module).
 class ChromeFilterService {
   static const _channel = MethodChannel('com.example.focus_lock/app_block');
 
-  /// Get the current Chrome filter status.
+  /// Get the current Chrome incognito filter status.
   ///
-  /// Returns `{ "isActive": true, "blockedKeywordCount": 9 }`
+  /// Returns `{ "isActive": true, "blockedKeywordCount": 18, "totalBlocks": 5 }`
   Future<Map<String, dynamic>> getFilterStatus() async {
     try {
       final result = await _channel.invokeMethod('getChromeFilterStatus');
       if (result == null) {
-        return {'isActive': false, 'blockedKeywordCount': 0};
+        return {'isActive': false, 'blockedKeywordCount': 0, 'totalBlocks': 0};
       }
       return Map<String, dynamic>.from(result as Map);
     } catch (e) {
@@ -19,29 +19,16 @@ class ChromeFilterService {
       return {
         'isActive': false,
         'blockedKeywordCount': 0,
+        'totalBlocks': 0,
       };
     }
   }
 
-  /// List of blocked keywords (read-only, matches native side).
+  /// List of blocked keywords (read-only, matches native ChromeIncognitoBlocker).
   static const List<String> blockedKeywords = [
-    // Core explicit terms
-    'porn', 'pornhub', 'pornography', 'pornographic',
-    'xxx', 'xvideos', 'xnxx', 'redtube', 'youporn', 'tube8',
-    'hentai', 'nsfw', 'adultvideo', 'adultvideos', 'adultcontent',
-    'sexvideo', 'sexvideos', 'pornvideo', 'pornvideos',
-    // Platform related
-    'onlyfans', 'fansly', 'chaturbate', 'camgirl', 'camgirls',
-    'camshow', 'webcamgirls', 'camsite', 'adultcams', 'livecams',
-    // Explicit action terms
-    'sex', 'sexual', 'sexy', 'fuck', 'fucking', 'fucked',
-    'blowjob', 'handjob', 'anal', 'milf', 'threesome',
-    'orgy', 'deepthroat', 'cumshot', 'creampie', 'hardcore', 'softcore',
-    // Adult industry terms
-    'escort', 'escorts', 'escortservice', 'adultdating',
-    'hookup', 'adultchat', 'sexchat', 'dirtychat', 'adultstream',
-    // Fetish / category terms
-    'bdsm', 'fetish', 'kink', 'kinky', 'dominatrix', 'submissive',
-    'latex', 'leatherfetish', 'roleplaysex', 'erotic', 'rule34',
+    'porn', 'pornhub', 'xxx', 'xvideos', 'xnxx',
+    'redtube', 'youporn', 'hentai', 'nsfw', 'onlyfans',
+    'fansly', 'sexvideo', 'pornvideo', 'rule34', 'bdsm',
+    'escort', 'camgirl', 'chaturbate',
   ];
 }

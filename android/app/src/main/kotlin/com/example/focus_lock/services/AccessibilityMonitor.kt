@@ -537,7 +537,10 @@ class AccessibilityMonitor : AccessibilityService() {
 
         // Grab root node for incognito detection
         val rootNode = try { rootInActiveWindow } catch (_: Exception) { null }
-        if (rootNode == null) return
+        if (rootNode == null) {
+            Log.d(TAG, "Chrome content changed but rootNode is null — skipping")
+            return
+        }
 
         try {
             // Collect event data for the isolated blocker module
@@ -545,11 +548,16 @@ class AccessibilityMonitor : AccessibilityService() {
             val eventDesc = event.contentDescription
             val sourceNode = try { event.source } catch (_: Exception) { null }
 
+            Log.d(TAG, "Chrome event: type=${event.eventType}, texts=${eventTexts.size}, desc=$eventDesc")
+
             try {
                 // Delegate entirely to the isolated ChromeIncognitoBlocker
-                ChromeIncognitoBlocker.onChromeContentChanged(
+                val blocked = ChromeIncognitoBlocker.onChromeContentChanged(
                     rootNode, eventTexts, eventDesc, sourceNode
                 )
+                if (blocked) {
+                    Log.d(TAG, "ChromeIncognitoBlocker triggered blocking")
+                }
             } finally {
                 try { sourceNode?.recycle() } catch (_: Exception) {}
             }

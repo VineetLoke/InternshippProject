@@ -52,7 +52,7 @@
 
         <!-- Accessibility Service for Instagram detection -->
         <service
-            android:name=".AppBlockingAccessibilityService"
+            android:name=".services.AccessibilityMonitor"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="false">
             <intent-filter>
@@ -65,25 +65,31 @@
 
         <!-- Lock Screen Overlay Service -->
         <service
-            android:name=".LockScreenOverlayService"
+            android:name=".ui.LockScreenOverlay"
             android:enabled="true"
             android:exported="false" />
 
         <!-- Background App Blocking Service -->
         <service
-            android:name=".AppBlockingService"
+            android:name=".services.AppBlockingService"
             android:enabled="true"
             android:exported="false" />
 
         <!-- Discipline Warning Overlay (3-second Chrome keyword warning) -->
         <service
-            android:name=".DisciplineWarningOverlayService"
+            android:name=".ui.DisciplineWarningOverlay"
             android:enabled="true"
             android:exported="false" />
 
         <!-- Shared Block Overlay for deterministic blockers (Instagram, Reddit, Twitter) -->
         <service
-            android:name=".AppBlockOverlayService"
+            android:name=".ui.BlockingOverlayScreen"
+            android:enabled="true"
+            android:exported="false" />
+
+        <!-- Chrome Incognito Keyword Warning Overlay (isolated blocker) -->
+        <service
+            android:name=".ui.ChromeIncognitoWarningOverlay"
             android:enabled="true"
             android:exported="false" />
 
