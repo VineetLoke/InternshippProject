@@ -176,6 +176,13 @@ class AppBlockingAccessibilityService : AccessibilityService() {
         }
         serviceInfo = info
         restoreRedditTempUnlock()
+
+        // ── Instagram blocker module (clean, isolated) ────────────
+        InstagramBlocker.init(applicationContext)
+        InstagramBlocker.onForceCloseInstagram = {
+            performGlobalAction(GLOBAL_ACTION_BACK)
+        }
+
         Log.d(TAG, "ServiceInfo applied — listening for events")
     }
 
@@ -285,15 +292,17 @@ class AppBlockingAccessibilityService : AccessibilityService() {
             return
         }
 
-        // ── Log app opens for tracked packages ──────────────────
-        if (packageName in TRACKED_PACKAGES) {
+        // ── Log app opens for tracked packages (Instagram excluded — logged by InstagramBlocker) ──
+        if (packageName in TRACKED_PACKAGES && packageName != INSTAGRAM_PACKAGE) {
             logAppOpen(packageName)
         }
 
         // ── Handle each monitored package ───────────────────────
         when (packageName) {
             INSTAGRAM_PACKAGE -> {
-                handleBlockedApp(packageName, "instagram")
+                // Delegated to deterministic InstagramBlocker module.
+                // Returns true if blocking was triggered; caller does nothing else.
+                if (InstagramBlocker.onInstagramDetected()) return
             }
             TWITTER_PACKAGE -> {
                 handleBlockedApp(packageName, "twitter")

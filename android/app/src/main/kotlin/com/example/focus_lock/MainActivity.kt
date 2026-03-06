@@ -173,6 +173,26 @@ class MainActivity : FlutterActivity() {
                         result.success(remainingMs / 1000)
                     }
 
+                    // ── Instagram blocker (deterministic module) ──
+                    "getInstagramBlockStatus" -> {
+                        InstagramBlocker.init(applicationContext)
+                        result.success(InstagramBlocker.getStatus())
+                    }
+                    "getInstagramAttemptCount" -> {
+                        InstagramBlocker.init(applicationContext)
+                        result.success(InstagramBlocker.getAttemptCount())
+                    }
+                    "getInstagramTempUnlockRemaining" -> {
+                        InstagramBlocker.init(applicationContext)
+                        result.success(InstagramBlocker.getTempUnlockRemainingSeconds())
+                    }
+                    "completeInstagramEmergencyChallenge" -> {
+                        InstagramBlocker.init(applicationContext)
+                        InstagramBlocker.grantTempUnlock()
+                        Log.d(TAG, "Instagram emergency challenge completed — 15min unlock")
+                        result.success(true)
+                    }
+
                     else -> result.notImplemented()
                 }
             }

@@ -81,6 +81,12 @@
             android:enabled="true"
             android:exported="false" />
 
+        <!-- Instagram Block Overlay (deterministic blocker) -->
+        <service
+            android:name=".InstagramBlockOverlayService"
+            android:enabled="true"
+            android:exported="false" />
+
         <!-- Boot Receiver to restart blocking after reboot -->
         <receiver
             android:name=".BootReceiver"
