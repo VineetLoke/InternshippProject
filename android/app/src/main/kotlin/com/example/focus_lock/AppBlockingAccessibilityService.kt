@@ -177,9 +177,17 @@ class AppBlockingAccessibilityService : AccessibilityService() {
         serviceInfo = info
         restoreRedditTempUnlock()
 
-        // ── Instagram blocker module (clean, isolated) ────────────
+        // ── Deterministic blocker modules (clean, isolated) ───────
         InstagramBlocker.init(applicationContext)
         InstagramBlocker.onForceCloseInstagram = {
+            performGlobalAction(GLOBAL_ACTION_BACK)
+        }
+        RedditBlocker.init(applicationContext)
+        RedditBlocker.onForceClose = {
+            performGlobalAction(GLOBAL_ACTION_BACK)
+        }
+        TwitterBlocker.init(applicationContext)
+        TwitterBlocker.onForceClose = {
             performGlobalAction(GLOBAL_ACTION_BACK)
         }
 
@@ -292,8 +300,13 @@ class AppBlockingAccessibilityService : AccessibilityService() {
             return
         }
 
-        // ── Log app opens for tracked packages (Instagram excluded — logged by InstagramBlocker) ──
-        if (packageName in TRACKED_PACKAGES && packageName != INSTAGRAM_PACKAGE) {
+        // ── Log app opens: deterministic blockers log their own attempts ──
+        // Instagram, Reddit, Twitter are all handled by their own blocker modules
+        // Only log if the blocker module didn't handle it
+        if (packageName in TRACKED_PACKAGES &&
+            packageName != INSTAGRAM_PACKAGE &&
+            packageName != REDDIT_PACKAGE &&
+            packageName != TWITTER_PACKAGE) {
             logAppOpen(packageName)
         }
 
@@ -305,10 +318,12 @@ class AppBlockingAccessibilityService : AccessibilityService() {
                 if (InstagramBlocker.onInstagramDetected()) return
             }
             TWITTER_PACKAGE -> {
-                handleBlockedApp(packageName, "twitter")
+                // Delegated to deterministic TwitterBlocker module.
+                if (TwitterBlocker.onTwitterDetected()) return
             }
             REDDIT_PACKAGE -> {
-                handleRedditForeground()
+                // Delegated to deterministic RedditBlocker module.
+                if (RedditBlocker.onRedditDetected()) return
             }
             CHROME_PACKAGE -> {
                 // Chrome is handled by content monitoring (incognito keywords).

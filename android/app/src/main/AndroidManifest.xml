@@ -81,9 +81,9 @@
             android:enabled="true"
             android:exported="false" />
 
-        <!-- Instagram Block Overlay (deterministic blocker) -->
+        <!-- Shared Block Overlay for deterministic blockers (Instagram, Reddit, Twitter) -->
         <service
-            android:name=".InstagramBlockOverlayService"
+            android:name=".AppBlockOverlayService"
             android:enabled="true"
             android:exported="false" />
 

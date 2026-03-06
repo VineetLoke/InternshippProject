@@ -20,18 +20,19 @@ import android.widget.LinearLayout
 import android.widget.TextView
 
 /**
- * Full-screen blocking overlay for Instagram.
+ * Shared full-screen blocking overlay for all deterministic app blockers
+ * (Instagram, Reddit, Twitter/X).
  *
  * UI spec:
  *  • Solid near-black background (#0A0A0A)
  *  • Centered text: "You don't need this."
  *  • Smooth 700ms fade-in
- *  • No buttons — ever. Overlay is purely informational.
- *  • Dismissed programmatically by [InstagramBlocker] after 5 seconds.
+ *  • No buttons — ever
+ *  • Dismissed programmatically by the owning blocker after 5 seconds
  */
-class InstagramBlockOverlayService : Service() {
+class AppBlockOverlayService : Service() {
     companion object {
-        const val TAG = "IGBlockOverlay"
+        const val TAG = "AppBlockOverlay"
         private const val BG_COLOR = "#0A0A0A"
         private const val TEXT_COLOR = "#E0E0E0"
         private const val FADE_DURATION_MS = 700L

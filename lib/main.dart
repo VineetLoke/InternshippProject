@@ -9,6 +9,7 @@ import 'screens/lock_screen.dart';
 import 'screens/emergency_unlock_screen.dart';
 import 'screens/pushup_challenge_screen.dart';
 import 'screens/instagram_pushup_challenge_screen.dart';
+import 'screens/app_pushup_challenge_screen.dart';
 import 'providers/lock_state_provider.dart';
 
 void main() async {
@@ -56,6 +57,8 @@ class FocusLockApp extends StatelessWidget {
           '/pushup_challenge': (context) => const PushupChallengeScreen(),
           '/instagram_pushup_challenge': (context) =>
               const InstagramPushupChallengeScreen(),
+          '/app_pushup_challenge': (context) =>
+              const AppPushupChallengeScreen(),
         },
       ),
     );

@@ -15,24 +15,22 @@ import java.util.Locale
 import java.util.concurrent.Executors
 
 /**
- * Deterministic Instagram blocker — completely isolated module.
+ * Deterministic Reddit blocker — completely isolated module.
  *
- * Design rules:
- *  • Uses its OWN SharedPreferences file ("instagram_blocker_prefs"),
- *    so Flutter "Reset Focus" (which clears FlutterSharedPreferences) has ZERO effect.
- *  • Only [grantTempUnlock] can allow temporary access (15 minutes).
- *  • The volume-up emergency bypass in the accessibility service does NOT touch this module.
- *  • Lock period: exactly 17 days from first activation.
+ * Architecture mirrors [InstagramBlocker] exactly:
+ *  • Own SharedPreferences file ("reddit_blocker_prefs")
+ *  • Flutter "Reset Focus" has ZERO effect
+ *  • Only [grantTempUnlock] allows temporary access (15 minutes)
+ *  • Lock period: 17 days from first activation
  */
-object InstagramBlocker {
-    private const val TAG = "InstagramBlocker"
-    const val INSTAGRAM_PACKAGE = "com.instagram.android"
+object RedditBlocker {
+    private const val TAG = "RedditBlocker"
+    const val REDDIT_PACKAGE = "com.reddit.frontpage"
 
-    // Dedicated prefs file — isolated from Flutter "Reset Focus"
-    private const val PREFS_NAME = "instagram_blocker_prefs"
-    private const val KEY_LOCK_START = "ig_lock_start_epoch"
-    private const val KEY_TEMP_UNLOCK_START = "ig_temp_unlock_start"
-    private const val KEY_ATTEMPT_COUNT = "ig_attempt_count"
+    private const val PREFS_NAME = "reddit_blocker_prefs"
+    private const val KEY_LOCK_START = "rd_lock_start_epoch"
+    private const val KEY_TEMP_UNLOCK_START = "rd_temp_unlock_start"
+    private const val KEY_ATTEMPT_COUNT = "rd_attempt_count"
 
     private const val LOCK_DURATION_DAYS = 17
     private const val LOCK_DURATION_MS = LOCK_DURATION_DAYS.toLong() * 24 * 60 * 60 * 1000
@@ -48,13 +46,10 @@ object InstagramBlocker {
     private val handler = Handler(Looper.getMainLooper())
     private val dbExecutor = Executors.newSingleThreadExecutor()
 
-    // Debounce: ignore rapid duplicate detections
     private var lastBlockTime = 0L
 
-    // Callback for the AccessibilityService to fire GLOBAL_ACTION_BACK
-    var onForceCloseInstagram: (() -> Unit)? = null
+    var onForceClose: (() -> Unit)? = null
 
-    // Temp unlock expiry runnable
     private val tempUnlockExpiryRunnable = Runnable { onTempUnlockExpired() }
 
     fun init(context: Context) {
@@ -67,7 +62,6 @@ object InstagramBlocker {
         Log.d(TAG, "Initialized. locked=${isLocked()}, tempUnlock=${isTempUnlockActive()}")
     }
 
-    /** Write lock start time once — never overwritten. */
     private fun ensureLockStarted() {
         if (prefs.getLong(KEY_LOCK_START, 0L) == 0L) {
             prefs.edit().putLong(KEY_LOCK_START, System.currentTimeMillis()).apply()
@@ -75,21 +69,18 @@ object InstagramBlocker {
         }
     }
 
-    /** True while the 17-day lock window is active. */
     fun isLocked(): Boolean {
         val start = prefs.getLong(KEY_LOCK_START, 0L)
         if (start == 0L) return false
         return System.currentTimeMillis() - start < LOCK_DURATION_MS
     }
 
-    /** True during a 15-minute emergency temp unlock. */
     fun isTempUnlockActive(): Boolean {
         val start = prefs.getLong(KEY_TEMP_UNLOCK_START, 0L)
         if (start == 0L) return false
         return System.currentTimeMillis() - start < TEMP_UNLOCK_DURATION_MS
     }
 
-    /** Remaining seconds of active temp unlock, or 0. */
     fun getTempUnlockRemainingSeconds(): Long {
         val start = prefs.getLong(KEY_TEMP_UNLOCK_START, 0L)
         if (start == 0L) return 0L
@@ -97,7 +88,6 @@ object InstagramBlocker {
         return if (remaining > 0) remaining / 1000 else 0L
     }
 
-    /** Remaining full lock days. */
     fun getRemainingDays(): Int {
         val start = prefs.getLong(KEY_LOCK_START, 0L)
         if (start == 0L) return 0
@@ -105,14 +95,9 @@ object InstagramBlocker {
         return if (remaining > 0) (remaining / (24 * 60 * 60 * 1000)).toInt() + 1 else 0
     }
 
-    /** Total attempt count across all time. */
     fun getAttemptCount(): Int = prefs.getInt(KEY_ATTEMPT_COUNT, 0)
 
-    /**
-     * Called by the AccessibilityService when Instagram enters the foreground.
-     * Returns true if blocking was triggered (caller should NOT run its own blocking).
-     */
-    fun onInstagramDetected(): Boolean {
+    fun onRedditDetected(): Boolean {
         if (!initialized) return false
         if (!isLocked()) return false
         if (isTempUnlockActive()) {
@@ -129,17 +114,15 @@ object InstagramBlocker {
         logAttempt(count)
         showBlockingOverlay()
 
-        Log.d(TAG, "Instagram BLOCKED — attempt #$count")
+        Log.d(TAG, "Reddit BLOCKED — attempt #$count")
         return true
     }
 
-    /** Display the full-screen "You don't need this." overlay. */
     private fun showBlockingOverlay() {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
                 !android.provider.Settings.canDrawOverlays(appContext)
             ) {
-                Log.w(TAG, "No overlay permission — force-closing immediately")
                 scheduleForceClose()
                 return
             }
@@ -152,11 +135,10 @@ object InstagramBlocker {
         }
     }
 
-    /** Fire repeated GLOBAL_ACTION_BACK to eject the user from Instagram. */
     private fun scheduleForceClose() {
-        Log.d(TAG, "Force-closing Instagram ($BACK_PRESS_COUNT BACK presses)")
+        Log.d(TAG, "Force-closing Reddit ($BACK_PRESS_COUNT BACK presses)")
         for (i in 0 until BACK_PRESS_COUNT) {
-            handler.postDelayed({ onForceCloseInstagram?.invoke() }, BACK_PRESS_INTERVAL_MS * i)
+            handler.postDelayed({ onForceClose?.invoke() }, BACK_PRESS_INTERVAL_MS * i)
         }
         handler.postDelayed(
             { dismissOverlay() },
@@ -164,7 +146,6 @@ object InstagramBlocker {
         )
     }
 
-    /** Remove the blocking overlay. */
     fun dismissOverlay() {
         try {
             appContext.stopService(Intent(appContext, AppBlockOverlayService::class.java))
@@ -173,10 +154,6 @@ object InstagramBlocker {
         }
     }
 
-    /**
-     * Grant 15-minute temporary access.
-     * Only called after the emergency pushup challenge is completed.
-     */
     fun grantTempUnlock() {
         val now = System.currentTimeMillis()
         prefs.edit().putLong(KEY_TEMP_UNLOCK_START, now).apply()
@@ -186,13 +163,11 @@ object InstagramBlocker {
         Log.d(TAG, "Temp unlock GRANTED — 15 minutes starting now")
     }
 
-    /** Clears temp unlock when 15 minutes expire. */
     private fun onTempUnlockExpired() {
         prefs.edit().remove(KEY_TEMP_UNLOCK_START).apply()
-        Log.d(TAG, "Temp unlock EXPIRED — Instagram re-locked")
+        Log.d(TAG, "Temp unlock EXPIRED — Reddit re-locked")
     }
 
-    /** Restore temp unlock timer if active across service restart. */
     private fun restoreTempUnlockTimer() {
         val start = prefs.getLong(KEY_TEMP_UNLOCK_START, 0L)
         if (start > 0L) {
@@ -206,7 +181,6 @@ object InstagramBlocker {
         }
     }
 
-    /** Log every attempt to Room database. */
     private fun logAttempt(attemptCount: Int) {
         dbExecutor.execute {
             try {
@@ -218,20 +192,19 @@ object InstagramBlocker {
 
                 db.appOpenLogDao().insert(
                     AppOpenLog(
-                        appName = "Instagram",
-                        packageName = INSTAGRAM_PACKAGE,
+                        appName = "Reddit",
+                        packageName = REDDIT_PACKAGE,
                         timestamp = timestamp,
                         date = date
                     )
                 )
-                Log.d(TAG, """Logged: {"app":"instagram","time":"$time","date":"$date","attempt_count":$attemptCount}""")
+                Log.d(TAG, """Logged: {"app":"reddit","time":"$time","date":"$date","attempt_count":$attemptCount}""")
             } catch (e: Exception) {
                 Log.e(TAG, "Error logging attempt: ${e.message}")
             }
         }
     }
 
-    /** Status map for the Flutter layer. */
     fun getStatus(): Map<String, Any> = mapOf(
         "isLocked" to isLocked(),
         "isTempUnlockActive" to isTempUnlockActive(),

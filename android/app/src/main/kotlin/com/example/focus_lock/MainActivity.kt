@@ -193,6 +193,46 @@ class MainActivity : FlutterActivity() {
                         result.success(true)
                     }
 
+                    // ── Reddit blocker (deterministic module) ─────
+                    "getRedditBlockStatus" -> {
+                        RedditBlocker.init(applicationContext)
+                        result.success(RedditBlocker.getStatus())
+                    }
+                    "getRedditAttemptCount" -> {
+                        RedditBlocker.init(applicationContext)
+                        result.success(RedditBlocker.getAttemptCount())
+                    }
+                    "getRedditTempUnlockRemainingNew" -> {
+                        RedditBlocker.init(applicationContext)
+                        result.success(RedditBlocker.getTempUnlockRemainingSeconds())
+                    }
+                    "completeRedditEmergencyChallenge" -> {
+                        RedditBlocker.init(applicationContext)
+                        RedditBlocker.grantTempUnlock()
+                        Log.d(TAG, "Reddit emergency challenge completed — 15min unlock")
+                        result.success(true)
+                    }
+
+                    // ── Twitter blocker (deterministic module) ────
+                    "getTwitterBlockStatus" -> {
+                        TwitterBlocker.init(applicationContext)
+                        result.success(TwitterBlocker.getStatus())
+                    }
+                    "getTwitterAttemptCount" -> {
+                        TwitterBlocker.init(applicationContext)
+                        result.success(TwitterBlocker.getAttemptCount())
+                    }
+                    "getTwitterTempUnlockRemaining" -> {
+                        TwitterBlocker.init(applicationContext)
+                        result.success(TwitterBlocker.getTempUnlockRemainingSeconds())
+                    }
+                    "completeTwitterEmergencyChallenge" -> {
+                        TwitterBlocker.init(applicationContext)
+                        TwitterBlocker.grantTempUnlock()
+                        Log.d(TAG, "Twitter emergency challenge completed — 15min unlock")
+                        result.success(true)
+                    }
+
                     else -> result.notImplemented()
                 }
             }
