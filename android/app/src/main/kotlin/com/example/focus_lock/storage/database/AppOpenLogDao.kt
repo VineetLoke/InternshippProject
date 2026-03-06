@@ -1,4 +1,4 @@
-package com.example.focus_lock.database
+package com.example.focus_lock.storage.database
 
 import androidx.room.Dao
 import androidx.room.Insert

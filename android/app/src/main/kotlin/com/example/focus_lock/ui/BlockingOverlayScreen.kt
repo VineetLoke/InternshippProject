@@ -1,4 +1,4 @@
-package com.example.focus_lock
+package com.example.focus_lock.ui
 
 import android.app.Service
 import android.content.Intent
@@ -30,7 +30,7 @@ import android.widget.TextView
  *  • No buttons — ever
  *  • Dismissed programmatically by the owning blocker after 5 seconds
  */
-class AppBlockOverlayService : Service() {
+class BlockingOverlayScreen : Service() {
     companion object {
         const val TAG = "AppBlockOverlay"
         private const val BG_COLOR = "#0A0A0A"

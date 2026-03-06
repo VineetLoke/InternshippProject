@@ -1,4 +1,4 @@
-package com.example.focus_lock
+package com.example.focus_lock.ui
 
 import android.app.Service
 import android.content.Context
@@ -34,7 +34,7 @@ import android.widget.TextView
  *
  * The AccessibilityService handles the 3-second timer and dismissal.
  */
-class DisciplineWarningOverlayService : Service() {
+class DisciplineWarningOverlay : Service() {
     companion object {
         const val TAG = "DisciplineWarning"
         private const val BG_COLOR = "#0D0D0D"
@@ -48,7 +48,7 @@ class DisciplineWarningOverlayService : Service() {
     private val handler = Handler(Looper.getMainLooper())
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d(TAG, "DisciplineWarningOverlayService started")
+        Log.d(TAG, "DisciplineWarningOverlay started")
         showOverlay()
         return START_NOT_STICKY
     }
@@ -227,7 +227,7 @@ class DisciplineWarningOverlayService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         hideOverlay()
-        Log.d(TAG, "DisciplineWarningOverlayService destroyed")
+        Log.d(TAG, "DisciplineWarningOverlay destroyed")
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

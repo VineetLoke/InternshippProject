@@ -1,9 +1,7 @@
-package com.example.focus_lock
+package com.example.focus_lock.services
 
 import android.app.Service
 import android.content.Intent
-import android.content.Context
-import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import java.util.Timer
@@ -11,7 +9,7 @@ import java.util.TimerTask
 
 /**
  * Background monitoring service.
- * The actual Instagram blocking is done by AppBlockingAccessibilityService.
+ * The actual Instagram blocking is done by AccessibilityMonitor.
  * This service only keeps a lightweight watchdog alive.
  * It does NOT use startForeground() to avoid notification / permission crashes.
  */

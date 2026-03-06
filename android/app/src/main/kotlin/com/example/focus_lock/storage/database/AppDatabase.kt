@@ -1,4 +1,4 @@
-package com.example.focus_lock.database
+package com.example.focus_lock.storage.database
 
 import android.content.Context
 import androidx.room.Database

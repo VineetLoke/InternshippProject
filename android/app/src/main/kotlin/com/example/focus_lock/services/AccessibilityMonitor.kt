@@ -1,4 +1,4 @@
-package com.example.focus_lock
+package com.example.focus_lock.services
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
@@ -12,16 +12,23 @@ import android.util.Log
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
-import com.example.focus_lock.database.AppDatabase
-import com.example.focus_lock.database.AppOpenLog
+import com.example.focus_lock.blockers.ChromeIncognitoBlocker
+import com.example.focus_lock.blockers.InstagramBlocker
+import com.example.focus_lock.blockers.RedditBlocker
+import com.example.focus_lock.blockers.TwitterBlocker
+import com.example.focus_lock.controllers.DisciplineState
+import com.example.focus_lock.storage.database.AppDatabase
+import com.example.focus_lock.storage.database.AppOpenLog
+import com.example.focus_lock.ui.ChromeIncognitoWarningOverlay
+import com.example.focus_lock.ui.DisciplineWarningOverlay
+import com.example.focus_lock.ui.LockScreenOverlay
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.Executors
-import java.util.regex.Pattern
 
-class AppBlockingAccessibilityService : AccessibilityService() {
+class AccessibilityMonitor : AccessibilityService() {
     companion object {
         const val TAG = "AppBlockingA11y"
 
@@ -58,12 +65,6 @@ class AppBlockingAccessibilityService : AccessibilityService() {
         // Debounce: ignore duplicate events within 2 seconds (PART 9)
         private const val EVENT_DEBOUNCE_MS = 2000L
 
-        // Chrome keyword debounce
-        private const val CHROME_DEBOUNCE_MS = 3000L
-
-        // Warning overlay shows for exactly 3 seconds (PART 5)
-        private const val WARNING_DURATION_MS = 3000L
-
         // App open logging deduplication
         private const val APP_LOG_DEBOUNCE_MS = 5000L
 
@@ -78,41 +79,9 @@ class AppBlockingAccessibilityService : AccessibilityService() {
         private const val MAX_BACK_ATTEMPTS = 5
         private const val BACK_PRESS_INTERVAL_MS = 300L
 
-        // ── Blocked keyword list for Chrome filter (PART 5) ──────────
-        private val EXACT_KEYWORDS = listOf(
-            "porn", "pornhub", "pornography", "pornographic",
-            "xxx", "xvideos", "xnxx", "redtube", "youporn", "tube8",
-            "hentai", "nsfw", "adultvideo", "adultvideos", "adultcontent",
-            "sexvideo", "sexvideos", "pornvideo", "pornvideos",
-            "onlyfans", "fansly", "chaturbate", "camgirl", "camgirls",
-            "camshow", "webcamgirls", "camsite", "adultcams", "livecams",
-            "blowjob", "handjob", "anal", "milf", "threesome",
-            "orgy", "deepthroat", "cumshot", "creampie", "hardcore", "softcore",
-            "escort", "escorts", "escortservice", "adultdating",
-            "hookup", "adultchat", "sexchat", "dirtychat", "adultstream",
-            "bdsm", "fetish", "kink", "kinky", "dominatrix", "submissive",
-            "latex", "leatherfetish", "roleplaysex", "erotic", "rule34"
-        )
-        private val BOUNDARY_KEYWORDS = listOf(
-            "sex", "sexual", "sexy", "fuck", "fucking", "fucked"
-        )
-        private val BOUNDARY_REGEX: Pattern = run {
-            val joined = BOUNDARY_KEYWORDS.joinToString("|") { Pattern.quote(it) }
-            Pattern.compile("(?:^|\\W)($joined)(?:\\W|$)", Pattern.CASE_INSENSITIVE)
-        }
-        private val EXACT_REGEX: Pattern = run {
-            val joined = EXACT_KEYWORDS.joinToString("|") { Pattern.quote(it) }
-            Pattern.compile("($joined)", Pattern.CASE_INSENSITIVE)
-        }
-        private val PATTERN_REGEX: Pattern = Pattern.compile(
-            "(?:^|\\W)(porn\\w*|sex(?!ton|tant|tet|tile|tup)\\w+|xxx\\w*|hentai\\w*|cam(?:girl|boy|show|site|model|live|stream)\\w*)(?:\\W|$)",
-            Pattern.CASE_INSENSITIVE
-        )
-        val BLOCKED_KEYWORDS: List<String> = EXACT_KEYWORDS + BOUNDARY_KEYWORDS
-
         @Volatile var isRunning = false
         @Volatile var currentState: DisciplineState = DisciplineState.IDLE
-        @Volatile var instance: AppBlockingAccessibilityService? = null
+        @Volatile var instance: AccessibilityMonitor? = null
     }
 
     private lateinit var prefs: SharedPreferences
@@ -191,6 +160,18 @@ class AppBlockingAccessibilityService : AccessibilityService() {
             performGlobalAction(GLOBAL_ACTION_BACK)
         }
 
+        // ── Chrome incognito blocker (isolated module) ────────
+        ChromeIncognitoBlocker.init(applicationContext)
+        ChromeIncognitoBlocker.onShowWarning = {
+            triggerChromeWarning()
+        }
+        ChromeIncognitoBlocker.onCloseTab = {
+            performGlobalAction(GLOBAL_ACTION_BACK)
+        }
+        ChromeIncognitoBlocker.onDismissWarning = {
+            stopOverlayService(ChromeIncognitoWarningOverlay::class.java)
+        }
+
         Log.d(TAG, "ServiceInfo applied — listening for events")
     }
 
@@ -235,8 +216,9 @@ class AppBlockingAccessibilityService : AccessibilityService() {
         blockedPackage = null
         overlayShownAt = 0L
         backPressCount = 0
-        stopOverlayService(DisciplineWarningOverlayService::class.java)
-        stopOverlayService(LockScreenOverlayService::class.java)
+        stopOverlayService(DisciplineWarningOverlay::class.java)
+        stopOverlayService(ChromeIncognitoWarningOverlay::class.java)
+        stopOverlayService(LockScreenOverlay::class.java)
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -462,7 +444,7 @@ class AppBlockingAccessibilityService : AccessibilityService() {
                 Log.w(TAG, "Overlay permission not granted — cannot show overlay")
                 return
             }
-            val intent = Intent(applicationContext, LockScreenOverlayService::class.java)
+            val intent = Intent(applicationContext, LockScreenOverlay::class.java)
             intent.putExtra("source", source)
             startService(intent)
             overlayShownAt = System.currentTimeMillis()
@@ -474,12 +456,12 @@ class AppBlockingAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * Called by LockScreenOverlayService when user taps "Earn access" for Reddit.
+     * Called by LockScreenOverlay when user taps "Earn access" for Reddit.
      */
     fun onRedditChallengeStarted() {
         if (currentState == DisciplineState.APP_BLOCKED && blockedPackage == REDDIT_PACKAGE) {
             transitionTo(DisciplineState.REDDIT_CHALLENGE_ACTIVE)
-            stopOverlayService(LockScreenOverlayService::class.java)
+            stopOverlayService(LockScreenOverlay::class.java)
             overlayShownAt = 0L
             Log.d(TAG, "Reddit challenge started — overlay removed")
         }
@@ -553,55 +535,23 @@ class AppBlockingAccessibilityService : AccessibilityService() {
         if (currentState == DisciplineState.WARNING_DISPLAYED ||
             currentState == DisciplineState.APP_BLOCKED) return
 
-        // Debounce: 3 seconds between Chrome triggers
-        val now = System.currentTimeMillis()
-        if (now - lastChromeBlockTime < CHROME_DEBOUNCE_MS) return
-
-        // ── CRITICAL: Only check in incognito mode (PART 5) ─────
+        // Grab root node for incognito detection
         val rootNode = try { rootInActiveWindow } catch (_: Exception) { null }
         if (rootNode == null) return
 
         try {
-            if (!isChromeIncognito(rootNode)) {
-                // Normal browsing — do absolutely nothing
-                return
-            }
+            // Collect event data for the isolated blocker module
+            val eventTexts = event.text?.toList() ?: emptyList()
+            val eventDesc = event.contentDescription
+            val sourceNode = try { event.source } catch (_: Exception) { null }
 
-            // In incognito mode — scan for blocked keywords
-            var keywordFound = false
-
-            // 1. Check event text
-            for (cs in event.text) {
-                val text = cs?.toString() ?: continue
-                if (matchesBlockedContent(text)) {
-                    keywordFound = true
-                    break
-                }
-            }
-
-            // 2. Check content description
-            if (!keywordFound) {
-                val desc = event.contentDescription?.toString()
-                if (desc != null && matchesBlockedContent(desc)) {
-                    keywordFound = true
-                }
-            }
-
-            // 3. Check source node tree (depth-limited)
-            if (!keywordFound) {
-                val source = try { event.source } catch (_: Exception) { null }
-                if (source != null) {
-                    try {
-                        keywordFound = containsBlockedKeyword(source, 0)
-                    } finally {
-                        try { source.recycle() } catch (_: Exception) {}
-                    }
-                }
-            }
-
-            if (keywordFound) {
-                Log.d(TAG, "Blocked keyword detected in Chrome INCOGNITO")
-                triggerChromeWarning()
+            try {
+                // Delegate entirely to the isolated ChromeIncognitoBlocker
+                ChromeIncognitoBlocker.onChromeContentChanged(
+                    rootNode, eventTexts, eventDesc, sourceNode
+                )
+            } finally {
+                try { sourceNode?.recycle() } catch (_: Exception) {}
             }
         } finally {
             try { rootNode.recycle() } catch (_: Exception) {}
@@ -609,67 +559,11 @@ class AppBlockingAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * Detect Chrome incognito mode by scanning for "incognito" in the
-     * accessibility tree (tab switcher button, page content, etc.).
-     */
-    private fun isChromeIncognito(node: AccessibilityNodeInfo): Boolean {
-        return scanForIncognito(node, 0)
-    }
-
-    private fun scanForIncognito(node: AccessibilityNodeInfo?, depth: Int): Boolean {
-        if (node == null || depth > 3) return false
-
-        val desc = node.contentDescription?.toString()?.lowercase(Locale.ROOT) ?: ""
-        val text = node.text?.toString()?.lowercase(Locale.ROOT) ?: ""
-
-        if ("incognito" in desc || "incognito" in text) return true
-
-        for (i in 0 until node.childCount) {
-            val child = try { node.getChild(i) } catch (_: Exception) { null }
-            if (child != null) {
-                val found = scanForIncognito(child, depth + 1)
-                try { child.recycle() } catch (_: Exception) {}
-                if (found) return true
-            }
-        }
-        return false
-    }
-
-    /** Match text against blocked keywords using regex with word boundaries. */
-    private fun matchesBlockedContent(text: String): Boolean {
-        if (text.isBlank()) return false
-        if (EXACT_REGEX.matcher(text).find()) return true
-        if (BOUNDARY_REGEX.matcher(text).find()) return true
-        if (PATTERN_REGEX.matcher(text).find()) return true
-        return false
-    }
-
-    /** Recursively scan accessibility node tree for blocked keywords (max depth 4). */
-    private fun containsBlockedKeyword(node: AccessibilityNodeInfo?, depth: Int): Boolean {
-        if (node == null || depth > 4) return false
-
-        val text = node.text?.toString() ?: ""
-        val desc = node.contentDescription?.toString() ?: ""
-
-        if (text.isNotEmpty() && matchesBlockedContent(text)) return true
-        if (desc.isNotEmpty() && matchesBlockedContent(desc)) return true
-
-        for (i in 0 until node.childCount) {
-            val child = try { node.getChild(i) } catch (_: Exception) { null }
-            if (child != null) {
-                val found = containsBlockedKeyword(child, depth + 1)
-                try { child.recycle() } catch (_: Exception) {}
-                if (found) return true
-            }
-        }
-        return false
-    }
-
-    /**
-     * Chrome incognito keyword detected (PART 5):
+     * Chrome incognito keyword detected:
      * 1. Show quote screen for exactly 3 seconds (WARNING_DISPLAYED)
      * 2. Close tab via GLOBAL_ACTION_BACK
      * 3. Return to IDLE
+     * Delegates to the isolated ChromeIncognitoBlocker + its dedicated overlay.
      */
     private fun triggerChromeWarning() {
         if (currentState == DisciplineState.WARNING_DISPLAYED) return
@@ -686,12 +580,12 @@ class AppBlockingAccessibilityService : AccessibilityService() {
                 return
             }
 
-            // Show discipline warning overlay
-            val warningIntent = Intent(applicationContext, DisciplineWarningOverlayService::class.java)
+            // Show the isolated Chrome incognito warning overlay
+            val warningIntent = Intent(applicationContext, ChromeIncognitoWarningOverlay::class.java)
             startService(warningIntent)
             overlayShownAt = System.currentTimeMillis()
             startOverlayWatchdog()
-            Log.d(TAG, "Discipline warning overlay shown")
+            Log.d(TAG, "Chrome incognito warning overlay shown")
 
             // After exactly 3 seconds: close tab and return to IDLE
             handler.postDelayed({
@@ -701,14 +595,14 @@ class AppBlockingAccessibilityService : AccessibilityService() {
                     Log.d(TAG, "Chrome incognito tab closed via GLOBAL_ACTION_BACK")
 
                     // Remove warning overlay
-                    stopOverlayService(DisciplineWarningOverlayService::class.java)
+                    stopOverlayService(ChromeIncognitoWarningOverlay::class.java)
                     overlayShownAt = 0L
                     transitionTo(DisciplineState.IDLE)
                 } catch (e: Exception) {
                     Log.e(TAG, "Error in warning timer: ${e.message}")
                     transitionTo(DisciplineState.IDLE)
                 }
-            }, WARNING_DURATION_MS)
+            }, ChromeIncognitoBlocker.WARNING_DURATION_MS)
         } catch (e: Exception) {
             Log.e(TAG, "Error showing warning: ${e.message}")
             performGlobalAction(GLOBAL_ACTION_BACK)
@@ -771,8 +665,9 @@ class AppBlockingAccessibilityService : AccessibilityService() {
         overlayShownAt = 0L
         backPressCount = 0
 
-        stopOverlayService(DisciplineWarningOverlayService::class.java)
-        stopOverlayService(LockScreenOverlayService::class.java)
+        stopOverlayService(DisciplineWarningOverlay::class.java)
+        stopOverlayService(ChromeIncognitoWarningOverlay::class.java)
+        stopOverlayService(LockScreenOverlay::class.java)
 
         // Re-schedule Reddit lock timer if in temp unlock
         if (currentState == DisciplineState.REDDIT_TEMP_UNLOCK) {

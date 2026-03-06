@@ -1,4 +1,4 @@
-package com.example.focus_lock
+package com.example.focus_lock.services
 
 import android.content.Context
 import android.hardware.Sensor

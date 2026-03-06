@@ -1,4 +1,4 @@
-package com.example.focus_lock
+package com.example.focus_lock.ui
 
 import android.accessibilityservice.AccessibilityService
 import android.app.Service
@@ -25,6 +25,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import com.example.focus_lock.services.AccessibilityMonitor
 
 /**
  * Psychologically designed blocking overlay (PART 6 & 7).
@@ -37,7 +38,7 @@ import android.widget.TextView
  * - Progress bar during initial display
  * - Subtle animations to calm the user
  */
-class LockScreenOverlayService : Service() {
+class LockScreenOverlay : Service() {
     companion object {
         const val TAG = "LockScreenOverlay"
         private const val BG_COLOR = "#0D0D0D"              // solid near-black (PART 6 spec)
@@ -59,7 +60,7 @@ class LockScreenOverlayService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val source = intent?.getStringExtra("source") ?: "instagram"
-        Log.d(TAG, "LockScreenOverlayService started (source=$source)")
+        Log.d(TAG, "LockScreenOverlay started (source=$source)")
         showOverlay(source)
         return START_NOT_STICKY
     }
@@ -208,7 +209,7 @@ class LockScreenOverlayService : Service() {
                 // "Earn access" button for Reddit (PART 4 & 7)
                 val earnBtn = createButton("Earn 10 minutes access") {
                     Log.d(TAG, "User tapped Earn Access — starting pushup challenge")
-                    AppBlockingAccessibilityService.instance?.onRedditChallengeStarted()
+                    AccessibilityMonitor.instance?.onRedditChallengeStarted()
                     hideOverlay()
                     val launchIntent = packageManager.getLaunchIntentForPackage(
                         applicationContext.packageName
@@ -234,7 +235,7 @@ class LockScreenOverlayService : Service() {
                 Log.d(TAG, "User tapped Return to focus")
                 hideOverlay()
                 // Navigate back (not to home screen)
-                val svc = AppBlockingAccessibilityService.instance
+                val svc = AccessibilityMonitor.instance
                 svc?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
                 stopSelf()
             }
@@ -352,7 +353,7 @@ class LockScreenOverlayService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         hideOverlay()
-        Log.d(TAG, "LockScreenOverlayService destroyed")
+        Log.d(TAG, "LockScreenOverlay destroyed")
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

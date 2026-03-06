@@ -14,7 +14,14 @@ import android.text.TextUtils
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.example.focus_lock.database.AppDatabase
+import com.example.focus_lock.blockers.ChromeIncognitoBlocker
+import com.example.focus_lock.blockers.InstagramBlocker
+import com.example.focus_lock.blockers.RedditBlocker
+import com.example.focus_lock.blockers.TwitterBlocker
+import com.example.focus_lock.services.AccessibilityMonitor
+import com.example.focus_lock.services.AppBlockingService
+import com.example.focus_lock.services.PushupDetectorService
+import com.example.focus_lock.storage.database.AppDatabase
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
@@ -70,7 +77,7 @@ class MainActivity : FlutterActivity() {
                         result.success(isOurAccessibilityServiceEnabled())
                     }
                     "isServiceRunning" -> {
-                        result.success(AppBlockingAccessibilityService.isRunning)
+                        result.success(AccessibilityMonitor.isRunning)
                     }
                     "hasOverlayPermission" -> {
                         val has = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
@@ -155,20 +162,18 @@ class MainActivity : FlutterActivity() {
                         result.success(getAllAppOpenCounts())
                     }
 
-                    // ── Chrome filter ─────────────────────────────
+                    // ── Chrome incognito filter (isolated module) ────
                     "getChromeFilterStatus" -> {
-                        result.success(mapOf(
-                            "isActive" to AppBlockingAccessibilityService.isRunning,
-                            "blockedKeywordCount" to AppBlockingAccessibilityService.BLOCKED_KEYWORDS.size
-                        ))
+                        ChromeIncognitoBlocker.init(applicationContext)
+                        result.success(ChromeIncognitoBlocker.getStatus())
                     }
 
                     // ── Discipline state machine ──────────────────
                     "getDisciplineState" -> {
-                        result.success(AppBlockingAccessibilityService.currentState.name)
+                        result.success(AccessibilityMonitor.currentState.name)
                     }
                     "getRedditTempUnlockRemaining" -> {
-                        val remainingMs = AppBlockingAccessibilityService.instance
+                        val remainingMs = AccessibilityMonitor.instance
                             ?.getRedditTempUnlockRemainingMs() ?: 0L
                         result.success(remainingMs / 1000)
                     }
@@ -311,7 +316,7 @@ class MainActivity : FlutterActivity() {
 
     private fun isOurAccessibilityServiceEnabled(): Boolean {
         return try {
-            val expected = ComponentName(this, AppBlockingAccessibilityService::class.java)
+            val expected = ComponentName(this, AccessibilityMonitor::class.java)
             val enabledServices = Settings.Secure.getString(
                 contentResolver,
                 Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
@@ -405,7 +410,7 @@ class MainActivity : FlutterActivity() {
         pushupDetector?.reset()
 
         // Trigger the accessibility service state machine for 10-min temp unlock
-        val svc = AppBlockingAccessibilityService.instance
+        val svc = AccessibilityMonitor.instance
         if (svc != null) {
             svc.onRedditChallengeCompleted()
             Log.d(TAG, "Redeemed $PUSHUPS_REQUIRED pushups → Reddit temp unlock for 10 min")

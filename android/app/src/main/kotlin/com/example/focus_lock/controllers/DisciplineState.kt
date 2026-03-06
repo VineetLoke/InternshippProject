@@ -1,4 +1,4 @@
-package com.example.focus_lock
+package com.example.focus_lock.controllers
 
 /**
  * Strict state machine for the discipline control system.
