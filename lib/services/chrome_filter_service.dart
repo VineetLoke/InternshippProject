@@ -29,6 +29,6 @@ class ChromeFilterService {
     'porn', 'pornhub', 'xxx', 'xvideos', 'xnxx',
     'redtube', 'youporn', 'hentai', 'nsfw', 'onlyfans',
     'fansly', 'sexvideo', 'pornvideo', 'rule34', 'bdsm',
-    'escort', 'camgirl', 'chaturbate',
+    'escort', 'camgirl', 'chaturbate',"banged",
   ];
 }
