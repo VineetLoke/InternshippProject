@@ -86,6 +86,13 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 0,
         actions: [
           IconButton(
+            icon: const Icon(Icons.shield),
+            tooltip: 'Protection Settings',
+            onPressed: () {
+              Navigator.pushNamed(context, '/uninstall_protection');
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _refreshAll,
           ),

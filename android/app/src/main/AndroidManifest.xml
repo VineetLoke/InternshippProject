@@ -12,6 +12,7 @@
     <uses-permission android:name="android.permission.BODY_SENSORS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.BIND_DEVICE_ADMIN" />
 
     <!-- Android 11+: enumerate app packages for PackageManager queries -->
     <queries>
@@ -101,6 +102,35 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
+
+        <!-- Device Administrator Receiver for uninstall protection -->
+        <receiver
+            android:name=".services.FocusLockDeviceAdminReceiver"
+            android:permission="android.permission.BIND_DEVICE_ADMIN"
+            android:exported="true">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin_policies" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Secret code receiver: dial *#*#1717#*#* to restore app access -->
+        <receiver
+            android:name=".SecretCodeReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.telephony.action.SECRET_CODE" />
+                <data android:scheme="android_secret_code" android:host="1717" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Uninstall Challenge Overlay Service -->
+        <service
+            android:name=".ui.UninstallChallengeOverlay"
+            android:enabled="true"
+            android:exported="false" />
 
     </application>
 </manifest>

@@ -2,6 +2,7 @@ package com.example.focus_lock
 
 import android.Manifest
 import android.app.AppOpsManager
+import android.app.admin.DevicePolicyManager
 import android.app.usage.UsageStatsManager
 import android.content.ComponentName
 import android.content.Context
@@ -20,8 +21,12 @@ import com.example.focus_lock.blockers.RedditBlocker
 import com.example.focus_lock.blockers.TwitterBlocker
 import com.example.focus_lock.services.AccessibilityMonitor
 import com.example.focus_lock.services.AppBlockingService
+import com.example.focus_lock.services.AppIconManager
+import com.example.focus_lock.services.FocusLockDeviceAdminReceiver
 import com.example.focus_lock.services.PushupDetectorService
+import com.example.focus_lock.services.UninstallProtectionManager
 import com.example.focus_lock.storage.database.AppDatabase
+import com.example.focus_lock.ui.UninstallChallengeOverlay
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
@@ -236,6 +241,90 @@ class MainActivity : FlutterActivity() {
                         TwitterBlocker.grantTempUnlock()
                         Log.d(TAG, "Twitter emergency challenge completed — 15min unlock")
                         result.success(true)
+                    }
+
+                    // ── Uninstall protection ──────────────────────
+                    "getProtectionStatus" -> {
+                        UninstallProtectionManager.init(applicationContext)
+                        result.success(UninstallProtectionManager.getStatus(applicationContext))
+                    }
+                    "hideAppIcon" -> {
+                        AppIconManager.hideIcon(applicationContext)
+                        result.success(true)
+                    }
+                    "showAppIcon" -> {
+                        AppIconManager.showIcon(applicationContext)
+                        result.success(true)
+                    }
+                    "isIconHidden" -> {
+                        result.success(AppIconManager.isIconHidden(applicationContext))
+                    }
+                    "requestDeviceAdmin" -> {
+                        try {
+                            val adminComponent = ComponentName(
+                                this, FocusLockDeviceAdminReceiver::class.java
+                            )
+                            val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
+                                putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent)
+                                putExtra(
+                                    DevicePolicyManager.EXTRA_ADD_EXPLANATION,
+                                    "FocusLock uses device administrator to prevent impulsive app deletion. " +
+                                    "Complete 200 pushups to disable protection."
+                                )
+                            }
+                            startActivity(intent)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.error("ADMIN_ERROR", e.message, null)
+                        }
+                    }
+                    "isDeviceAdminActive" -> {
+                        UninstallProtectionManager.init(applicationContext)
+                        result.success(UninstallProtectionManager.isDeviceAdminActive(applicationContext))
+                    }
+                    "enableProtection" -> {
+                        UninstallProtectionManager.init(applicationContext)
+                        UninstallProtectionManager.setProtectionEnabled(true)
+                        // Hide icon
+                        AppIconManager.hideIcon(applicationContext)
+                        // Request device admin
+                        try {
+                            val adminComponent = ComponentName(
+                                this, FocusLockDeviceAdminReceiver::class.java
+                            )
+                            val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
+                                putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent)
+                                putExtra(
+                                    DevicePolicyManager.EXTRA_ADD_EXPLANATION,
+                                    "FocusLock uses device administrator to prevent impulsive app deletion."
+                                )
+                            }
+                            startActivity(intent)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error requesting device admin: ${e.message}")
+                        }
+                        result.success(true)
+                    }
+                    "isUninstallAllowed" -> {
+                        UninstallProtectionManager.init(applicationContext)
+                        result.success(UninstallProtectionManager.isUninstallAllowed())
+                    }
+                    "getCooldownRemaining" -> {
+                        UninstallProtectionManager.init(applicationContext)
+                        result.success(UninstallProtectionManager.getCooldownRemainingSeconds())
+                    }
+                    "launchUninstallChallenge" -> {
+                        try {
+                            val intent = Intent(this, UninstallChallengeOverlay::class.java)
+                            startService(intent)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.error("CHALLENGE_ERROR", e.message, null)
+                        }
+                    }
+                    "removeDeviceAdmin" -> {
+                        UninstallProtectionManager.init(applicationContext)
+                        result.success(UninstallProtectionManager.removeDeviceAdmin(applicationContext))
                     }
 
                     else -> result.notImplemented()

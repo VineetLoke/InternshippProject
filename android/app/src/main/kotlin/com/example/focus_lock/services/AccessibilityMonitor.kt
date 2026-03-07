@@ -278,6 +278,10 @@ class AccessibilityMonitor : AccessibilityService() {
         // If foreground package is NOT in monitored packages: do nothing
         // except clean up overlays if user navigated away from a blocked app
         if (packageName !in MONITORED_PACKAGES && packageName != FOCUS_LOCK_PACKAGE) {
+            // ── Uninstall guard: detect Settings app showing FocusLock info ──
+            if (packageName == "com.android.settings" || packageName == "com.google.android.packageinstaller") {
+                handlePossibleUninstallAttempt()
+            }
             handleUserLeftBlockedContext()
             return
         }
@@ -339,6 +343,39 @@ class AccessibilityMonitor : AccessibilityService() {
                 // User might be in FocusLock doing pushups — don't interfere
             }
             else -> { /* no-op */ }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // Uninstall guard — detect navigation to FocusLock app info/uninstall
+    // ══════════════════════════════════════════════════════════════════
+
+    private var lastUninstallGuardTime = 0L
+
+    private fun handlePossibleUninstallAttempt() {
+        // Debounce: only check every 3 seconds
+        val now = System.currentTimeMillis()
+        if (now - lastUninstallGuardTime < 3000L) return
+        lastUninstallGuardTime = now
+
+        UninstallProtectionManager.init(applicationContext)
+        if (!UninstallProtectionManager.isProtectionEnabled()) return
+        if (UninstallProtectionManager.isUninstallAllowed()) return
+
+        // Scan for our app name in the current window content
+        try {
+            val rootNode = rootInActiveWindow ?: return
+            val focusLockNodes = rootNode.findAccessibilityNodeInfosByText("FocusLock")
+            val uninstallNodes = rootNode.findAccessibilityNodeInfosByText("Uninstall")
+
+            if (focusLockNodes.isNotEmpty() && uninstallNodes.isNotEmpty()) {
+                Log.d(TAG, "Uninstall attempt detected — launching challenge overlay")
+                val intent = Intent(this, com.example.focus_lock.ui.UninstallChallengeOverlay::class.java)
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startService(intent)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking uninstall attempt: ${e.message}")
         }
     }
 
