@@ -155,7 +155,7 @@ class UninstallChallengeOverlay : Service(), SensorEventListener {
             setTextColor(Color.parseColor("#CCCCCC"))
             textSize = 18f
             gravity = Gravity.CENTER
-            lineSpacing = 8f
+            setLineSpacing(8f, 1f)
         }
         container.addView(message, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
@@ -200,7 +200,7 @@ class UninstallChallengeOverlay : Service(), SensorEventListener {
             setTextColor(Color.parseColor("#666666"))
             textSize = 14f
             gravity = Gravity.CENTER
-            lineSpacing = 4f
+            setLineSpacing(4f, 1f)
         }
         container.addView(statusText, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
