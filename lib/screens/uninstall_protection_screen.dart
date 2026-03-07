@@ -165,8 +165,8 @@ class _UninstallProtectionScreenState extends State<UninstallProtectionScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isProtected
-              ? const Color(0xFF4CAF50).withValues(alpha: 0.3)
-              : const Color(0xFFC6A85A).withValues(alpha: 0.3),
+              ? const Color(0xFF4CAF50).withOpacity(0.3)
+              : const Color(0xFFC6A85A).withOpacity(0.3),
         ),
       ),
       child: Column(
@@ -283,7 +283,7 @@ class _UninstallProtectionScreenState extends State<UninstallProtectionScreen> {
         color: const Color(0xFF1A2A1A),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: const Color(0xFF4CAF50).withValues(alpha: 0.3),
+          color: const Color(0xFF4CAF50).withOpacity(0.3),
         ),
       ),
       child: Column(
