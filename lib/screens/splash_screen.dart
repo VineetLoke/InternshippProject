@@ -47,9 +47,9 @@ class _SplashScreenState extends State<SplashScreen> {
   void _navigate() {
     if (!mounted) return;
     final lockProvider = context.read<LockStateProvider>();
-    if (lockProvider.isLocked) {
-      Navigator.of(context).pushReplacementNamed('/lock');
-    } else if (lockProvider.passwordSet) {
+    if (lockProvider.passwordSet) {
+      // Setup complete — always show the main dashboard.
+      // The home screen handles locked vs unlocked state internally.
       Navigator.of(context).pushReplacementNamed('/home');
     } else {
       Navigator.of(context).pushReplacementNamed('/permissions');

@@ -412,8 +412,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   'Chrome Incognito Blocker',
                   style: TextStyle(
-                    fontSiIncognito Blocker',
-                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
                     color: isActive ? Colors.green.shade700 : Colors.grey.shade600,
@@ -422,7 +420,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 2),
                 Text(
                   isActive
-                      ? 'Active — Incognito mode
+                      ? 'Active — Incognito mode blocked'
+                      : 'Inactive — Enable Accessibility Service',
+                  style: TextStyle(
                     fontSize: 12,
                     color: isActive ? Colors.green.shade600 : Colors.grey.shade500,
                   ),
