@@ -12,14 +12,12 @@ import android.util.Log
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
-import com.example.focus_lock.blockers.ChromeIncognitoBlocker
 import com.example.focus_lock.blockers.InstagramBlocker
 import com.example.focus_lock.blockers.RedditBlocker
 import com.example.focus_lock.blockers.TwitterBlocker
 import com.example.focus_lock.controllers.DisciplineState
 import com.example.focus_lock.storage.database.AppDatabase
 import com.example.focus_lock.storage.database.AppOpenLog
-import com.example.focus_lock.ui.ChromeIncognitoWarningOverlay
 import com.example.focus_lock.ui.DisciplineWarningOverlay
 import com.example.focus_lock.ui.LockScreenOverlay
 import java.text.SimpleDateFormat
@@ -36,14 +34,13 @@ class AccessibilityMonitor : AccessibilityService() {
         const val INSTAGRAM_PACKAGE = "com.instagram.android"
         const val REDDIT_PACKAGE = "com.reddit.frontpage"
         const val TWITTER_PACKAGE = "com.twitter.android"
-        const val CHROME_PACKAGE = "com.android.chrome"
         const val FOCUS_LOCK_PACKAGE = "com.example.focus_lock"
 
         // Only these packages are blocked outright
         val BLOCKED_PACKAGES = setOf(INSTAGRAM_PACKAGE, REDDIT_PACKAGE, TWITTER_PACKAGE)
 
-        // Chrome is monitored for incognito mode blocking
-        val MONITORED_PACKAGES = BLOCKED_PACKAGES + CHROME_PACKAGE
+        // Monitored packages = blocked packages (Chrome no longer monitored via Accessibility)
+        val MONITORED_PACKAGES = BLOCKED_PACKAGES
 
         // Packages tracked for open-count logging
         val TRACKED_PACKAGES = BLOCKED_PACKAGES
@@ -95,9 +92,6 @@ class AccessibilityMonitor : AccessibilityService() {
     // Event debounce (PART 9)
     private var lastEventTime = 0L
     private var lastEventPackage: String? = null
-
-    // Chrome incognito debounce
-    private var lastChromeBlockTime = 0L
 
     // App open logging deduplication
     private var lastLoggedPackage: String? = null
@@ -160,17 +154,8 @@ class AccessibilityMonitor : AccessibilityService() {
             performGlobalAction(GLOBAL_ACTION_BACK)
         }
 
-        // ── Chrome incognito blocker (isolated module) ────────
-        ChromeIncognitoBlocker.init(applicationContext)
-        ChromeIncognitoBlocker.onShowWarning = {
-            triggerChromeWarning()
-        }
-        ChromeIncognitoBlocker.onCloseTab = {
-            performGlobalAction(GLOBAL_ACTION_BACK)
-        }
-        ChromeIncognitoBlocker.onDismissWarning = {
-            stopOverlayService(ChromeIncognitoWarningOverlay::class.java)
-        }
+        // Chrome incognito is now managed via enterprise policy (ChromeIncognitoPolicy)
+        // No Accessibility-based Chrome monitoring needed.
 
         Log.d(TAG, "ServiceInfo applied — listening for events")
     }
@@ -217,7 +202,6 @@ class AccessibilityMonitor : AccessibilityService() {
         overlayShownAt = 0L
         backPressCount = 0
         stopOverlayService(DisciplineWarningOverlay::class.java)
-        stopOverlayService(ChromeIncognitoWarningOverlay::class.java)
         stopOverlayService(LockScreenOverlay::class.java)
     }
 
@@ -243,13 +227,6 @@ class AccessibilityMonitor : AccessibilityService() {
                     lastEventTime = now
                     lastEventPackage = pkg
                     handleWindowStateChanged(pkg)
-                }
-                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED,
-                AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED -> {
-                    // Only process Chrome content events — strict package check
-                    if (pkg == CHROME_PACKAGE) {
-                        handleChromeContentChanged(event)
-                    }
                 }
             }
         } catch (e: Exception) {
@@ -311,11 +288,6 @@ class AccessibilityMonitor : AccessibilityService() {
                 // Delegated to deterministic RedditBlocker module.
                 if (RedditBlocker.onRedditDetected()) return
             }
-            CHROME_PACKAGE -> {
-                // Chrome is handled by content monitoring (incognito mode detection).
-                // If user returns to Chrome from somewhere else while WARNING was shown,
-                // the warning handler already scheduled cleanup.
-            }
             FOCUS_LOCK_PACKAGE -> {
                 // Never block ourselves
             }
@@ -333,11 +305,6 @@ class AccessibilityMonitor : AccessibilityService() {
                 cleanupAllOverlays()
                 transitionTo(DisciplineState.IDLE)
                 blockedPackage = null
-            }
-            DisciplineState.WARNING_DISPLAYED -> {
-                Log.d(TAG, "User left Chrome during warning -> cleaning overlays")
-                cleanupAllOverlays()
-                transitionTo(DisciplineState.IDLE)
             }
             DisciplineState.REDDIT_CHALLENGE_ACTIVE -> {
                 // User might be in FocusLock doing pushups — don't interfere
@@ -562,89 +529,6 @@ class AccessibilityMonitor : AccessibilityService() {
     }
 
     // ══════════════════════════════════════════════════════════════════
-    // Chrome incognito mode blocker (PART 5)
-    // Triggers ONLY when Chrome is in incognito mode.
-    // Never triggers during normal browsing.
-    // ══════════════════════════════════════════════════════════════════
-
-    private fun handleChromeContentChanged(event: AccessibilityEvent) {
-        // Skip if already in a blocking/warning state
-        if (currentState == DisciplineState.WARNING_DISPLAYED ||
-            currentState == DisciplineState.APP_BLOCKED) return
-
-        // Grab root node for incognito detection
-        val rootNode = try { rootInActiveWindow } catch (_: Exception) { null }
-        if (rootNode == null) {
-            Log.d(TAG, "Chrome content changed but rootNode is null — skipping")
-            return
-        }
-
-        try {
-            Log.d(TAG, "Chrome event: type=${event.eventType}")
-
-            // Delegate entirely to the isolated ChromeIncognitoBlocker
-            val blocked = ChromeIncognitoBlocker.onChromeContentChanged(rootNode)
-            if (blocked) {
-                Log.d(TAG, "ChromeIncognitoBlocker triggered — incognito detected")
-            }
-        } finally {
-            try { rootNode.recycle() } catch (_: Exception) {}
-        }
-    }
-
-    /**
-     * Chrome incognito mode detected:
-     * 1. Show quote screen for exactly 3 seconds (WARNING_DISPLAYED)
-     * 2. Close tab via GLOBAL_ACTION_BACK
-     * 3. Return to IDLE
-     * Delegates to the isolated ChromeIncognitoBlocker + its dedicated overlay.
-     */
-    private fun triggerChromeWarning() {
-        if (currentState == DisciplineState.WARNING_DISPLAYED) return
-
-        lastChromeBlockTime = System.currentTimeMillis()
-        transitionTo(DisciplineState.WARNING_DISPLAYED)
-
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
-                !android.provider.Settings.canDrawOverlays(this)) {
-                Log.w(TAG, "Overlay permission not granted — BACK only")
-                performGlobalAction(GLOBAL_ACTION_BACK)
-                transitionTo(DisciplineState.IDLE)
-                return
-            }
-
-            // Show the isolated Chrome incognito warning overlay
-            val warningIntent = Intent(applicationContext, ChromeIncognitoWarningOverlay::class.java)
-            startService(warningIntent)
-            overlayShownAt = System.currentTimeMillis()
-            startOverlayWatchdog()
-            Log.d(TAG, "Chrome incognito warning overlay shown")
-
-            // After exactly 3 seconds: close tab and return to IDLE
-            handler.postDelayed({
-                try {
-                    // Close the incognito tab
-                    performGlobalAction(GLOBAL_ACTION_BACK)
-                    Log.d(TAG, "Chrome incognito tab closed via GLOBAL_ACTION_BACK")
-
-                    // Remove warning overlay
-                    stopOverlayService(ChromeIncognitoWarningOverlay::class.java)
-                    overlayShownAt = 0L
-                    transitionTo(DisciplineState.IDLE)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error in warning timer: ${e.message}")
-                    transitionTo(DisciplineState.IDLE)
-                }
-            }, ChromeIncognitoBlocker.WARNING_DURATION_MS)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error showing warning: ${e.message}")
-            performGlobalAction(GLOBAL_ACTION_BACK)
-            transitionTo(DisciplineState.IDLE)
-        }
-    }
-
-    // ══════════════════════════════════════════════════════════════════
     // State machine transitions (PART 2)
     // ══════════════════════════════════════════════════════════════════
 
@@ -675,7 +559,6 @@ class AccessibilityMonitor : AccessibilityService() {
         if (elapsed > OVERLAY_MAX_STUCK_MS) {
             val blockedIsActive = when {
                 blockedPackage != null -> fg == blockedPackage
-                currentState == DisciplineState.WARNING_DISPLAYED -> fg == CHROME_PACKAGE
                 else -> false
             }
             if (!blockedIsActive && fg != FOCUS_LOCK_PACKAGE) {
@@ -700,7 +583,6 @@ class AccessibilityMonitor : AccessibilityService() {
         backPressCount = 0
 
         stopOverlayService(DisciplineWarningOverlay::class.java)
-        stopOverlayService(ChromeIncognitoWarningOverlay::class.java)
         stopOverlayService(LockScreenOverlay::class.java)
 
         // Re-schedule Reddit lock timer if in temp unlock

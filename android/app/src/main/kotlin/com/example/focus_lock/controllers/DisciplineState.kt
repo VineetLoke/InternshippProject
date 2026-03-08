@@ -6,13 +6,12 @@ package com.example.focus_lock.controllers
  * Flow:
  *  IDLE
  *    → APP_BLOCKED           when Instagram, Twitter/X, or Reddit opens
- *    → WARNING_DISPLAYED     when Chrome incognito mode detected
  *
  *  APP_BLOCKED
  *    → IDLE                  when user navigates away from blocked app
  *
  *  WARNING_DISPLAYED
- *    → IDLE                  after 3-second quote display + tab close
+ *    → IDLE                  (reserved for future use)
  *
  *  REDDIT_CHALLENGE_ACTIVE
  *    → REDDIT_TEMP_UNLOCK    when 100 pushups completed
@@ -20,6 +19,9 @@ package com.example.focus_lock.controllers
  *
  *  REDDIT_TEMP_UNLOCK
  *    → APP_BLOCKED           when 10-minute timer expires
+ *
+ * Note: Chrome incognito is now disabled via enterprise policy
+ * (IncognitoModeAvailability: 1) — no Accessibility monitoring needed.
  */
 enum class DisciplineState {
     IDLE,

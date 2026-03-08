@@ -380,6 +380,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildChromeFilterCard() {
     final isActive = (_chromeFilterStatus['isActive'] ?? false) as bool;
+    final isDeviceOwner = (_chromeFilterStatus['isDeviceOwner'] ?? false) as bool;
+
+    String subtitle;
+    if (isActive) {
+      subtitle = 'Active — Incognito mode disabled by policy';
+    } else if (!isDeviceOwner) {
+      subtitle = 'Requires Device Owner setup';
+    } else {
+      subtitle = 'Inactive — Policy not applied';
+    }
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -410,7 +421,7 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Chrome Incognito Blocker',
+                  'Chrome Incognito Policy',
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
@@ -419,9 +430,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  isActive
-                      ? 'Active — Incognito mode blocked'
-                      : 'Inactive — Enable Accessibility Service',
+                  subtitle,
                   style: TextStyle(
                     fontSize: 12,
                     color: isActive ? Colors.green.shade600 : Colors.grey.shade500,

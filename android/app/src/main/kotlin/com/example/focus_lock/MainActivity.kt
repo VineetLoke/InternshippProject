@@ -16,6 +16,7 @@ import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.example.focus_lock.blockers.ChromeIncognitoBlocker
+import com.example.focus_lock.services.ChromeIncognitoPolicy
 import com.example.focus_lock.blockers.InstagramBlocker
 import com.example.focus_lock.blockers.RedditBlocker
 import com.example.focus_lock.blockers.TwitterBlocker
@@ -167,10 +168,24 @@ class MainActivity : FlutterActivity() {
                         result.success(getAllAppOpenCounts())
                     }
 
-                    // ── Chrome incognito filter (isolated module) ────
+                    // ── Chrome incognito policy (enterprise managed config) ────
                     "getChromeFilterStatus" -> {
                         ChromeIncognitoBlocker.init(applicationContext)
                         result.success(ChromeIncognitoBlocker.getStatus())
+                    }
+                    "applyChromeIncognitoPolicy" -> {
+                        val applied = ChromeIncognitoPolicy.applyIncognitoPolicy(applicationContext)
+                        result.success(applied)
+                    }
+                    "removeChromeIncognitoPolicy" -> {
+                        val removed = ChromeIncognitoPolicy.removeIncognitoPolicy(applicationContext)
+                        result.success(removed)
+                    }
+                    "isChromeIncognitoPolicyActive" -> {
+                        result.success(ChromeIncognitoPolicy.isIncognitoDisabled(applicationContext))
+                    }
+                    "isDeviceOwnerOrProfileOwner" -> {
+                        result.success(ChromeIncognitoPolicy.isDeviceOwnerOrProfileOwner(applicationContext))
                     }
 
                     // ── Discipline state machine ──────────────────
