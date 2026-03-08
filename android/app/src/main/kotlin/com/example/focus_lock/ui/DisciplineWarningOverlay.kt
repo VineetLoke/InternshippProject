@@ -86,18 +86,30 @@ class DisciplineWarningOverlay : Service() {
             // Top spacer
             content.addView(createSpacer(1f))
 
-            // Main quote (PART 6)
+            // Main quote
             val quoteView = TextView(this).apply {
                 text = "\u201CKill the boy and let the man be born.\u201D"
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f)
                 setTextColor(Color.WHITE)
                 gravity = Gravity.CENTER
                 typeface = Typeface.create("serif", Typeface.BOLD)
-                setPadding(0, 0, 0, dp(40))
+                setPadding(0, 0, 0, dp(12))
                 letterSpacing = 0.02f
                 setLineSpacing(8f, 1.1f)
             }
             content.addView(quoteView)
+
+            // Attribution
+            val attributionView = TextView(this).apply {
+                text = "\u2014 Maester Aemon Targaryen"
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                setTextColor(Color.parseColor("#88FFFFFF"))
+                gravity = Gravity.CENTER
+                typeface = Typeface.create("serif", Typeface.ITALIC)
+                setPadding(0, 0, 0, dp(40))
+                letterSpacing = 0.04f
+            }
+            content.addView(attributionView)
 
             // Subtle divider — muted gold accent
             val divider = View(this).apply {
