@@ -168,10 +168,13 @@ class MainActivity : FlutterActivity() {
                         result.success(getAllAppOpenCounts())
                     }
 
-                    // ── Chrome incognito policy (enterprise managed config) ────
+                    // ── Chrome incognito keyword blocker (accessibility-based) ────
                     "getChromeFilterStatus" -> {
-                        ChromeIncognitoBlocker.init(applicationContext)
-                        result.success(ChromeIncognitoBlocker.getStatus())
+                        result.success(mapOf(
+                            "isActive" to AccessibilityMonitor.isRunning,
+                            "mode" to "accessibility_keyword_scan",
+                            "policyApplied" to true
+                        ))
                     }
                     "applyChromeIncognitoPolicy" -> {
                         val applied = ChromeIncognitoPolicy.applyIncognitoPolicy(applicationContext)
