@@ -380,8 +380,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildChromeFilterCard() {
     final isActive = (_chromeFilterStatus['isActive'] ?? false) as bool;
-    final keywordCount = (_chromeFilterStatus['blockedKeywordCount'] ?? 0) as int;
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -412,7 +410,9 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Chrome Content Filter',
+                  'Chrome Incognito Blocker',
+                  style: TextStyle(
+                    fontSiIncognito Blocker',
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
@@ -422,9 +422,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 2),
                 Text(
                   isActive
-                      ? 'Active — $keywordCount keywords blocked'
-                      : 'Inactive — Enable Accessibility Service',
-                  style: TextStyle(
+                      ? 'Active — Incognito mode
                     fontSize: 12,
                     color: isActive ? Colors.green.shade600 : Colors.grey.shade500,
                   ),

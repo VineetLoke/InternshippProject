@@ -26,9 +26,9 @@ import android.widget.ProgressBar
 import android.widget.TextView
 
 /**
- * Full-screen incognito keyword warning overlay — isolated from all other overlays.
+ * Full-screen incognito warning overlay — isolated from all other overlays.
  *
- * Shown for exactly 3 seconds when ChromeIncognitoBlocker detects a blocked keyword.
+ * Shown for exactly 3 seconds when ChromeIncognitoBlocker detects incognito mode.
  * Dark minimal design with centered motivational quote and attribution.
  *
  * The AccessibilityService handles the 3-second timer and tab dismissal.

@@ -6,7 +6,7 @@ package com.example.focus_lock.controllers
  * Flow:
  *  IDLE
  *    → APP_BLOCKED           when Instagram, Twitter/X, or Reddit opens
- *    → WARNING_DISPLAYED     when Chrome incognito keyword detected
+ *    → WARNING_DISPLAYED     when Chrome incognito mode detected
  *
  *  APP_BLOCKED
  *    → IDLE                  when user navigates away from blocked app

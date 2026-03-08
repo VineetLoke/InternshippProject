@@ -28,8 +28,8 @@ import android.widget.TextView
 /**
  * Full-screen discipline warning overlay (PART 5 & 6).
  *
- * Shown for exactly 3 seconds when a blocked keyword is detected
- * in Chrome incognito. Premium dark UI with centered motivational quote,
+ * Shown for exactly 3 seconds when Chrome incognito mode is detected.
+ * Premium dark UI with centered motivational quote,
  * progress bar countdown, and slow fade animations.
  *
  * The AccessibilityService handles the 3-second timer and dismissal.

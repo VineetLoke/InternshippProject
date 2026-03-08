@@ -42,7 +42,7 @@ class AccessibilityMonitor : AccessibilityService() {
         // Only these packages are blocked outright
         val BLOCKED_PACKAGES = setOf(INSTAGRAM_PACKAGE, REDDIT_PACKAGE, TWITTER_PACKAGE)
 
-        // Chrome is monitored for incognito keyword filtering only
+        // Chrome is monitored for incognito mode blocking
         val MONITORED_PACKAGES = BLOCKED_PACKAGES + CHROME_PACKAGE
 
         // Packages tracked for open-count logging
@@ -96,7 +96,7 @@ class AccessibilityMonitor : AccessibilityService() {
     private var lastEventTime = 0L
     private var lastEventPackage: String? = null
 
-    // Chrome keyword debounce
+    // Chrome incognito debounce
     private var lastChromeBlockTime = 0L
 
     // App open logging deduplication
@@ -312,7 +312,7 @@ class AccessibilityMonitor : AccessibilityService() {
                 if (RedditBlocker.onRedditDetected()) return
             }
             CHROME_PACKAGE -> {
-                // Chrome is handled by content monitoring (incognito keywords).
+                // Chrome is handled by content monitoring (incognito mode detection).
                 // If user returns to Chrome from somewhere else while WARNING was shown,
                 // the warning handler already scheduled cleanup.
             }
@@ -562,8 +562,8 @@ class AccessibilityMonitor : AccessibilityService() {
     }
 
     // ══════════════════════════════════════════════════════════════════
-    // Chrome incognito-only keyword filter (PART 5)
-    // Triggers ONLY when: 1) Chrome is in incognito  2) Blocked keyword found
+    // Chrome incognito mode blocker (PART 5)
+    // Triggers ONLY when Chrome is in incognito mode.
     // Never triggers during normal browsing.
     // ══════════════════════════════════════════════════════════════════
 
@@ -580,23 +580,12 @@ class AccessibilityMonitor : AccessibilityService() {
         }
 
         try {
-            // Collect event data for the isolated blocker module
-            val eventTexts = event.text?.toList() ?: emptyList()
-            val eventDesc = event.contentDescription
-            val sourceNode = try { event.source } catch (_: Exception) { null }
+            Log.d(TAG, "Chrome event: type=${event.eventType}")
 
-            Log.d(TAG, "Chrome event: type=${event.eventType}, texts=${eventTexts.size}, desc=$eventDesc")
-
-            try {
-                // Delegate entirely to the isolated ChromeIncognitoBlocker
-                val blocked = ChromeIncognitoBlocker.onChromeContentChanged(
-                    rootNode, eventTexts, eventDesc, sourceNode
-                )
-                if (blocked) {
-                    Log.d(TAG, "ChromeIncognitoBlocker triggered blocking")
-                }
-            } finally {
-                try { sourceNode?.recycle() } catch (_: Exception) {}
+            // Delegate entirely to the isolated ChromeIncognitoBlocker
+            val blocked = ChromeIncognitoBlocker.onChromeContentChanged(rootNode)
+            if (blocked) {
+                Log.d(TAG, "ChromeIncognitoBlocker triggered — incognito detected")
             }
         } finally {
             try { rootNode.recycle() } catch (_: Exception) {}
@@ -604,7 +593,7 @@ class AccessibilityMonitor : AccessibilityService() {
     }
 
     /**
-     * Chrome incognito keyword detected:
+     * Chrome incognito mode detected:
      * 1. Show quote screen for exactly 3 seconds (WARNING_DISPLAYED)
      * 2. Close tab via GLOBAL_ACTION_BACK
      * 3. Return to IDLE
