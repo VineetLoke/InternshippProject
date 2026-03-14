@@ -344,8 +344,8 @@ class AccessibilityMonitor : AccessibilityService() {
     }
 
     // ══════════════════════════════════════════════════════════════════
-    // Chrome incognito keyword blocking
-    // Only activates when: incognito mode + blocked keyword in URL/search
+    // Chrome incognito typing blocker
+    // Activates when: Chrome foreground + incognito mode + any typing
     // Normal browsing is NEVER affected.
     // ══════════════════════════════════════════════════════════════════
 
@@ -369,7 +369,7 @@ class AccessibilityMonitor : AccessibilityService() {
     }
 
     private fun triggerChromeIncognitoBlock() {
-        Log.d(TAG, "Chrome incognito keyword BLOCKED — showing warning")
+        Log.d(TAG, "Chrome incognito typing BLOCKED — showing warning")
         transitionTo(DisciplineState.CHROME_INCOGNITO_BLOCKED)
 
         // Show DisciplineWarningOverlay (3-second countdown)
