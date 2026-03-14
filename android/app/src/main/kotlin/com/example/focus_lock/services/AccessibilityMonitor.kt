@@ -78,8 +78,7 @@ class AccessibilityMonitor : AccessibilityService() {
         private const val MAX_BACK_ATTEMPTS = 5
         private const val BACK_PRESS_INTERVAL_MS = 300L
 
-        // Chrome incognito keyword blocking
-        private const val CHROME_EVENT_DEBOUNCE_MS = 1500L
+        // Chrome incognito warning duration
         private const val CHROME_WARNING_DURATION_MS = 3000L
 
         @Volatile var isRunning = false
@@ -119,8 +118,7 @@ class AccessibilityMonitor : AccessibilityService() {
     // BACK press loop state
     private var backPressCount = 0
 
-    // Chrome incognito keyword tracking
-    private var lastChromeCheckTime = 0L
+    // Chrome incognito tracking
     private val chromeWarningDismissRunnable = Runnable { dismissChromeWarning() }
 
     // ══════════════════════════════════════════════════════════════════
@@ -352,19 +350,20 @@ class AccessibilityMonitor : AccessibilityService() {
     /**
      * Handle any typing event inside Chrome.
      * If incognito mode is active, block immediately — no keyword check.
+     * Debounce is handled solely by ChromeIncognitoBlocker (5s).
      */
     private fun handleChromeTypingEvent() {
         if (currentState == DisciplineState.CHROME_INCOGNITO_BLOCKED) return
 
-        val now = System.currentTimeMillis()
-        if (now - lastChromeCheckTime < CHROME_EVENT_DEBOUNCE_MS) return
-        lastChromeCheckTime = now
-
         val rootNode = rootInActiveWindow ?: return
-        if (rootNode.packageName?.toString() != ChromeIncognitoBlocker.CHROME_PACKAGE) return
+        try {
+            if (rootNode.packageName?.toString() != ChromeIncognitoBlocker.CHROME_PACKAGE) return
 
-        if (ChromeIncognitoBlocker.shouldBlockTyping(rootNode)) {
-            triggerChromeIncognitoBlock()
+            if (ChromeIncognitoBlocker.shouldBlockTyping(rootNode)) {
+                triggerChromeIncognitoBlock()
+            }
+        } finally {
+            rootNode.recycle()
         }
     }
 
@@ -393,7 +392,18 @@ class AccessibilityMonitor : AccessibilityService() {
     private fun dismissChromeWarning() {
         Log.d(TAG, "Chrome warning expired — closing incognito tab")
         stopOverlayService(DisciplineWarningOverlay::class.java)
+
+        // Repeat BACK presses to reliably close the incognito tab
         performGlobalAction(GLOBAL_ACTION_BACK)
+        for (i in 1..2) {
+            handler.postDelayed({
+                if (currentForegroundPackage == CHROME_PACKAGE) {
+                    performGlobalAction(GLOBAL_ACTION_BACK)
+                    Log.d(TAG, "Chrome incognito BACK press #${i + 1}")
+                }
+            }, BACK_PRESS_INTERVAL_MS * i)
+        }
+
         transitionTo(DisciplineState.IDLE)
     }
 

@@ -46,10 +46,17 @@ object ChromeIncognitoBlocker {
                     val desc = node.contentDescription?.toString()?.lowercase() ?: ""
                     val text = node.text?.toString()?.lowercase() ?: ""
 
-                    if (viewId != null && viewId.contains("incognito")) return true
-                    if (desc.contains("incognito")) return true
-                    if (text.contains("incognito")) return true
+                    val match = (viewId != null && viewId.contains("incognito")) ||
+                                desc.contains("incognito") ||
+                                text.contains("incognito")
+                    if (match) {
+                        // Recycle all returned nodes before returning
+                        incognitoNodes.forEach { it.recycle() }
+                        return true
+                    }
                 }
+                // No match on fast path — recycle before deep scan
+                incognitoNodes.forEach { it.recycle() }
             }
             // Deep scan: walk the tree looking for incognito indicators
             scanTreeForIncognito(rootNode, 0)
@@ -70,7 +77,11 @@ object ChromeIncognitoBlocker {
 
         for (i in 0 until node.childCount) {
             val child = node.getChild(i) ?: continue
-            if (scanTreeForIncognito(child, depth + 1)) return true
+            if (scanTreeForIncognito(child, depth + 1)) {
+                child.recycle()
+                return true
+            }
+            child.recycle()
         }
         return false
     }
