@@ -15,7 +15,6 @@ import android.text.TextUtils
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.example.focus_lock.blockers.ChromeIncognitoBlocker
 import com.example.focus_lock.services.ChromeIncognitoPolicy
 import com.example.focus_lock.blockers.InstagramBlocker
 import com.example.focus_lock.blockers.RedditBlocker

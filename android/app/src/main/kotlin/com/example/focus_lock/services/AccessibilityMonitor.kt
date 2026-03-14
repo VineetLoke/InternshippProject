@@ -239,12 +239,14 @@ class AccessibilityMonitor : AccessibilityService() {
                     lastEventPackage = pkg
                     handleWindowStateChanged(pkg)
                 }
-                AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED,
-                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
-                    // Chrome incognito keyword detection — monitor URL/search text
+                AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED -> {
+                    // Chrome incognito typing detection — any typing in incognito triggers block
                     if (pkg == ChromeIncognitoBlocker.CHROME_PACKAGE) {
-                        handleChromeContentEvent(event)
+                        handleChromeTypingEvent()
                     }
+                }
+                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
+                    // Content changes are not monitored for Chrome incognito blocking
                 }
             }
         } catch (e: Exception) {
@@ -307,8 +309,7 @@ class AccessibilityMonitor : AccessibilityService() {
                 if (RedditBlocker.onRedditDetected()) return
             }
             CHROME_PACKAGE -> {
-                // Chrome: scan for incognito keywords on window change
-                checkChromeIncognito()
+                // Chrome: incognito blocking is handled by TYPE_VIEW_TEXT_CHANGED only
             }
             FOCUS_LOCK_PACKAGE -> {
                 // Never block ourselves
@@ -348,41 +349,21 @@ class AccessibilityMonitor : AccessibilityService() {
     // Normal browsing is NEVER affected.
     // ══════════════════════════════════════════════════════════════════
 
-    private fun handleChromeContentEvent(event: AccessibilityEvent) {
+    /**
+     * Handle any typing event inside Chrome.
+     * If incognito mode is active, block immediately — no keyword check.
+     */
+    private fun handleChromeTypingEvent() {
         if (currentState == DisciplineState.CHROME_INCOGNITO_BLOCKED) return
 
         val now = System.currentTimeMillis()
         if (now - lastChromeCheckTime < CHROME_EVENT_DEBOUNCE_MS) return
         lastChromeCheckTime = now
 
-        // For text-changed events: try fast path using event text
-        if (event.eventType == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED) {
-            val eventText = event.text?.map { it.toString() }
-            val text = ChromeIncognitoBlocker.extractEventText(eventText)
-            if (text != null) {
-                val rootNode = rootInActiveWindow
-                if (rootNode != null &&
-                    rootNode.packageName?.toString() == ChromeIncognitoBlocker.CHROME_PACKAGE) {
-                    val isIncognito = ChromeIncognitoBlocker.isIncognitoMode(rootNode)
-                    if (ChromeIncognitoBlocker.shouldBlockEventText(text, isIncognito)) {
-                        triggerChromeIncognitoBlock()
-                        return
-                    }
-                }
-            }
-        }
-
-        // Full tree scan for content changes
-        checkChromeIncognito()
-    }
-
-    private fun checkChromeIncognito() {
-        if (currentState == DisciplineState.CHROME_INCOGNITO_BLOCKED) return
-
         val rootNode = rootInActiveWindow ?: return
         if (rootNode.packageName?.toString() != ChromeIncognitoBlocker.CHROME_PACKAGE) return
 
-        if (ChromeIncognitoBlocker.shouldBlock(rootNode)) {
+        if (ChromeIncognitoBlocker.shouldBlockTyping(rootNode)) {
             triggerChromeIncognitoBlock()
         }
     }

@@ -19,7 +19,9 @@ import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
 import android.view.animation.AlphaAnimation
+import android.view.animation.AnimationSet
 import android.view.animation.DecelerateInterpolator
+import android.view.animation.ScaleAnimation
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ProgressBar
@@ -38,7 +40,8 @@ class DisciplineWarningOverlay : Service() {
     companion object {
         const val TAG = "DisciplineWarning"
         private const val BG_COLOR = "#0D0D0D"
-        private const val FADE_DURATION_MS = 700L
+        private const val FADE_IN_DURATION_MS = 500L
+        private const val FADE_OUT_DURATION_MS = 400L
         private const val COUNTDOWN_MS = 3000L
         private const val ACCENT_COLOR = "#C6A85A"
     }
@@ -188,12 +191,24 @@ class DisciplineWarningOverlay : Service() {
 
             windowManager?.addView(overlayView, params)
 
-            // Slow fade-in (PART 6: 600-900ms)
-            overlayView?.startAnimation(AlphaAnimation(0f, 1f).apply {
-                duration = FADE_DURATION_MS
+            // Smooth entrance: fade-in 500ms + scale 0.95 → 1.0
+            val fadeIn = AlphaAnimation(0f, 1f).apply {
+                duration = FADE_IN_DURATION_MS
+            }
+            val scaleIn = ScaleAnimation(
+                0.95f, 1f, 0.95f, 1f,
+                android.view.animation.Animation.RELATIVE_TO_SELF, 0.5f,
+                android.view.animation.Animation.RELATIVE_TO_SELF, 0.5f
+            ).apply {
+                duration = FADE_IN_DURATION_MS
+            }
+            val animSet = AnimationSet(true).apply {
                 interpolator = DecelerateInterpolator()
+                addAnimation(fadeIn)
+                addAnimation(scaleIn)
                 fillAfter = true
-            })
+            }
+            overlayView?.startAnimation(animSet)
 
             Log.d(TAG, "Discipline warning overlay displayed")
         } catch (e: Exception) {
@@ -223,13 +238,29 @@ class DisciplineWarningOverlay : Service() {
         ).toInt()
     }
 
-    /** Remove overlay using removeViewImmediate (PART 8). */
+    /** Remove overlay with a smooth 400ms fade-out. */
     private fun hideOverlay() {
         try {
             handler.removeCallbacksAndMessages(null)
-            if (overlayView != null && windowManager != null) {
-                windowManager?.removeViewImmediate(overlayView)
-                overlayView = null
+            val view = overlayView
+            val wm = windowManager
+            if (view != null && wm != null) {
+                val fadeOut = AlphaAnimation(1f, 0f).apply {
+                    duration = FADE_OUT_DURATION_MS
+                    interpolator = DecelerateInterpolator()
+                    fillAfter = true
+                }
+                fadeOut.setAnimationListener(object : android.view.animation.Animation.AnimationListener {
+                    override fun onAnimationStart(a: android.view.animation.Animation?) {}
+                    override fun onAnimationRepeat(a: android.view.animation.Animation?) {}
+                    override fun onAnimationEnd(a: android.view.animation.Animation?) {
+                        try {
+                            wm.removeViewImmediate(view)
+                        } catch (_: Exception) {}
+                        overlayView = null
+                    }
+                })
+                view.startAnimation(fadeOut)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error hiding overlay: ${e.message}", e)

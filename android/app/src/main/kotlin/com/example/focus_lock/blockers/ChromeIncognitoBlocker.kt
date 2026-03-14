@@ -2,60 +2,28 @@ package com.example.focus_lock.blockers
 
 import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
-import java.util.regex.Pattern
 
 /**
- * Chrome incognito keyword blocker — accessibility-tree approach.
+ * Chrome incognito typing blocker — accessibility-tree approach.
  *
  * Activates ONLY when ALL three conditions are true:
  *  1. Chrome is the foreground app
  *  2. Chrome is in incognito mode (detected via accessibility tree)
- *  3. The URL bar / search text contains a blocked keyword
+ *  3. A text input event (TYPE_VIEW_TEXT_CHANGED) occurs
  *
  * Design rules:
- *  • Completely isolated from Instagram, Reddit, Twitter blockers.
+ *  • No keyword lists. No pattern matching.
+ *  • Any single typed character in incognito triggers the block.
  *  • Normal Chrome browsing is NEVER affected.
- *  • Only incognito searches containing blocked terms trigger the warning.
  *  • Uses AccessibilityNodeInfo tree scanning — no enterprise policy required.
  */
 object ChromeIncognitoBlocker {
     private const val TAG = "ChromeIncognitoBlocker"
     const val CHROME_PACKAGE = "com.android.chrome"
 
-    // Chrome accessibility resource IDs for the URL / search bar
-    private const val URL_BAR_ID = "com.android.chrome:id/url_bar"
-    private const val SEARCH_BOX_ID = "com.android.chrome:id/search_box_text"
-
     // Debounce: don't re-trigger within 5 seconds of a block
     private const val BLOCK_DEBOUNCE_MS = 5000L
     @Volatile private var lastBlockTime = 0L
-
-    // ── Blocked keyword set (case-insensitive) ───────────────────
-    private val BLOCKED_KEYWORDS = setOf(
-        "adult", "porn", "pornography", "explicit", "nsfw",
-        "erotic", "sex", "sexual", "sexy", "fetish", "bdsm",
-        "cam", "escort", "adultvideo", "adultcontent", "adultchat",
-        "hookup", "sexchat", "eroticvideo", "sexvideo", "pornvideo",
-        "adultstream", "adultsite", "maturecontent", "adultmovie",
-        "strip", "striptease", "cybersex", "sexshop", "sexsite",
-        "adultcam", "livecam", "adultdating", "adultforum",
-        "sexforum", "adultmedia", "eroticmedia", "pornmedia",
-        "adultnetwork", "eroticnetwork", "pornnetwork",
-        "adultgallery", "sexgallery", "eroticgallery", "pornlibrary",
-        "adultvideos", "eroticvideos", "adulttube", "pornsite",
-        "pornhub", "redtube", "xvideos", "xnxx", "youporn",
-        "tube8", "hentai", "rule34", "onlyfans", "fansly",
-        "banged", "chaturbate"
-    )
-
-    // ── Regex pattern with word boundaries ───────────────────────
-    private val KEYWORD_PATTERN: Pattern = Pattern.compile(
-        "\\b(porn|sex|erotic|adult|nsfw|cam|escort|fetish|bdsm|hentai|" +
-        "xvideos|xnxx|pornhub|redtube|youporn|tube8|rule34|onlyfans|" +
-        "fansly|chaturbate|hookup|striptease|cybersex|livecam|banged|" +
-        "pornography|explicit|sexual|sexy|strip|pornsite|adulttube)\\b",
-        Pattern.CASE_INSENSITIVE
-    )
 
     // Maximum tree depth to prevent runaway recursion
     private const val MAX_TREE_DEPTH = 20
@@ -108,91 +76,21 @@ object ChromeIncognitoBlocker {
     }
 
     // ══════════════════════════════════════════════════════════════
-    // URL / search text extraction
-    // ══════════════════════════════════════════════════════════════
-
-    /** Extract text from Chrome's URL bar or search box. */
-    fun extractUrlBarText(rootNode: AccessibilityNodeInfo): String? {
-        return try {
-            // Try the main URL bar first
-            val urlBarNodes = rootNode.findAccessibilityNodeInfosByViewId(URL_BAR_ID)
-            for (node in urlBarNodes) {
-                val text = node.text?.toString()
-                if (!text.isNullOrBlank()) return text
-            }
-            // Fall back to the search box
-            val searchNodes = rootNode.findAccessibilityNodeInfosByViewId(SEARCH_BOX_ID)
-            for (node in searchNodes) {
-                val text = node.text?.toString()
-                if (!text.isNullOrBlank()) return text
-            }
-            null
-        } catch (e: Exception) {
-            Log.e(TAG, "Error extracting URL text: ${e.message}")
-            null
-        }
-    }
-
-    /** Extract text from an AccessibilityEvent's text list (TYPE_VIEW_TEXT_CHANGED). */
-    fun extractEventText(eventText: List<CharSequence>?): String? {
-        if (eventText.isNullOrEmpty()) return null
-        return eventText.joinToString(" ") { it.toString() }.takeIf { it.isNotBlank() }
-    }
-
-    // ══════════════════════════════════════════════════════════════
-    // Keyword matching
-    // ══════════════════════════════════════════════════════════════
-
-    /** Returns true if text contains any blocked keyword (set lookup + regex). */
-    fun containsBlockedKeyword(text: String): Boolean {
-        val lower = text.lowercase()
-
-        // Fast set-based lookup
-        for (keyword in BLOCKED_KEYWORDS) {
-            if (lower.contains(keyword)) return true
-        }
-        // Regex word-boundary check
-        if (KEYWORD_PATTERN.matcher(lower).find()) return true
-
-        return false
-    }
-
-    // ══════════════════════════════════════════════════════════════
-    // Blocking decisions
+    // Blocking decision — any typing in incognito triggers block
     // ══════════════════════════════════════════════════════════════
 
     /**
-     * Full blocking decision via tree scan.
-     * Returns true only when incognito + keyword + not debounced.
+     * Returns true when a text-changed event should trigger the blocker.
+     * Checks: incognito mode active + not within debounce window.
      */
-    fun shouldBlock(rootNode: AccessibilityNodeInfo): Boolean {
+    fun shouldBlockTyping(rootNode: AccessibilityNodeInfo): Boolean {
         val now = System.currentTimeMillis()
         if (now - lastBlockTime < BLOCK_DEBOUNCE_MS) return false
 
         if (!isIncognitoMode(rootNode)) return false
 
-        val text = extractUrlBarText(rootNode) ?: return false
-        if (!containsBlockedKeyword(text)) return false
-
         lastBlockTime = now
-        Log.d(TAG, "BLOCKED — incognito keyword detected in: $text")
-        return true
-    }
-
-    /**
-     * Blocking decision using event text (fast path for TYPE_VIEW_TEXT_CHANGED).
-     * Incognito state must be confirmed separately before calling.
-     */
-    fun shouldBlockEventText(eventText: String, isIncognito: Boolean): Boolean {
-        if (!isIncognito) return false
-
-        val now = System.currentTimeMillis()
-        if (now - lastBlockTime < BLOCK_DEBOUNCE_MS) return false
-
-        if (!containsBlockedKeyword(eventText)) return false
-
-        lastBlockTime = now
-        Log.d(TAG, "BLOCKED — incognito keyword in typed text: $eventText")
+        Log.d(TAG, "BLOCKED — typing detected in Chrome incognito")
         return true
     }
 
