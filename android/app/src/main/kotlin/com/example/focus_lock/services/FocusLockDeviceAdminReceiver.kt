@@ -36,7 +36,7 @@ class FocusLockDeviceAdminReceiver : DeviceAdminReceiver() {
         manager.init(context)
 
         // Record an attempt for telemetry / tamper detection
-        manager.recordDisableAttempt()
+        manager.recordDisableAttempt(context)
 
         if (manager.isUninstallAllowed()) {
             Log.d(TAG, "Challenge completed within cooldown — allowing disable")

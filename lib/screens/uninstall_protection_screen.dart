@@ -129,6 +129,76 @@ class _UninstallProtectionScreenState extends State<UninstallProtectionScreen> {
             ),
             const SizedBox(height: 16),
 
+            // Kiosk controls (device owner)
+            _buildActionButton(
+              text: 'ENABLE KIOSK (Device Owner Only)',
+              onPressed: () async {
+                final ok = await _service.enableKiosk(packages: ["com.example.focus_lock"]);
+                if (ok) {
+                  // Try to enter lock task immediately
+                  final entered = await _service.enterLockTask();
+                  if (!entered) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Kiosk enabled but startLockTask not permitted')));
+                  }
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to enable kiosk (device owner required)')));
+                }
+                _refreshStatus();
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildActionButton(
+              text: 'DISABLE KIOSK',
+              onPressed: () async {
+                final ok = await _service.disableKiosk();
+                if (ok) {
+                  await _service.exitLockTask();
+                }
+                _refreshStatus();
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Admin tamper dashboard
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A1A1A),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Admin Tamper Log', style: TextStyle(color: Color(0xFFC6A85A), fontSize: 16, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Text('Disable attempts: ${_status['disableAttemptCount'] ?? 0}', style: const TextStyle(color: Color(0xFF888888))),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      ElevatedButton(
+                        onPressed: () async {
+                          final content = await _service.getDisableAttemptsLog();
+                          showDialog(context: context, builder: (_) => AlertDialog(title: const Text('Disable Attempts Log'), content: SingleChildScrollView(child: Text(content.isNotEmpty ? content : 'No log available')), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('CLOSE'))]));
+                        },
+                        child: const Text('VIEW LOG'),
+                        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFC6A85A), foregroundColor: const Color(0xFF0D0D0D)),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton(
+                        onPressed: () async {
+                          // Trigger challenge overlay to clear attempts
+                          _service.launchUninstallChallenge();
+                        },
+                        child: const Text('START CHALLENGE'),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade800, foregroundColor: Colors.white),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
             // Enable full protection button
             if (!isProtectionEnabled)
               _buildActionButton(

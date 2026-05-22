@@ -396,6 +396,17 @@ class MainActivity : FlutterActivity() {
                             result.error("LOCKTASK_ERROR", e.message, null)
                         }
                     }
+                    "getDisableAttemptsLog" -> {
+                        try {
+                            val fileName = "disable_attempts.log"
+                            val fis = openFileInput(fileName)
+                            val content = fis.bufferedReader().use { it.readText() }
+                            fis.close()
+                            result.success(content)
+                        } catch (e: Exception) {
+                            result.error("LOG_ERROR", e.message, null)
+                        }
+                    }
 
                     else -> result.notImplemented()
                 }

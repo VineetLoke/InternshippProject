@@ -111,6 +111,58 @@ class UninstallProtectionService {
     }
   }
 
+  /// Configure kiosk packages (device owner required).
+  Future<bool> enableKiosk({List<String>? packages}) async {
+    try {
+      final result = await _channel.invokeMethod('enableKiosk', {'packages': packages});
+      return result == true;
+    } catch (e) {
+      print('Error enabling kiosk: $e');
+      return false;
+    }
+  }
+
+  Future<bool> disableKiosk() async {
+    try {
+      final result = await _channel.invokeMethod('disableKiosk');
+      return result == true;
+    } catch (e) {
+      print('Error disabling kiosk: $e');
+      return false;
+    }
+  }
+
+  Future<bool> enterLockTask() async {
+    try {
+      final result = await _channel.invokeMethod('enterLockTask');
+      return result == true;
+    } catch (e) {
+      print('Error entering lock task: $e');
+      return false;
+    }
+  }
+
+  Future<bool> exitLockTask() async {
+    try {
+      final result = await _channel.invokeMethod('exitLockTask');
+      return result == true;
+    } catch (e) {
+      print('Error exiting lock task: $e');
+      return false;
+    }
+  }
+
+  /// Retrieve the tamper log content for disable attempts.
+  Future<String> getDisableAttemptsLog() async {
+    try {
+      final result = await _channel.invokeMethod('getDisableAttemptsLog');
+      return result as String? ?? '';
+    } catch (e) {
+      print('Error fetching disable attempts log: $e');
+      return '';
+    }
+  }
+
   /// Remove device admin (only works during cooldown window).
   Future<bool> removeDeviceAdmin() async {
     try {
