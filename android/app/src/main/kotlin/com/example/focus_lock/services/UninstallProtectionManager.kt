@@ -28,10 +28,20 @@ object UninstallProtectionManager {
         }
     }
 
-    fun recordDisableAttempt() {
+    fun recordDisableAttempt(context: Context) {
         try {
             val attempts = prefs.getInt(KEY_DISABLE_ATTEMPTS, 0) + 1
             prefs.edit().putInt(KEY_DISABLE_ATTEMPTS, attempts).apply()
+            // Append to a local tamper log for admin review
+            try {
+                val file = context.getFileStreamPath("disable_attempts.log")
+                val fos = context.openFileOutput("disable_attempts.log", Context.MODE_APPEND)
+                val line = "${System.currentTimeMillis()}: attempt#$attempts\n"
+                fos.write(line.toByteArray())
+                fos.close()
+            } catch (io: Exception) {
+                Log.w(TAG, "Could not write tamper log: ${io.message}")
+            }
             Log.d(TAG, "Recorded disable attempt #$attempts")
         } catch (e: Exception) {
             Log.e(TAG, "Error recording disable attempt: ${e.message}")

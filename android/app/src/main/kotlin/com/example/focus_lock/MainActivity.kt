@@ -362,6 +362,40 @@ class MainActivity : FlutterActivity() {
                             result.error("KIOSK_ERROR", e.message, null)
                         }
                     }
+                    "enterLockTask" -> {
+                        try {
+                            val dpm = getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
+                            val permitted = dpm.isLockTaskPermitted(packageName)
+                            runOnUiThread {
+                                if (permitted) {
+                                    try {
+                                        startLockTask()
+                                        result.success(true)
+                                    } catch (e: Exception) {
+                                        result.error("LOCKTASK_ERROR", e.message, null)
+                                    }
+                                } else {
+                                    result.error("LOCKTASK_NOT_PERMITTED", "Lock Task not permitted for this package", null)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            result.error("LOCKTASK_ERROR", e.message, null)
+                        }
+                    }
+                    "exitLockTask" -> {
+                        try {
+                            runOnUiThread {
+                                try {
+                                    stopLockTask()
+                                    result.success(true)
+                                } catch (e: Exception) {
+                                    result.error("LOCKTASK_ERROR", e.message, null)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            result.error("LOCKTASK_ERROR", e.message, null)
+                        }
+                    }
 
                     else -> result.notImplemented()
                 }
