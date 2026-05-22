@@ -25,6 +25,7 @@ import com.example.focus_lock.services.AppIconManager
 import com.example.focus_lock.services.FocusLockDeviceAdminReceiver
 import com.example.focus_lock.services.PushupDetectorService
 import com.example.focus_lock.services.UninstallProtectionManager
+import com.example.focus_lock.services.KioskManager
 import com.example.focus_lock.storage.database.AppDatabase
 import com.example.focus_lock.ui.UninstallChallengeOverlay
 import io.flutter.embedding.android.FlutterActivity
@@ -342,6 +343,24 @@ class MainActivity : FlutterActivity() {
                     "removeDeviceAdmin" -> {
                         UninstallProtectionManager.init(applicationContext)
                         result.success(UninstallProtectionManager.removeDeviceAdmin(applicationContext))
+                    }
+                    "enableKiosk" -> {
+                        // Expect an array of package names from Flutter
+                        try {
+                            val packages = call.argument<List<String>>("packages")?.toTypedArray() ?: arrayOf(packageName)
+                            val applied = KioskManager.applyLockTaskPackages(applicationContext, packages, true)
+                            result.success(applied)
+                        } catch (e: Exception) {
+                            result.error("KIOSK_ERROR", e.message, null)
+                        }
+                    }
+                    "disableKiosk" -> {
+                        try {
+                            val applied = KioskManager.applyLockTaskPackages(applicationContext, arrayOf(), false)
+                            result.success(applied)
+                        } catch (e: Exception) {
+                            result.error("KIOSK_ERROR", e.message, null)
+                        }
                     }
 
                     else -> result.notImplemented()

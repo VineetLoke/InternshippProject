@@ -16,6 +16,7 @@ object UninstallProtectionManager {
     private const val KEY_CHALLENGE_COMPLETED_AT = "challenge_completed_at"
     private const val KEY_PROTECTION_ENABLED = "protection_enabled"
     private const val KEY_UNINSTALL_BLOCKED = "uninstall_blocked"
+    private const val KEY_DISABLE_ATTEMPTS = "disable_attempts"
     private const val COOLDOWN_WINDOW_MS = 5L * 60L * 1000L  // 5 minutes
     const val REQUIRED_PUSHUPS = 200
 
@@ -25,6 +26,20 @@ object UninstallProtectionManager {
         if (!::prefs.isInitialized) {
             prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         }
+    }
+
+    fun recordDisableAttempt() {
+        try {
+            val attempts = prefs.getInt(KEY_DISABLE_ATTEMPTS, 0) + 1
+            prefs.edit().putInt(KEY_DISABLE_ATTEMPTS, attempts).apply()
+            Log.d(TAG, "Recorded disable attempt #$attempts")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error recording disable attempt: ${e.message}")
+        }
+    }
+
+    fun getDisableAttemptCount(): Int {
+        return prefs.getInt(KEY_DISABLE_ATTEMPTS, 0)
     }
 
     /**
@@ -150,6 +165,7 @@ object UninstallProtectionManager {
             "isProtectionEnabled" to isProtectionEnabled(),
             "isUninstallBlocked" to isUninstallBlocked(),
             "isUninstallAllowed" to isUninstallAllowed(),
+            "disableAttemptCount" to getDisableAttemptCount(),
             "cooldownRemainingSeconds" to getCooldownRemainingSeconds(),
             "requiredPushups" to REQUIRED_PUSHUPS,
             "isIconHidden" to AppIconManager.isIconHidden(context)

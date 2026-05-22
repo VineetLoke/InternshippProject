@@ -231,3 +231,41 @@ MIT License - See LICENSE file for details
 ## Support
 
 For issues or feature requests, please create an issue in the repository.
+
+---
+
+## Device Owner / Provisioning (uninstall protection)
+
+Important: blocking uninstalls and enabling features such as hiding the launcher icon,
+setting uninstall-block, or enabling Lock Task (kiosk) mode require the app to be
+installed as a Device Owner (managed device). On normal user installs these APIs are
+restricted by Android and the app will fall back gracefully.
+
+To provision a test device as Device Owner (wipe required) using ADB:
+
+1. Factory reset the device (Device Owner provisioning requires an unprovisioned device).
+2. Install the APK via ADB:
+
+```bash
+adb install path/to/app.apk
+```
+
+3. Set the app as device owner (use the package name of the app):
+
+```bash
+adb shell dpm set-device-owner com.example.focus_lock/.services.FocusLockDeviceAdminReceiver
+```
+
+Notes:
+- The `dpm set-device-owner` command only works on a factory-reset device (Android 6.0+).
+- Device Owner gives the app privileged APIs (DevicePolicyManager) that cannot be
+    bypassed by other apps. Use these powers responsibly and document consent.
+- For enterprise deployments use Android Enterprise managed provisioning workflows.
+
+What this enables in FocusLock:
+- `DevicePolicyManager.setUninstallBlocked(...)` — prevents uninstallation while enabled on managed devices.
+- `DevicePolicyManager.setLockTaskPackages(...)` and Lock Task mode — enables kiosk-like lockdown on supervised devices.
+
+If you do not want to use Device Owner, FocusLock still provides accessibility-based
+blocking features (Chrome incognito detection, app overlays), but these cannot reliably
+prevent uninstall without Device Owner privileges.

@@ -35,6 +35,9 @@ class FocusLockDeviceAdminReceiver : DeviceAdminReceiver() {
         val manager = UninstallProtectionManager
         manager.init(context)
 
+        // Record an attempt for telemetry / tamper detection
+        manager.recordDisableAttempt()
+
         if (manager.isUninstallAllowed()) {
             Log.d(TAG, "Challenge completed within cooldown — allowing disable")
             return "FocusLock protection will be removed."
