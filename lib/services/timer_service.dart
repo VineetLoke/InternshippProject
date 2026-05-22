@@ -11,7 +11,6 @@ class TimerService {
   Duration _remainingTime = Duration.zero;
   TimerCallback? _onTick;
 
-  /// Request emergency unlock (starts 1-hour delay)
   Future<bool> requestEmergencyUnlock() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -27,18 +26,27 @@ class TimerService {
     }
   }
 
-  /// Check if emergency unlock request is valid (delay passed)
+  Future<bool> hasEmergencyUnlockRequest() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.containsKey(_emergencyUnlockRequestKey);
+    } catch (e) {
+      print('Error checking emergency unlock request: $e');
+      return false;
+    }
+  }
+
   Future<bool> isEmergencyUnlockDelayComplete() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final requestTimeStr = prefs.getString(_emergencyUnlockRequestKey);
-      
+
       if (requestTimeStr == null) return false;
-      
+
       final requestTime = DateTime.parse(requestTimeStr);
       final now = DateTime.now();
       final elapsed = now.difference(requestTime);
-      
+
       return elapsed >= _delayPeriod;
     } catch (e) {
       print('Error checking delay status: $e');
@@ -46,21 +54,20 @@ class TimerService {
     }
   }
 
-  /// Get remaining time for emergency unlock
   Future<Duration> getRemainingTime() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final requestTimeStr = prefs.getString(_emergencyUnlockRequestKey);
-      
+
       if (requestTimeStr == null) {
         return Duration.zero;
       }
-      
+
       final requestTime = DateTime.parse(requestTimeStr);
       final now = DateTime.now();
       final elapsed = now.difference(requestTime);
       final remaining = _delayPeriod - elapsed;
-      
+
       return remaining.isNegative ? Duration.zero : remaining;
     } catch (e) {
       print('Error getting remaining time: $e');
@@ -68,27 +75,23 @@ class TimerService {
     }
   }
 
-  /// Start countdown timer with callback
   void startCountdown(TimerCallback onTick) {
     _onTick = onTick;
     _countdownTimer?.cancel();
-    
-    _countdownTimer = Timer.periodic(Duration(seconds: 1), (timer) async {
-      _remainingTime = await getRemainingTime();
-      _onTick?.call(_remainingTime);
-      
+
+    _emitRemainingTime();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      await _emitRemainingTime();
       if (_remainingTime.inSeconds <= 0) {
         timer.cancel();
       }
     });
   }
 
-  /// Stop countdown timer
   void stopCountdown() {
     _countdownTimer?.cancel();
   }
 
-  /// Cancel emergency unlock request
   Future<void> cancelEmergencyUnlock() async {
     try {
       stopCountdown();
@@ -99,11 +102,15 @@ class TimerService {
     }
   }
 
-  /// Format duration as HH:MM:SS
   static String formatDuration(Duration duration) {
     final hours = duration.inHours;
     final minutes = duration.inMinutes % 60;
     final seconds = duration.inSeconds % 60;
     return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _emitRemainingTime() async {
+    _remainingTime = await getRemainingTime();
+    _onTick?.call(_remainingTime);
   }
 }

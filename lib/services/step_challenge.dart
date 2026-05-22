@@ -18,7 +18,6 @@ class StepChallengeService {
   int _baselineSteps = 0;
   StepCallback? _onStepUpdate;
 
-  /// Initialize step counter (request permissions if needed)
   Future<bool> initialize() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -31,13 +30,10 @@ class StepChallengeService {
     }
   }
 
-  /// Start monitoring steps – silently skips if permission not granted.
   void startMonitoring(StepCallback onUpdate) {
     _onStepUpdate = onUpdate;
     _resetIfNewDay();
 
-    // Check permission synchronously via cached status before subscribing
-    // to avoid a crash when ACTIVITY_RECOGNITION is not granted.
     Permission.activityRecognition.status.then((status) {
       if (!status.isGranted) {
         debugPrint('StepChallenge: ACTIVITY_RECOGNITION not granted, skipping');
@@ -61,6 +57,7 @@ class StepChallengeService {
           }
           _currentSteps = steps - _baselineSteps;
           if (_currentSteps < 0) _currentSteps = 0;
+          await persistSteps();
           _onStepUpdate?.call(_currentSteps);
         },
         onError: (error) {
@@ -72,44 +69,52 @@ class StepChallengeService {
     }
   }
 
-  /// Stop monitoring steps
   void stopMonitoring() {
     _stepCountStream?.cancel();
+    persistSteps();
   }
 
-  /// Check if challenge is completed
   Future<bool> isChallengeComplete() async {
-    _resetIfNewDay();
+    await _resetIfNewDay();
     return _currentSteps >= _stepTarget;
   }
 
-  /// Get current step count
   int getCurrentSteps() {
     return _currentSteps;
   }
 
-  /// Get remaining steps needed
   int getRemainingSteps() {
     final remaining = _stepTarget - _currentSteps;
     return remaining > 0 ? remaining : 0;
   }
 
-  /// Get progress percentage
   double getProgress() {
     return (_currentSteps / _stepTarget).clamp(0.0, 1.0);
   }
 
-  /// Reset counter for new day
+  Future<void> resetProgress() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_stepsCompletedKey, 0);
+      await prefs.remove(_stepsBaselineKey);
+      _baselineSteps = 0;
+      _currentSteps = 0;
+    } catch (e) {
+      print('Error resetting challenge progress: $e');
+    }
+  }
+
   Future<void> _resetIfNewDay() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final today = DateTime.now().toString().split(' ')[0]; // YYYY-MM-DD
-      
+      final today = DateTime.now().toString().split(' ')[0];
       final lastDay = prefs.getString(_challengeStartDayKey);
-      
+
       if (lastDay != today) {
         await prefs.setString(_challengeStartDayKey, today);
         await prefs.setInt(_stepsCompletedKey, 0);
+        await prefs.remove(_stepsBaselineKey);
+        _baselineSteps = 0;
         _currentSteps = 0;
       }
     } catch (e) {
@@ -117,7 +122,6 @@ class StepChallengeService {
     }
   }
 
-  /// Persist current step count
   Future<void> persistSteps() async {
     try {
       final prefs = await SharedPreferences.getInstance();

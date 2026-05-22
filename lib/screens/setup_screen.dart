@@ -42,18 +42,22 @@ class _SetupScreenState extends State<SetupScreen> {
     setState(() => _isLoading = true);
 
     final lockProvider = context.read<LockStateProvider>();
-    
-    // Set password
     final passwordSet = await lockProvider.setPassword(_passwordController.text);
-    
+
     if (!passwordSet) {
       _showSnackBar('Error setting password');
       setState(() => _isLoading = false);
       return;
     }
 
-    // Initialize lock
-    await lockProvider.initializeLock();
+    final lockInitialized = await lockProvider.initializeLock();
+    if (!lockInitialized) {
+      _showSnackBar('Unable to start the lock. Check permissions and try again.');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+      return;
+    }
 
     if (mounted) {
       Navigator.of(context).pushReplacementNamed('/home');
@@ -78,7 +82,6 @@ class _SetupScreenState extends State<SetupScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Header
             Icon(
               Icons.lock_outline,
               size: 60,
@@ -103,8 +106,6 @@ class _SetupScreenState extends State<SetupScreen> {
               ),
             ),
             const SizedBox(height: 30),
-
-            // Password field
             TextField(
               controller: _passwordController,
               obscureText: !_showPassword,
@@ -124,8 +125,6 @@ class _SetupScreenState extends State<SetupScreen> {
               ),
             ),
             const SizedBox(height: 15),
-
-            // Confirm password field
             TextField(
               controller: _confirmPasswordController,
               obscureText: !_showPassword,
@@ -137,8 +136,6 @@ class _SetupScreenState extends State<SetupScreen> {
               ),
             ),
             const SizedBox(height: 30),
-
-            // Agreement section
             Container(
               padding: const EdgeInsets.all(15),
               decoration: BoxDecoration(
@@ -186,8 +183,6 @@ class _SetupScreenState extends State<SetupScreen> {
               ),
             ),
             const SizedBox(height: 30),
-
-            // Confirm button
             ElevatedButton(
               onPressed: _isLoading ? null : _confirmSetup,
               style: ElevatedButton.styleFrom(

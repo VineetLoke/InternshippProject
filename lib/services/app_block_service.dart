@@ -1,58 +1,57 @@
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
-import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AppBlockService {
-  static const String _instagramPackage = 'com.instagram.android';
   static const String _lockStartTimeKey = 'lock_start_time';
   static const String _lockDurationDaysKey = 'lock_duration_days';
   static const int _defaultLockDays = 30;
 
   static const _channel = MethodChannel('com.example.focus_lock/app_block');
 
-  /// Initialize lock with default 30-day duration
+  /// Initialize lock with the app's canonical 30-day duration.
   Future<bool> initializeLock() async {
+    final prefs = await SharedPreferences.getInstance();
     try {
-      final prefs = await SharedPreferences.getInstance();
       final now = DateTime.now();
 
       await prefs.setString(
         _lockStartTimeKey,
         now.toUtc().toIso8601String(),
       );
+      await prefs.setInt(_lockDurationDaysKey, _defaultLockDays);
 
-      await prefs.setInt(
-        _lockDurationDaysKey,
-        _defaultLockDays,
-      );
-
-      // Tell native side to start the blocking service
       try {
         final result = await _channel.invokeMethod('startBlocking');
-        print('Native startBlocking result: $result');
+        if (result != true) {
+          await _clearLockPrefs(prefs);
+          print('Native startBlocking returned false');
+          return false;
+        }
       } catch (e) {
+        await _clearLockPrefs(prefs);
         print('Error calling startBlocking: $e');
+        return false;
       }
 
       return true;
     } catch (e) {
+      await _clearLockPrefs(prefs);
       print('Error initializing lock: $e');
       return false;
     }
   }
 
-  /// Check if Instagram is currently locked
+  /// Check if the shared lock window is still active.
   Future<bool> isLocked() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
       final lockStartStr = prefs.getString(_lockStartTimeKey);
       if (lockStartStr == null) return false;
-      
+
       final lockStart = DateTime.parse(lockStartStr);
       final lockDays = prefs.getInt(_lockDurationDaysKey) ?? _defaultLockDays;
       final lockEnd = lockStart.add(Duration(days: lockDays));
-      
+
       return DateTime.now().isBefore(lockEnd);
     } catch (e) {
       print('Error checking lock status: $e');
@@ -60,18 +59,17 @@ class AppBlockService {
     }
   }
 
-  /// Get remaining days until unlock
+  /// Get remaining days until unlock.
   Future<int> getRemainingDays() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
       final lockStartStr = prefs.getString(_lockStartTimeKey);
       if (lockStartStr == null) return 0;
-      
+
       final lockStart = DateTime.parse(lockStartStr);
       final lockDays = prefs.getInt(_lockDurationDaysKey) ?? _defaultLockDays;
       final lockEnd = lockStart.add(Duration(days: lockDays));
-      
+
       final remaining = lockEnd.difference(DateTime.now()).inDays;
       return remaining > 0 ? remaining : 0;
     } catch (e) {
@@ -80,17 +78,15 @@ class AppBlockService {
     }
   }
 
-  /// Get lock end date
+  /// Get lock end date.
   Future<DateTime?> getLockEndDate() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
       final lockStartStr = prefs.getString(_lockStartTimeKey);
       if (lockStartStr == null) return null;
-      
+
       final lockStart = DateTime.parse(lockStartStr);
       final lockDays = prefs.getInt(_lockDurationDaysKey) ?? _defaultLockDays;
-      
       return lockStart.add(Duration(days: lockDays));
     } catch (e) {
       print('Error getting lock end date: $e');
@@ -98,33 +94,35 @@ class AppBlockService {
     }
   }
 
-  /// Manually unlock (for testing or admin purposes)
+  /// Clear the shared lock state.
   Future<void> unlock() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_lockStartTimeKey);
-      await prefs.remove(_lockDurationDaysKey);
+      await _clearLockPrefs(prefs);
     } catch (e) {
       print('Error unlocking: $e');
     }
   }
 
-  /// Reset lock status
   Future<void> resetLock() async {
     await unlock();
     await initializeLock();
   }
 
-  /// Get lock status details
   Future<Map<String, dynamic>> getLockStatus() async {
     final locked = await isLocked();
     final remaining = await getRemainingDays();
     final endDate = await getLockEndDate();
-    
+
     return {
       'locked': locked,
       'remainingDays': remaining,
       'endDate': endDate,
     };
+  }
+
+  Future<void> _clearLockPrefs(SharedPreferences prefs) async {
+    await prefs.remove(_lockStartTimeKey);
+    await prefs.remove(_lockDurationDaysKey);
   }
 }

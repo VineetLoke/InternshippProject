@@ -16,14 +16,11 @@ import 'providers/lock_state_provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Catch Flutter framework errors (widget build / layout errors).
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
     debugPrint('FlutterError: ${details.exception}\n${details.stack}');
   };
 
-  // Catch all async errors that escape the widget tree entirely
-  // (plugin init, dart:io failures, etc.).
   runZonedGuarded(
     () => runApp(const FocusLockApp()),
     (error, stack) {
@@ -37,15 +34,74 @@ class FocusLockApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: const Color(0xFF225C4D),
+      brightness: Brightness.light,
+    ).copyWith(
+      primary: const Color(0xFF225C4D),
+      secondary: const Color(0xFFB87432),
+      surface: const Color(0xFFFFFCF6),
+    );
+
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => LockStateProvider()),
       ],
       child: MaterialApp(
         title: 'FocusLock',
+        debugShowCheckedModeBanner: false,
         theme: ThemeData(
-          primarySwatch: Colors.blue,
           useMaterial3: true,
+          colorScheme: colorScheme,
+          scaffoldBackgroundColor: const Color(0xFFF5F1E8),
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Colors.transparent,
+            foregroundColor: Color(0xFF17352E),
+            elevation: 0,
+            centerTitle: false,
+          ),
+          snackBarTheme: SnackBarThemeData(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: colorScheme.primary,
+            contentTextStyle: const TextStyle(color: Colors.white),
+          ),
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: colorScheme.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+          outlinedButtonTheme: OutlinedButtonThemeData(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: colorScheme.primary,
+              side: BorderSide(color: colorScheme.primary.withOpacity(0.2)),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+          inputDecorationTheme: InputDecorationTheme(
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: colorScheme.outlineVariant),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: colorScheme.outlineVariant),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: colorScheme.primary, width: 1.4),
+            ),
+          ),
         ),
         initialRoute: '/',
         routes: {
