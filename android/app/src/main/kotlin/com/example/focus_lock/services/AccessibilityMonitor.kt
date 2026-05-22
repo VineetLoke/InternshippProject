@@ -225,6 +225,9 @@ class AccessibilityMonitor : AccessibilityService() {
 
             when (event.eventType) {
                 AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
+                    if (pkg == ChromeIncognitoBlocker.CHROME_PACKAGE) {
+                        ChromeIncognitoBlocker.evaluateIncognitoState(rootInActiveWindow)
+                    }
                     // Debounce: ignore same-package events within 2 seconds
                     val now = System.currentTimeMillis()
                     if (pkg == lastEventPackage && now - lastEventTime < EVENT_DEBOUNCE_MS) {
@@ -244,6 +247,10 @@ class AccessibilityMonitor : AccessibilityService() {
                     }
                 }
                 AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
+                    // Fast cache evaluation for incognito transitions
+                    if (pkg == ChromeIncognitoBlocker.CHROME_PACKAGE) {
+                        ChromeIncognitoBlocker.evaluateIncognitoState(rootInActiveWindow)
+                    }
                     // Content changes are not monitored for Chrome incognito blocking
                 }
             }
@@ -368,30 +375,34 @@ class AccessibilityMonitor : AccessibilityService() {
     }
 
     private fun triggerChromeIncognitoBlock() {
-        Log.d(TAG, "Chrome incognito typing BLOCKED — showing warning")
+        Log.d(TAG, "Chrome incognito typing BLOCKED — showing overlay")
         transitionTo(DisciplineState.CHROME_INCOGNITO_BLOCKED)
 
-        // Show DisciplineWarningOverlay (3-second countdown)
+        // Force Chrome out of the typing state immediately
+        performGlobalAction(GLOBAL_ACTION_BACK)
+        handler.postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 300L)
+
+        // Show BlockingOverlayScreen ("You don't need this.")
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
                 !android.provider.Settings.canDrawOverlays(this)) {
                 Log.w(TAG, "Overlay permission not granted")
                 return
             }
-            val intent = Intent(applicationContext, DisciplineWarningOverlay::class.java)
+            val intent = Intent(applicationContext, com.example.focus_lock.ui.BlockingOverlayScreen::class.java)
             startService(intent)
         } catch (e: Exception) {
-            Log.e(TAG, "Error showing discipline warning: ${e.message}", e)
+            Log.e(TAG, "Error showing blocking overlay: ${e.message}", e)
         }
 
-        // After 3 seconds: dismiss overlay and close incognito tab
+        // After 5 seconds: dismiss overlay and ensure tab is closed
         handler.removeCallbacks(chromeWarningDismissRunnable)
-        handler.postDelayed(chromeWarningDismissRunnable, CHROME_WARNING_DURATION_MS)
+        handler.postDelayed(chromeWarningDismissRunnable, 5000L)
     }
 
     private fun dismissChromeWarning() {
-        Log.d(TAG, "Chrome warning expired — closing incognito tab")
-        stopOverlayService(DisciplineWarningOverlay::class.java)
+        Log.d(TAG, "Chrome overlay expired — ensuring tab is closed")
+        stopOverlayService(com.example.focus_lock.ui.BlockingOverlayScreen::class.java)
 
         // Repeat BACK presses to reliably close the incognito tab
         performGlobalAction(GLOBAL_ACTION_BACK)

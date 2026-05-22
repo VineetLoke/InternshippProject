@@ -25,12 +25,44 @@ object ChromeIncognitoBlocker {
     private const val BLOCK_DEBOUNCE_MS = 5000L
     @Volatile private var lastBlockTime = 0L
 
+    @Volatile var isIncognitoCached = false
+        private set
+
     // Maximum tree depth to prevent runaway recursion
     private const val MAX_TREE_DEPTH = 20
 
     // ══════════════════════════════════════════════════════════════
     // Incognito detection
     // ══════════════════════════════════════════════════════════════
+
+    /**
+     * Fast-path heuristic to track incognito mode state across UI changes.
+     * Evaluates whether the screen definitively shows an incognito indicator or a normal tab indicator.
+     */
+    fun evaluateIncognitoState(node: AccessibilityNodeInfo?) {
+        if (node == null) return
+        try {
+            // Fast Check 1: Do we see an explicit "incognito" node anywhere on screen?
+            val incognitoNodes = node.findAccessibilityNodeInfosByText("incognito")
+            if (incognitoNodes.isNotEmpty()) {
+                isIncognitoCached = true
+                incognitoNodes.forEach { it.recycle() }
+                return
+            }
+            
+            // Fast Check 2: Do we see the Chrome tab switcher button?
+            val tabSwitchers = node.findAccessibilityNodeInfosByViewId("com.android.chrome:id/tab_switcher_button")
+            if (tabSwitchers.isNotEmpty()) {
+                // If a tab switcher is visible but NO "incognito" text was found anywhere on screen,
+                // this is a normal tab window. (The incognito tab switcher explicitly contains "incognito").
+                isIncognitoCached = false
+                tabSwitchers.forEach { it.recycle() }
+                return
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error evaluating incognito state: ${e.message}")
+        }
+    }
 
     /**
      * Detect incognito mode by scanning Chrome's accessibility tree
@@ -98,7 +130,9 @@ object ChromeIncognitoBlocker {
         val now = System.currentTimeMillis()
         if (now - lastBlockTime < BLOCK_DEBOUNCE_MS) return false
 
-        if (!isIncognitoMode(rootNode)) return false
+        // Check cached state first, fallback to deep check
+        val isCurrentlyIncognito = isIncognitoCached || isIncognitoMode(rootNode)
+        if (!isCurrentlyIncognito) return false
 
         lastBlockTime = now
         Log.d(TAG, "BLOCKED — typing detected in Chrome incognito")
