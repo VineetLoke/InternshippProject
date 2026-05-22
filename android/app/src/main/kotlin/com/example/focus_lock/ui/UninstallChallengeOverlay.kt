@@ -330,6 +330,7 @@ class UninstallChallengeOverlay : Service(), SensorEventListener {
         if (pushupCount >= REQUIRED_PUSHUPS && !challengeCompleted) {
             challengeCompleted = true
             UninstallProtectionManager.onChallengeCompleted()
+            UninstallProtectionManager.resetDisableAttempts()
             Log.d(TAG, "Challenge COMPLETED — 5-minute cooldown started")
 
             handler.post {

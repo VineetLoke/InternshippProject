@@ -86,7 +86,13 @@ object UninstallProtectionManager {
         prefs.edit()
             .putLong(KEY_CHALLENGE_COMPLETED_AT, System.currentTimeMillis())
             .apply()
-        Log.d(TAG, "Challenge completed — 5-minute cooldown window started")
+        // Reset recorded disable attempts when a legitimate challenge completes
+        prefs.edit().remove(KEY_DISABLE_ATTEMPTS).apply()
+        Log.d(TAG, "Challenge completed — 5-minute cooldown window started; disable attempts reset")
+    }
+
+    fun resetDisableAttempts() {
+        prefs.edit().remove(KEY_DISABLE_ATTEMPTS).apply()
     }
 
     /**
