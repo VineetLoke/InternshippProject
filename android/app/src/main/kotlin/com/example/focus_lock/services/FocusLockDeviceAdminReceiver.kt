@@ -18,6 +18,14 @@ class FocusLockDeviceAdminReceiver : DeviceAdminReceiver() {
     override fun onEnabled(context: Context, intent: Intent) {
         super.onEnabled(context, intent)
         Log.d(TAG, "Device admin ENABLED — uninstall protection active")
+        try {
+            val manager = UninstallProtectionManager
+            manager.init(context)
+            val applied = manager.applyUninstallBlock(context, true)
+            Log.d(TAG, "applyUninstallBlock returned: $applied")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error applying uninstall block on enable: ${e.message}")
+        }
     }
 
     override fun onDisableRequested(context: Context, intent: Intent): CharSequence {

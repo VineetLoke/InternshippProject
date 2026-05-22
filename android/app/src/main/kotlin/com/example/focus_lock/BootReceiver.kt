@@ -38,6 +38,10 @@ class BootReceiver : BroadcastReceiver() {
             if (!UninstallProtectionManager.isUninstallAllowed()) {
                 UninstallProtectionManager.resetChallenge()
             }
+            // Re-apply device-owner uninstall block if protection was enabled
+            if (UninstallProtectionManager.isProtectionEnabled()) {
+                UninstallProtectionManager.applyUninstallBlock(context, true)
+            }
         }
     }
 }

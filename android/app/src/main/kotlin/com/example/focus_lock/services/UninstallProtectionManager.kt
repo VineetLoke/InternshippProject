@@ -15,6 +15,7 @@ object UninstallProtectionManager {
     private const val PREFS_NAME = "uninstall_protection_prefs"
     private const val KEY_CHALLENGE_COMPLETED_AT = "challenge_completed_at"
     private const val KEY_PROTECTION_ENABLED = "protection_enabled"
+    private const val KEY_UNINSTALL_BLOCKED = "uninstall_blocked"
     private const val COOLDOWN_WINDOW_MS = 5L * 60L * 1000L  // 5 minutes
     const val REQUIRED_PUSHUPS = 200
 
@@ -24,6 +25,33 @@ object UninstallProtectionManager {
         if (!::prefs.isInitialized) {
             prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         }
+    }
+
+    /**
+     * Attempt to set the uninstall-block for this package using DevicePolicyManager.
+     * Returns true when the operation was applied (device owner present and API call succeeded).
+     * This is a no-op on non-device-owner installations.
+     */
+    fun applyUninstallBlock(context: Context, block: Boolean): Boolean {
+        try {
+            val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            val adminComponent = ComponentName(context, FocusLockDeviceAdminReceiver::class.java)
+            if (dpm.isDeviceOwnerApp(context.packageName)) {
+                dpm.setUninstallBlocked(adminComponent, context.packageName, block)
+                prefs.edit().putBoolean(KEY_UNINSTALL_BLOCKED, block).apply()
+                Log.d(TAG, "Device-owner uninstall block set=$block")
+                return true
+            } else {
+                Log.w(TAG, "Not device owner — cannot set uninstall block")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error applying uninstall block: ${e.message}")
+        }
+        return false
+    }
+
+    fun isUninstallBlocked(): Boolean {
+        return prefs.getBoolean(KEY_UNINSTALL_BLOCKED, false)
     }
 
     /**
@@ -120,6 +148,7 @@ object UninstallProtectionManager {
         return mapOf(
             "isDeviceAdminActive" to isDeviceAdminActive(context),
             "isProtectionEnabled" to isProtectionEnabled(),
+            "isUninstallBlocked" to isUninstallBlocked(),
             "isUninstallAllowed" to isUninstallAllowed(),
             "cooldownRemainingSeconds" to getCooldownRemainingSeconds(),
             "requiredPushups" to REQUIRED_PUSHUPS,
