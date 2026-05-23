@@ -36,13 +36,42 @@ import android.widget.TextView
  *
  * The AccessibilityService handles the 3-second timer and dismissal.
  */
-class DisciplineWarningOverlay : Service() {
+    class CountdownRingView(context: Context) : View(context) {
+        private val paintBg = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.parseColor("#22FF4444")
+            style = android.graphics.Paint.Style.STROKE
+            strokeWidth = 8f
+        }
+        private val paintArc = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.parseColor("#FF4444")
+            style = android.graphics.Paint.Style.STROKE
+            strokeWidth = 8f
+            strokeCap = android.graphics.Paint.Cap.ROUND
+        }
+        var progress = 100f // 100 to 0
+            set(value) {
+                field = value
+                invalidate()
+            }
+        private val rectF = android.graphics.RectF()
+
+        override fun onDraw(canvas: android.graphics.Canvas) {
+            super.onDraw(canvas)
+            val padding = 10f
+            rectF.set(padding, padding, width - padding, height - padding)
+            // draw background circle
+            canvas.drawCircle(width / 2f, height / 2f, (width - padding * 2) / 2f, paintBg)
+            // draw progress arc
+            val angle = 360f * (progress / 100f)
+            canvas.drawArc(rectF, -90f, angle, false, paintArc)
+        }
+    }
+
     companion object {
         const val TAG = "DisciplineWarning"
-        private const val BG_COLOR = "#0D0D0D"
-        private const val FADE_IN_DURATION_MS = 500L
+        private const val FADE_IN_DURATION_MS = 600L
         private const val FADE_OUT_DURATION_MS = 400L
-        private const val COUNTDOWN_MS = 3000L
+        private const val COUNTDOWN_MS = 5000L
         private const val ACCENT_COLOR = "#C6A85A"
     }
 
@@ -70,8 +99,18 @@ class DisciplineWarningOverlay : Service() {
 
             windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
+            // Deep red radial gradient background
+            val gradientBackground = GradientDrawable().apply {
+                gradientType = GradientDrawable.RADIAL_GRADIENT
+                colors = intArrayOf(
+                    Color.parseColor("#0D0008"), // Center
+                    Color.parseColor("#000000")  // Edges
+                )
+                gradientRadius = resources.displayMetrics.widthPixels.toFloat() * 1.5f
+            }
+
             overlayView = FrameLayout(this).apply {
-                setBackgroundColor(Color.parseColor(BG_COLOR))
+                background = gradientBackground
                 isClickable = true
                 isFocusable = true
             }
@@ -79,7 +118,7 @@ class DisciplineWarningOverlay : Service() {
             val content = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
-                setPadding(dp(64), 0, dp(64), 0)
+                setPadding(dp(48), dp(60), dp(48), dp(48))
                 layoutParams = FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     FrameLayout.LayoutParams.MATCH_PARENT
@@ -89,83 +128,133 @@ class DisciplineWarningOverlay : Service() {
             // Top spacer
             content.addView(createSpacer(1f))
 
-            // Main quote
-            val quoteView = TextView(this).apply {
-                text = "\u201CKill the boy and let the man be born.\u201D"
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f)
-                setTextColor(Color.WHITE)
+            // Warning icon with slow red pulse animation
+            val warningIcon = TextView(this).apply {
+                text = "⚠️"
+                textSize = 56f
                 gravity = Gravity.CENTER
-                typeface = Typeface.create("serif", Typeface.BOLD)
-                setPadding(0, 0, 0, dp(12))
-                letterSpacing = 0.02f
-                setLineSpacing(8f, 1.1f)
+                setPadding(0, 0, 0, dp(16))
+            }
+            warningIcon.startAnimation(AlphaAnimation(0.5f, 1.0f).apply {
+                duration = 750L
+                repeatMode = AlphaAnimation.REVERSE
+                repeatCount = AlphaAnimation.INFINITE
+                interpolator = DecelerateInterpolator()
+            })
+            content.addView(warningIcon)
+
+            // Title: heavy red all-caps STOP.
+            val title = TextView(this).apply {
+                text = "STOP."
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 36f)
+                setTextColor(Color.parseColor("#FF4444"))
+                gravity = Gravity.CENTER
+                typeface = Typeface.create("sans-serif-black", Typeface.BOLD)
+                setPadding(0, 0, 0, dp(24))
+            }
+            content.addView(title)
+
+            // Main quote (Robert Greene - Quote B)
+            val quoteView = TextView(this).apply {
+                text = "“The pain is a kind of challenge your mind presents — will you learn how to focus and move past the boredom, or like a child will you succumb to the need for immediate pleasure and distraction?”"
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
+                setTextColor(Color.parseColor("#F0E6D0"))
+                gravity = Gravity.CENTER
+                typeface = Typeface.create("serif", Typeface.ITALIC)
+                setPadding(0, 0, 0, dp(16))
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    letterSpacing = 0.02f
+                }
+                setLineSpacing(10f, 1.3f)
             }
             content.addView(quoteView)
 
             // Attribution
             val attributionView = TextView(this).apply {
-                text = "\u2014 Maester Aemon Targaryen"
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
-                setTextColor(Color.parseColor("#88FFFFFF"))
+                text = "— Robert Greene, Mastery"
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+                setTextColor(Color.parseColor("#8A7A6C"))
                 gravity = Gravity.CENTER
                 typeface = Typeface.create("serif", Typeface.ITALIC)
-                setPadding(0, 0, 0, dp(40))
-                letterSpacing = 0.04f
+                setPadding(0, 0, 0, dp(24))
             }
             content.addView(attributionView)
 
-            // Subtle divider — muted gold accent
+            // Subtle divider
+            val dividerDrawable = GradientDrawable().apply {
+                orientation = GradientDrawable.Orientation.LEFT_RIGHT
+                colors = intArrayOf(
+                    Color.TRANSPARENT,
+                    Color.parseColor("#FF4444"),
+                    Color.TRANSPARENT
+                )
+            }
             val divider = View(this).apply {
-                setBackgroundColor(Color.parseColor(ACCENT_COLOR))
-                alpha = 0.3f
-                layoutParams = LinearLayout.LayoutParams(dp(160), dp(1)).apply {
+                background = dividerDrawable
+                alpha = 0.4f
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1)).apply {
                     gravity = Gravity.CENTER
-                    bottomMargin = dp(40)
+                    bottomMargin = dp(24)
+                    leftMargin = dp(64)
+                    rightMargin = dp(64)
                 }
             }
             content.addView(divider)
 
-            // Subtitle (PART 6)
+            // Subtitle
             val subtitleView = TextView(this).apply {
-                text = "Discipline is forged in resistance."
+                text = "Mastery is forged in resistance."
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
-                setTextColor(Color.parseColor("#88FFFFFF"))
+                setTextColor(Color.parseColor("#8A7A6C"))
                 gravity = Gravity.CENTER
                 typeface = Typeface.create("sans-serif-light", Typeface.ITALIC)
-                letterSpacing = 0.08f
-                setPadding(0, 0, 0, dp(56))
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    letterSpacing = 0.08f
+                }
+                setPadding(0, 0, 0, dp(32))
             }
             content.addView(subtitleView)
 
-            // Progress bar countdown (PART 7)
-            val progressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
-                isIndeterminate = false
-                max = 100
-                progress = 0
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, dp(2)
-                ).apply {
-                    leftMargin = dp(48)
-                    rightMargin = dp(48)
-                }
-                val bgDrawable = GradientDrawable().apply {
-                    setColor(Color.parseColor("#12121A"))
-                    cornerRadius = 4f
-                }
-                val progressShape = GradientDrawable().apply {
-                    setColor(Color.parseColor(ACCENT_COLOR))
-                    cornerRadius = 4f
-                }
-                val clip = ClipDrawable(progressShape, Gravity.START, ClipDrawable.HORIZONTAL)
-                progressDrawable = LayerDrawable(arrayOf(bgDrawable, clip)).apply {
-                    setId(0, android.R.id.background)
-                    setId(1, android.R.id.progress)
+            // Circular progress countdown ring
+            val countdownRing = CountdownRingView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(80), dp(80)).apply {
+                    gravity = Gravity.CENTER
+                    bottomMargin = dp(12)
                 }
             }
-            content.addView(progressBar)
+            content.addView(countdownRing)
 
-            // Animate progress bar over 3 seconds
-            animateProgress(progressBar)
+            // Countdown text below the ring
+            val countdownText = TextView(this).apply {
+                text = "Closing in 5s"
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                setTextColor(Color.parseColor("#FF4444"))
+                gravity = Gravity.CENTER
+                typeface = Typeface.create("sans-serif", Typeface.BOLD)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    letterSpacing = 0.08f
+                }
+            }
+            content.addView(countdownText)
+
+            // Animate circular countdown ring and text updates over 5 seconds
+            var elapsed = 0L
+            val interval = 50L
+            val progressRunnable = object : Runnable {
+                override fun run() {
+                    elapsed += interval
+                    val pct = 100f * (1f - elapsed.toFloat() / COUNTDOWN_MS)
+                    countdownRing.progress = if (pct < 0f) 0f else pct
+
+                    val remainingSecs = Math.max(0, Math.ceil((COUNTDOWN_MS - elapsed).toDouble() / 1000.0).toInt())
+                    countdownText.text = "Closing in ${remainingSecs}s"
+
+                    if (elapsed < COUNTDOWN_MS) {
+                        handler.postDelayed(this, interval)
+                    }
+                }
+            }
+            handler.postDelayed(progressRunnable, interval)
 
             // Bottom spacer
             content.addView(createSpacer(1f))
@@ -191,26 +280,27 @@ class DisciplineWarningOverlay : Service() {
 
             windowManager?.addView(overlayView, params)
 
-            // Smooth entrance: fade-in 500ms + scale 0.95 → 1.0
-            val fadeIn = AlphaAnimation(0f, 1f).apply {
-                duration = FADE_IN_DURATION_MS
-            }
-            val scaleIn = ScaleAnimation(
-                0.95f, 1f, 0.95f, 1f,
-                android.view.animation.Animation.RELATIVE_TO_SELF, 0.5f,
-                android.view.animation.Animation.RELATIVE_TO_SELF, 0.5f
-            ).apply {
-                duration = FADE_IN_DURATION_MS
-            }
-            val animSet = AnimationSet(true).apply {
-                interpolator = DecelerateInterpolator()
-                addAnimation(fadeIn)
-                addAnimation(scaleIn)
-                fillAfter = true
-            }
-            overlayView?.startAnimation(animSet)
+            // Smooth entrance: fade-in 600ms + scale 0.95 → 1.0 + shake animation (translateX 4dp)
+            content.alpha = 0f
+            content.scaleX = 0.95f
+            content.scaleY = 0.95f
+            content.animate()
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .setDuration(FADE_IN_DURATION_MS)
+                .setInterpolator(DecelerateInterpolator())
+                .start()
 
-            Log.d(TAG, "Discipline warning overlay displayed")
+            val shakeAnimator = android.animation.ObjectAnimator.ofFloat(
+                content, "translationX", 0f, dp(4).toFloat(), -dp(4).toFloat(), dp(4).toFloat(), -dp(4).toFloat(), dp(2).toFloat(), -dp(2).toFloat(), 0f
+            ).apply {
+                duration = 600
+                interpolator = DecelerateInterpolator()
+            }
+            shakeAnimator.start()
+
+            Log.d(TAG, "Discipline warning overlay displayed with premium UI")
         } catch (e: Exception) {
             Log.e(TAG, "Error showing overlay: ${e.message}", e)
         }

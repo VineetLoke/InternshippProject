@@ -84,8 +84,17 @@ class LockScreenOverlay : Service() {
             val isReddit = source == "reddit"
 
             // ── Root container ───────────────────────────────────────
+            val gradientBackground = GradientDrawable().apply {
+                gradientType = GradientDrawable.RADIAL_GRADIENT
+                colors = intArrayOf(
+                    Color.parseColor("#0A0A12"), // Center: deep navy slate
+                    Color.parseColor("#000000")  // Edges: pure black
+                )
+                gradientRadius = resources.displayMetrics.widthPixels.toFloat() * 1.5f
+            }
+
             overlayView = FrameLayout(this).apply {
-                setBackgroundColor(Color.parseColor(BG_COLOR))
+                background = gradientBackground
                 isClickable = true
                 isFocusable = true
             }
@@ -104,79 +113,111 @@ class LockScreenOverlay : Service() {
             // Top breathing space
             content.addView(createSpacer(1f))
 
-            // Lock icon — subtle, not aggressive
+            // Lock icon — shield symbol with pulse animation
             val lockIcon = TextView(this).apply {
-                text = "\uD83D\uDD12"
-                textSize = 48f
+                text = "🛡️"
+                textSize = 56f
                 gravity = Gravity.CENTER
                 setPadding(0, 0, 0, dp(24))
             }
+            lockIcon.startAnimation(AlphaAnimation(0.6f, 1.0f).apply {
+                duration = 1000L
+                repeatMode = AlphaAnimation.REVERSE
+                repeatCount = AlphaAnimation.INFINITE
+                interpolator = DecelerateInterpolator()
+            })
             content.addView(lockIcon)
 
-            // Title — calm, authoritative
+            // Title — serif all-caps gold
             val titleText = when {
-                isReddit -> "Reddit Locked"
-                source == "twitter" -> "Twitter/X Locked"
-                else -> "Instagram Locked"
+                isReddit -> "REDDIT LOCKED"
+                source == "twitter" -> "TWITTER/X LOCKED"
+                else -> "INSTAGRAM LOCKED"
             }
             val title = TextView(this).apply {
                 text = titleText
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 28f)
-                setTextColor(Color.parseColor(TEXT_PRIMARY))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 30f)
+                setTextColor(Color.parseColor(ACCENT_COLOR))
                 gravity = Gravity.CENTER
-                typeface = Typeface.create("sans-serif-light", Typeface.NORMAL)
-                letterSpacing = 0.06f
-                setPadding(0, 0, 0, dp(40))
+                typeface = Typeface.create("serif", Typeface.BOLD)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    letterSpacing = 0.1f
+                }
+                setPadding(0, 0, 0, dp(32))
             }
             content.addView(title)
 
-            // Divider — thin, muted gold accent
+            // Divider — transparent -> gold -> transparent gradient
+            val dividerDrawable = GradientDrawable().apply {
+                orientation = GradientDrawable.Orientation.LEFT_RIGHT
+                colors = intArrayOf(
+                    Color.TRANSPARENT,
+                    Color.parseColor(ACCENT_COLOR),
+                    Color.TRANSPARENT
+                )
+            }
             val divider = View(this).apply {
-                setBackgroundColor(Color.parseColor(ACCENT_COLOR))
-                alpha = 0.3f
-                layoutParams = LinearLayout.LayoutParams(dp(120), dp(1)).apply {
+                background = dividerDrawable
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1)).apply {
                     gravity = Gravity.CENTER
                     bottomMargin = dp(40)
+                    leftMargin = dp(48)
+                    rightMargin = dp(48)
                 }
             }
             content.addView(divider)
 
-            // Main quote (PART 6)
+            // Main quote (Robert Greene - Quote A)
             val quote = TextView(this).apply {
-                text = "\u201CKill the boy and let the man be born.\u201D"
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
-                setTextColor(Color.parseColor(TEXT_QUOTE))
+                text = "“If we experience this time as something to get through on the way to real pleasure, then our hours represent a tragic waste of the short time we have to live.”"
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
+                setTextColor(Color.parseColor("#F0E6D0"))
                 gravity = Gravity.CENTER
                 typeface = Typeface.create("serif", Typeface.ITALIC)
-                letterSpacing = 0.02f
-                setLineSpacing(6f, 1.2f)
-                setPadding(0, 0, 0, dp(20))
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    letterSpacing = 0.02f
+                }
+                setLineSpacing(10f, 1.4f)
+                setPadding(0, 0, 0, dp(16))
             }
             content.addView(quote)
 
-            // Subtitle (PART 6)
-            val subtitle = TextView(this).apply {
-                text = "Discipline is forged in resistance."
+            // Attribution
+            val attribution = TextView(this).apply {
+                text = "— Robert Greene, Mastery"
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
                 setTextColor(Color.parseColor(TEXT_SECONDARY))
                 gravity = Gravity.CENTER
-                typeface = Typeface.create("sans-serif-light", Typeface.NORMAL)
-                letterSpacing = 0.08f
+                typeface = Typeface.create("serif", Typeface.ITALIC)
+                setPadding(0, 0, 0, dp(32))
+            }
+            content.addView(attribution)
+
+            // Subtitle
+            val subtitle = TextView(this).apply {
+                text = "Your time is running out. Use it."
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                setTextColor(Color.parseColor(ACCENT_COLOR))
+                gravity = Gravity.CENTER
+                typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    letterSpacing = 0.12f
+                }
                 setPadding(0, 0, 0, dp(48))
             }
             content.addView(subtitle)
 
-            // Progress bar — subtle visual timer (PART 7)
+            // Progress bar — subtle visual timer with gold color
             val progressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
                 isIndeterminate = false
                 max = 100
                 progress = 0
                 layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, dp(3)
+                    LinearLayout.LayoutParams.MATCH_PARENT, dp(4)
                 ).apply {
                     bottomMargin = dp(48)
-                    leftMargin = dp(32)
-                    rightMargin = dp(32)
+                    leftMargin = dp(48)
+                    rightMargin = dp(48)
                 }
                 val bgDrawable = GradientDrawable().apply {
                     setColor(Color.parseColor(PROGRESS_BG))
@@ -197,7 +238,7 @@ class LockScreenOverlay : Service() {
             // Animate progress bar over 3 seconds
             animateProgress(progressBar)
 
-            // ── Buttons container (hidden for 3 seconds — PART 7) ────
+            // ── Buttons container (hidden for 3 seconds) ────
             val buttonContainer = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
@@ -206,7 +247,7 @@ class LockScreenOverlay : Service() {
             }
 
             if (isReddit) {
-                // "Earn access" button for Reddit (PART 4 & 7)
+                // "Earn access" button for Reddit
                 val earnBtn = createButton("Earn 10 minutes access") {
                     Log.d(TAG, "User tapped Earn Access — starting pushup challenge")
                     AccessibilityMonitor.instance?.onRedditChallengeStarted()
@@ -230,8 +271,8 @@ class LockScreenOverlay : Service() {
                 })
             }
 
-            // "Return to focus" button (PART 7)
-            val focusBtn = createButton("Return to focus") {
+            // "Return to focus" button with gold border
+            val focusBtn = createButton("Return to focus", "#C6A85A") {
                 Log.d(TAG, "User tapped Return to focus")
                 hideOverlay()
                 // Navigate back (not to home screen)
@@ -267,14 +308,19 @@ class LockScreenOverlay : Service() {
 
             windowManager?.addView(overlayView, params)
 
-            // ── Slow fade-in animation (PART 6) ─────────────────────
-            overlayView?.startAnimation(AlphaAnimation(0f, 1f).apply {
-                duration = FADE_DURATION_MS
-                interpolator = DecelerateInterpolator()
-                fillAfter = true
-            })
+            // ── Slow cinematic fade-in + scale animation (900ms) ──
+            overlayView?.alpha = 0f
+            overlayView?.scaleX = 0.97f
+            overlayView?.scaleY = 0.97f
+            overlayView?.animate()
+                ?.alpha(1f)
+                ?.scaleX(1f)
+                ?.scaleY(1f)
+                ?.setDuration(900)
+                ?.setInterpolator(DecelerateInterpolator())
+                ?.start()
 
-            // ── Reveal buttons after 3-second delay (PART 7) ────────
+            // ── Reveal buttons after 3-second delay ────────
             handler.postDelayed({
                 buttonContainer.visibility = View.VISIBLE
                 buttonContainer.animate()
@@ -284,7 +330,7 @@ class LockScreenOverlay : Service() {
                     .start()
             }, BUTTON_DELAY_MS)
 
-            Log.d(TAG, "Overlay displayed ($source) with psychological UI")
+            Log.d(TAG, "Overlay displayed ($source) with premium psychological UI")
         } catch (e: Exception) {
             Log.e(TAG, "Error showing overlay: ${e.message}", e)
         }
@@ -300,19 +346,22 @@ class LockScreenOverlay : Service() {
     }
 
     /** Create a styled button with dark minimal design. */
-    private fun createButton(text: String, onClick: () -> Unit): TextView {
+    private fun createButton(text: String, strokeColorHex: String? = null, onClick: () -> Unit): TextView {
         return TextView(this).apply {
             this.text = text
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
             setTextColor(Color.parseColor(BUTTON_TEXT))
             gravity = Gravity.CENTER
             typeface = Typeface.create("sans-serif", Typeface.NORMAL)
-            letterSpacing = 0.04f
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                letterSpacing = 0.04f
+            }
             setPadding(dp(24), dp(16), dp(24), dp(16))
             background = GradientDrawable().apply {
                 setColor(Color.parseColor(BUTTON_BG))
                 cornerRadius = dp(12).toFloat()
-                setStroke(1, Color.parseColor("#22FFFFFF"))
+                val strokeColor = strokeColorHex ?: "#22FFFFFF"
+                setStroke(dp(1), Color.parseColor(strokeColor))
             }
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,

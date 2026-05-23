@@ -7,6 +7,9 @@ import android.util.Log
 import com.example.focus_lock.services.AppBlockingService
 import com.example.focus_lock.services.AppIconManager
 import com.example.focus_lock.services.UninstallProtectionManager
+import com.example.focus_lock.blockers.InstagramBlocker
+import com.example.focus_lock.blockers.RedditBlocker
+import com.example.focus_lock.blockers.TwitterBlocker
 
 class BootReceiver : BroadcastReceiver() {
     companion object {
@@ -31,6 +34,16 @@ class BootReceiver : BroadcastReceiver() {
             if (AppIconManager.isIconHidden(context)) {
                 AppIconManager.hideIcon(context)
                 Log.d(TAG, "App icon re-hidden after boot")
+            }
+
+            // Initialize blockers with context so they can block immediately after boot
+            try {
+                InstagramBlocker.init(context)
+                RedditBlocker.init(context)
+                TwitterBlocker.init(context)
+                Log.d(TAG, "Blockers initialized after boot")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error initializing blockers on boot: ${e.message}")
             }
 
             // Reset any expired cooldown windows

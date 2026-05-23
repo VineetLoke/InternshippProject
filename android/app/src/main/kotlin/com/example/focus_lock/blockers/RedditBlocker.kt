@@ -24,11 +24,11 @@ object RedditBlocker {
     const val REDDIT_PACKAGE = "com.reddit.frontpage"
 
     private const val MODULE_PREFS_NAME = "reddit_blocker_prefs"
-    private const val LOCK_PREFS_NAME = "FlutterSharedPreferences"
+    private const val LOCK_PREFS_NAME = "focus_lock_native"
     private const val KEY_TEMP_UNLOCK_START = "rd_temp_unlock_start"
     private const val KEY_ATTEMPT_COUNT = "rd_attempt_count"
-    private const val LOCK_START_KEY = "flutter.lock_start_time"
-    private const val LOCK_DURATION_KEY = "flutter.lock_duration_days"
+    private const val LOCK_START_KEY = "lock_start_time"
+    private const val LOCK_DURATION_KEY = "lock_duration_days"
 
     private const val DEFAULT_LOCK_DURATION_DAYS = 30
     private const val TEMP_UNLOCK_DURATION_MS = 15L * 60 * 1000

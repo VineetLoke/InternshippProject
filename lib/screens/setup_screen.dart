@@ -155,7 +155,7 @@ class _SetupScreenState extends State<SetupScreen> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    '• Instagram will be blocked for 30 days\n'
+                    '• Instagram, Reddit, and Twitter/X will be blocked for 30 days\n'
                     '• Lock will automatically expire after 30 days\n'
                     '• You can only unlock via emergency challenge:\n'
                     '  - Wait 1 hour\n'
@@ -200,7 +200,7 @@ class _SetupScreenState extends State<SetupScreen> {
                       ),
                     )
                   : const Text(
-                      'Confirm & Lock Instagram',
+                      'Confirm & Start 30-Day Focus',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,

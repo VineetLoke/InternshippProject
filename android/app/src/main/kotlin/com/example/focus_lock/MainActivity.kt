@@ -78,8 +78,28 @@ class MainActivity : FlutterActivity() {
                     }
                     "startBlocking" -> {
                         Log.d(TAG, "startBlocking called from Flutter")
+                        val startTimeStr = call.argument<String>("lock_start_time")
+                        val durationDays = call.argument<Int>("lock_duration_days") ?: 30
+
+                        val nativePrefs = getSharedPreferences("focus_lock_native", Context.MODE_PRIVATE)
+                        val editor = nativePrefs.edit()
+                        editor.putString("lock_start_time", startTimeStr)
+                        editor.putInt("lock_duration_days", durationDays)
+                        editor.apply()
+
+                        // Initialize blocker singletons immediately so they load correct lock state
+                        InstagramBlocker.init(applicationContext)
+                        RedditBlocker.init(applicationContext)
+                        TwitterBlocker.init(applicationContext)
+
                         startMonitoringService()
-                        result.success(isOurAccessibilityServiceEnabled())
+                        result.success(true)
+                    }
+                    "unlock" -> {
+                        Log.d(TAG, "unlock called from Flutter")
+                        val nativePrefs = getSharedPreferences("focus_lock_native", Context.MODE_PRIVATE)
+                        nativePrefs.edit().clear().apply()
+                        result.success(true)
                     }
                     "isServiceRunning" -> {
                         result.success(AccessibilityMonitor.isRunning)

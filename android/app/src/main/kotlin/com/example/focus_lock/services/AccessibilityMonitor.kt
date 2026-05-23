@@ -274,6 +274,11 @@ class AccessibilityMonitor : AccessibilityService() {
             redditForegroundSince = System.currentTimeMillis()
         }
 
+        // Reset Chrome incognito cache when user leaves Chrome entirely
+        if (currentForegroundPackage == CHROME_PACKAGE && packageName != CHROME_PACKAGE) {
+            ChromeIncognitoBlocker.resetCache()
+        }
+
         currentForegroundPackage = packageName
 
         // ── STRICT PACKAGE VALIDATION (PART 1) ──────────────────
@@ -363,14 +368,10 @@ class AccessibilityMonitor : AccessibilityService() {
         if (currentState == DisciplineState.CHROME_INCOGNITO_BLOCKED) return
 
         val rootNode = rootInActiveWindow ?: return
-        try {
-            if (rootNode.packageName?.toString() != ChromeIncognitoBlocker.CHROME_PACKAGE) return
+        if (rootNode.packageName?.toString() != ChromeIncognitoBlocker.CHROME_PACKAGE) return
 
-            if (ChromeIncognitoBlocker.shouldBlockTyping(rootNode)) {
-                triggerChromeIncognitoBlock()
-            }
-        } finally {
-            rootNode.recycle()
+        if (ChromeIncognitoBlocker.shouldBlockTyping(rootNode)) {
+            triggerChromeIncognitoBlock()
         }
     }
 
@@ -382,14 +383,14 @@ class AccessibilityMonitor : AccessibilityService() {
         performGlobalAction(GLOBAL_ACTION_BACK)
         handler.postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 300L)
 
-        // Show BlockingOverlayScreen ("You don't need this.")
+        // Show DisciplineWarningOverlay
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
                 !android.provider.Settings.canDrawOverlays(this)) {
                 Log.w(TAG, "Overlay permission not granted")
                 return
             }
-            val intent = Intent(applicationContext, com.example.focus_lock.ui.BlockingOverlayScreen::class.java)
+            val intent = Intent(applicationContext, DisciplineWarningOverlay::class.java)
             startService(intent)
         } catch (e: Exception) {
             Log.e(TAG, "Error showing blocking overlay: ${e.message}", e)
@@ -402,7 +403,7 @@ class AccessibilityMonitor : AccessibilityService() {
 
     private fun dismissChromeWarning() {
         Log.d(TAG, "Chrome overlay expired — ensuring tab is closed")
-        stopOverlayService(com.example.focus_lock.ui.BlockingOverlayScreen::class.java)
+        stopOverlayService(DisciplineWarningOverlay::class.java)
 
         // Repeat BACK presses to reliably close the incognito tab
         performGlobalAction(GLOBAL_ACTION_BACK)

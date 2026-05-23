@@ -13,24 +13,22 @@ class AppBlockService {
     final prefs = await SharedPreferences.getInstance();
     try {
       final now = DateTime.now();
+      final startTimeStr = now.toUtc().toIso8601String();
 
       await prefs.setString(
         _lockStartTimeKey,
-        now.toUtc().toIso8601String(),
+        startTimeStr,
       );
       await prefs.setInt(_lockDurationDaysKey, _defaultLockDays);
 
       try {
-        final result = await _channel.invokeMethod('startBlocking');
-        if (result != true) {
-          await _clearLockPrefs(prefs);
-          print('Native startBlocking returned false');
-          return false;
-        }
+        await _channel.invokeMethod('startBlocking', {
+          'lock_start_time': startTimeStr,
+          'lock_duration_days': _defaultLockDays,
+        });
       } catch (e) {
-        await _clearLockPrefs(prefs);
         print('Error calling startBlocking: $e');
-        return false;
+        // Keep the lock active even if accessibility service isn't active/setup yet
       }
 
       return true;
@@ -99,6 +97,11 @@ class AppBlockService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await _clearLockPrefs(prefs);
+      try {
+        await _channel.invokeMethod('unlock');
+      } catch (e) {
+        print('Error calling native unlock: $e');
+      }
     } catch (e) {
       print('Error unlocking: $e');
     }

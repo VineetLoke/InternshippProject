@@ -130,17 +130,37 @@ object ChromeIncognitoBlocker {
         val now = System.currentTimeMillis()
         if (now - lastBlockTime < BLOCK_DEBOUNCE_MS) return false
 
-        // Check cached state first, fallback to deep check
-        val isCurrentlyIncognito = isIncognitoCached || isIncognitoMode(rootNode)
-        if (!isCurrentlyIncognito) return false
+        // Deep check is authoritative.
+        val isCurrentlyIncognito = isIncognitoMode(rootNode)
+        
+        // Update cache
+        if (isCurrentlyIncognito) {
+            isIncognitoCached = true
+        }
+
+        // If deep scan is false, verify if we should fall back to cache.
+        // We only trust the cache if the node structure is extremely sparse (childCount <= 2),
+        // indicating that we might be in a keyboard-focused state where the URL/tabs bar is temporarily detached.
+        if (!isCurrentlyIncognito) {
+            val isSparse = rootNode.childCount <= 2
+            if (!isSparse || !isIncognitoCached) {
+                return false
+            }
+        }
 
         lastBlockTime = now
         Log.d(TAG, "BLOCKED — typing detected in Chrome incognito")
         return true
     }
 
-    /** Reset debounce timer (called on state transition to IDLE). */
+    /** Reset debounce timer and cache (called on state transition to IDLE). */
     fun resetDebounce() {
         lastBlockTime = 0L
+        isIncognitoCached = false
+    }
+
+    fun resetCache() {
+        isIncognitoCached = false
+        Log.d(TAG, "Chrome incognito cache reset")
     }
 }
