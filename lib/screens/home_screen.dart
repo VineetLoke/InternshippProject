@@ -821,9 +821,9 @@ class _HomeScreenState extends State<HomeScreen> {
           if (extraMin > 0)
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: const Text(
+              child: Text(
                 '+${extraMin}min earned from pushups today',
-                style: TextStyle(fontSize: 12, color: Color(0xFF2E7D63), fontWeight: FontWeight.bold),
+                style: const TextStyle(fontSize: 12, color: Color(0xFF2E7D63), fontWeight: FontWeight.bold),
               ),
             ),
           if (isLimitReached) ...[
