@@ -435,14 +435,43 @@ class AccessibilityMonitor : AccessibilityService() {
         if (!UninstallProtectionManager.isProtectionEnabled()) return
         if (UninstallProtectionManager.isUninstallAllowed()) return
 
-        // Scan for our app name in the current window content
+        // Scan for our app name and Settings button texts in the current window content
         try {
             val rootNode = rootInActiveWindow ?: return
+            
+            // Look for "FocusLock" node on screen
             val focusLockNodes = rootNode.findAccessibilityNodeInfosByText("FocusLock")
-            val uninstallNodes = rootNode.findAccessibilityNodeInfosByText("Uninstall")
+            if (focusLockNodes.isEmpty()) return
 
-            if (focusLockNodes.isNotEmpty() && uninstallNodes.isNotEmpty()) {
-                Log.d(TAG, "Uninstall attempt detected — launching challenge overlay")
+            // 1. Check for uninstall attempt (e.g. Settings app info page with "Uninstall" text)
+            val uninstallNodes = rootNode.findAccessibilityNodeInfosByText("Uninstall")
+            val isUninstallAttempt = uninstallNodes.isNotEmpty()
+
+            // 2. Check for Accessibility service disable attempt (e.g. sub-settings containing "Use FocusLock")
+            val useServiceNodes = rootNode.findAccessibilityNodeInfosByText("Use FocusLock")
+            val useServiceShortNodes = rootNode.findAccessibilityNodeInfosByText("Use service")
+            val isAccessibilityAttempt = useServiceNodes.isNotEmpty() || useServiceShortNodes.isNotEmpty()
+
+            // 3. Check for Force Stop attempt (e.g. Settings app info page with "Force stop" button)
+            val forceStopNodes = rootNode.findAccessibilityNodeInfosByText("Force stop")
+            val forceStopCapsNodes = rootNode.findAccessibilityNodeInfosByText("Force Stop")
+            val isForceStopAttempt = forceStopNodes.isNotEmpty() || forceStopCapsNodes.isNotEmpty()
+
+            // Recycle all checked nodes
+            focusLockNodes.forEach { it.recycle() }
+            uninstallNodes.forEach { it.recycle() }
+            useServiceNodes.forEach { it.recycle() }
+            useServiceShortNodes.forEach { it.recycle() }
+            forceStopNodes.forEach { it.recycle() }
+            forceStopCapsNodes.forEach { it.recycle() }
+
+            if (isUninstallAttempt || isAccessibilityAttempt || isForceStopAttempt) {
+                Log.d(TAG, "Security bypass attempt detected (uninstall=$isUninstallAttempt, accessibility=$isAccessibilityAttempt, forceStop=$isForceStopAttempt) — launching challenge overlay")
+                
+                // Force exit the Settings app immediately to prevent any prompt interaction
+                performGlobalAction(GLOBAL_ACTION_BACK)
+                handler.postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 300L)
+
                 val intent = Intent(this, com.example.focus_lock.ui.UninstallChallengeOverlay::class.java)
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 startService(intent)
