@@ -42,19 +42,38 @@ object ChromeIncognitoBlocker {
     fun evaluateIncognitoState(node: AccessibilityNodeInfo?) {
         if (node == null) return
         try {
-            // Fast Check 1: Do we see an explicit "incognito" node anywhere on screen?
+            // Find nodes containing "incognito"
             val incognitoNodes = node.findAccessibilityNodeInfosByText("incognito")
+            var hasIncognitoIndicator = false
             if (incognitoNodes.isNotEmpty()) {
-                isIncognitoCached = true
+                for (n in incognitoNodes) {
+                    val viewId = n.viewIdResourceName ?: ""
+                    val desc = n.contentDescription?.toString()?.lowercase() ?: ""
+                    val text = n.text?.toString()?.lowercase() ?: ""
+
+                    // Precise matches:
+                    val isBadgeId = viewId.contains("incognito_badge") || viewId.contains("incognito_toggle")
+                    val isExactDesc = desc == "incognito" || desc == "incognito mode" || desc == "incognito mode active"
+                    val isExactText = text == "incognito" || text.contains("gone incognito")
+
+                    if (isBadgeId || isExactDesc || isExactText) {
+                        hasIncognitoIndicator = true
+                        break
+                    }
+                }
                 incognitoNodes.forEach { it.recycle() }
+            }
+
+            if (hasIncognitoIndicator) {
+                isIncognitoCached = true
                 return
             }
             
             // Fast Check 2: Do we see the Chrome tab switcher button?
             val tabSwitchers = node.findAccessibilityNodeInfosByViewId("com.android.chrome:id/tab_switcher_button")
             if (tabSwitchers.isNotEmpty()) {
-                // If a tab switcher is visible but NO "incognito" text was found anywhere on screen,
-                // this is a normal tab window. (The incognito tab switcher explicitly contains "incognito").
+                // If a tab switcher is visible but NO incognito indicator was found,
+                // this is a normal tab window.
                 isIncognitoCached = false
                 tabSwitchers.forEach { it.recycle() }
                 return
@@ -72,24 +91,26 @@ object ChromeIncognitoBlocker {
         return try {
             // Fast path: search for nodes containing "incognito" text
             val incognitoNodes = rootNode.findAccessibilityNodeInfosByText("incognito")
+            var detected = false
             if (incognitoNodes.isNotEmpty()) {
                 for (node in incognitoNodes) {
-                    val viewId = node.viewIdResourceName
+                    val viewId = node.viewIdResourceName ?: ""
                     val desc = node.contentDescription?.toString()?.lowercase() ?: ""
                     val text = node.text?.toString()?.lowercase() ?: ""
 
-                    val match = (viewId != null && viewId.contains("incognito")) ||
-                                desc.contains("incognito") ||
-                                text.contains("incognito")
-                    if (match) {
-                        // Recycle all returned nodes before returning
-                        incognitoNodes.forEach { it.recycle() }
-                        return true
+                    val isBadgeId = viewId.contains("incognito_badge") || viewId.contains("incognito_toggle")
+                    val isExactDesc = desc == "incognito" || desc == "incognito mode" || desc == "incognito mode active"
+                    val isExactText = text == "incognito" || text.contains("gone incognito")
+
+                    if (isBadgeId || isExactDesc || isExactText) {
+                        detected = true
+                        break
                     }
                 }
-                // No match on fast path — recycle before deep scan
                 incognitoNodes.forEach { it.recycle() }
             }
+            if (detected) return true
+            
             // Deep scan: walk the tree looking for incognito indicators
             scanTreeForIncognito(rootNode, 0)
         } catch (e: Exception) {
@@ -101,11 +122,11 @@ object ChromeIncognitoBlocker {
     private fun scanTreeForIncognito(node: AccessibilityNodeInfo, depth: Int): Boolean {
         if (depth > MAX_TREE_DEPTH) return false
 
-        val viewId = node.viewIdResourceName
-        if (viewId != null && viewId.contains("incognito")) return true
+        val viewId = node.viewIdResourceName ?: ""
+        if (viewId.contains("incognito_badge") || viewId.contains("incognito_toggle")) return true
 
-        val desc = node.contentDescription?.toString()?.lowercase()
-        if (desc != null && desc.contains("incognito")) return true
+        val desc = node.contentDescription?.toString()?.lowercase() ?: ""
+        if (desc == "incognito" || desc == "incognito mode" || desc == "incognito mode active") return true
 
         for (i in 0 until node.childCount) {
             val child = node.getChild(i) ?: continue

@@ -290,9 +290,14 @@ class AccessibilityMonitor : AccessibilityService() {
         // ── STRICT PACKAGE VALIDATION (PART 1) ──────────────────
         // If foreground package is NOT in monitored packages: do nothing
         // except clean up overlays if user navigated away from a blocked app
+        val lowerPkg = packageName.lowercase()
+        val isSettingsOrInstaller = lowerPkg.contains("settings") || 
+                                    lowerPkg.contains("installer") || 
+                                    lowerPkg.contains("packageinstaller")
+
         if (packageName !in MONITORED_PACKAGES && packageName != FOCUS_LOCK_PACKAGE) {
-            // ── Uninstall guard: detect Settings app showing FocusLock info ──
-            if (packageName == "com.android.settings" || packageName == "com.google.android.packageinstaller") {
+            // ── Uninstall guard: detect Settings app or Package Installer showing FocusLock info ──
+            if (isSettingsOrInstaller) {
                 handlePossibleUninstallAttempt()
             }
             handleUserLeftBlockedContext()
@@ -411,6 +416,8 @@ class AccessibilityMonitor : AccessibilityService() {
             }
             val intent = Intent(applicationContext, DisciplineWarningOverlay::class.java)
             startService(intent)
+            overlayShownAt = System.currentTimeMillis()
+            startOverlayWatchdog()
         } catch (e: Exception) {
             Log.e(TAG, "Error showing blocking overlay: ${e.message}", e)
         }
@@ -451,7 +458,7 @@ class AccessibilityMonitor : AccessibilityService() {
         lastUninstallGuardTime = now
 
         UninstallProtectionManager.init(applicationContext)
-        if (!UninstallProtectionManager.isProtectionEnabled()) return
+        if (!UninstallProtectionManager.isProtectionEnabled(applicationContext)) return
         if (UninstallProtectionManager.isUninstallAllowed()) return
 
         // Scan for our app name and Settings button texts in the current window content
@@ -464,28 +471,46 @@ class AccessibilityMonitor : AccessibilityService() {
 
             // 1. Check for uninstall attempt (e.g. Settings app info page with "Uninstall" text)
             val uninstallNodes = rootNode.findAccessibilityNodeInfosByText("Uninstall")
-            val isUninstallAttempt = uninstallNodes.isNotEmpty()
+            val uninstallLowerNodes = rootNode.findAccessibilityNodeInfosByText("uninstall")
+            val isUninstallAttempt = uninstallNodes.isNotEmpty() || uninstallLowerNodes.isNotEmpty()
 
             // 2. Check for Accessibility service disable attempt (e.g. sub-settings containing "Use FocusLock")
             val useServiceNodes = rootNode.findAccessibilityNodeInfosByText("Use FocusLock")
             val useServiceShortNodes = rootNode.findAccessibilityNodeInfosByText("Use service")
-            val isAccessibilityAttempt = useServiceNodes.isNotEmpty() || useServiceShortNodes.isNotEmpty()
+            val useServiceLowerNodes = rootNode.findAccessibilityNodeInfosByText("use service")
+            val isAccessibilityAttempt = useServiceNodes.isNotEmpty() || useServiceShortNodes.isNotEmpty() || useServiceLowerNodes.isNotEmpty()
 
             // 3. Check for Force Stop attempt (e.g. Settings app info page with "Force stop" button)
             val forceStopNodes = rootNode.findAccessibilityNodeInfosByText("Force stop")
             val forceStopCapsNodes = rootNode.findAccessibilityNodeInfosByText("Force Stop")
-            val isForceStopAttempt = forceStopNodes.isNotEmpty() || forceStopCapsNodes.isNotEmpty()
+            val forceStopLowerNodes = rootNode.findAccessibilityNodeInfosByText("force stop")
+            val isForceStopAttempt = forceStopNodes.isNotEmpty() || forceStopCapsNodes.isNotEmpty() || forceStopLowerNodes.isNotEmpty()
 
-            // Recycle all checked nodes
+            // 4. Check for Device Admin Deactivate attempt (e.g. Settings page with "Deactivate" button)
+            val deactivateNodes = rootNode.findAccessibilityNodeInfosByText("Deactivate")
+            val deactivateCapsNodes = rootNode.findAccessibilityNodeInfosByText("DEACTIVATE")
+            val deactivateLowerNodes = rootNode.findAccessibilityNodeInfosByText("deactivate")
+            val deactivateAdminNodes = rootNode.findAccessibilityNodeInfosByText("Remove active admin")
+            val isDeactivateAttempt = deactivateNodes.isNotEmpty() || deactivateCapsNodes.isNotEmpty() || 
+                                      deactivateLowerNodes.isNotEmpty() || deactivateAdminNodes.isNotEmpty()
+
+            // Recycle all checked nodes to avoid memory leaks
             focusLockNodes.forEach { it.recycle() }
             uninstallNodes.forEach { it.recycle() }
+            uninstallLowerNodes.forEach { it.recycle() }
             useServiceNodes.forEach { it.recycle() }
             useServiceShortNodes.forEach { it.recycle() }
+            useServiceLowerNodes.forEach { it.recycle() }
             forceStopNodes.forEach { it.recycle() }
             forceStopCapsNodes.forEach { it.recycle() }
+            forceStopLowerNodes.forEach { it.recycle() }
+            deactivateNodes.forEach { it.recycle() }
+            deactivateCapsNodes.forEach { it.recycle() }
+            deactivateLowerNodes.forEach { it.recycle() }
+            deactivateAdminNodes.forEach { it.recycle() }
 
-            if (isUninstallAttempt || isAccessibilityAttempt || isForceStopAttempt) {
-                Log.d(TAG, "Security bypass attempt detected (uninstall=$isUninstallAttempt, accessibility=$isAccessibilityAttempt, forceStop=$isForceStopAttempt) — launching challenge overlay")
+            if (isUninstallAttempt || isAccessibilityAttempt || isForceStopAttempt || isDeactivateAttempt) {
+                Log.d(TAG, "Security bypass attempt detected (uninstall=$isUninstallAttempt, accessibility=$isAccessibilityAttempt, forceStop=$isForceStopAttempt, deactivate=$isDeactivateAttempt) — launching challenge overlay")
                 
                 // Force exit the Settings app immediately to prevent any prompt interaction
                 performGlobalAction(GLOBAL_ACTION_BACK)

@@ -272,10 +272,9 @@ class DisciplineWarningOverlay : Service() {
             val params = WindowManager.LayoutParams().apply {
                 type = layoutType
                 format = PixelFormat.TRANSLUCENT
-                // Block ALL input — overlay intercepts touch AND keyboard
                 flags = WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                         WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
-                        WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                 width = WindowManager.LayoutParams.MATCH_PARENT
                 height = WindowManager.LayoutParams.MATCH_PARENT
             }
@@ -337,22 +336,9 @@ class DisciplineWarningOverlay : Service() {
             val view = overlayView
             val wm = windowManager
             if (view != null && wm != null) {
-                val fadeOut = AlphaAnimation(1f, 0f).apply {
-                    duration = FADE_OUT_DURATION_MS
-                    interpolator = DecelerateInterpolator()
-                    fillAfter = true
-                }
-                fadeOut.setAnimationListener(object : android.view.animation.Animation.AnimationListener {
-                    override fun onAnimationStart(a: android.view.animation.Animation?) {}
-                    override fun onAnimationRepeat(a: android.view.animation.Animation?) {}
-                    override fun onAnimationEnd(a: android.view.animation.Animation?) {
-                        try {
-                            wm.removeViewImmediate(view)
-                        } catch (_: Exception) {}
-                        overlayView = null
-                    }
-                })
-                view.startAnimation(fadeOut)
+                wm.removeViewImmediate(view)
+                overlayView = null
+                Log.d(TAG, "Discipline warning overlay removed (immediate)")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error hiding overlay: ${e.message}", e)

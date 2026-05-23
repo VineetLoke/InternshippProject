@@ -87,8 +87,10 @@ object UninstallProtectionManager {
     /**
      * Check if protection is enabled.
      */
-    fun isProtectionEnabled(): Boolean {
-        return prefs.getBoolean(KEY_PROTECTION_ENABLED, false)
+    fun isProtectionEnabled(context: Context? = null): Boolean {
+        if (prefs.getBoolean(KEY_PROTECTION_ENABLED, false)) return true
+        if (context != null && isDeviceAdminActive(context)) return true
+        return false
     }
 
     /**
