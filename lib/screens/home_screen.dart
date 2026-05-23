@@ -155,26 +155,27 @@ class _HomeScreenState extends State<HomeScreen> {
   // ── Screen Time Dashboard ──────────────────────────────────────────
 
   Widget _buildScreenTimeDashboard() {
+    final colorScheme = Theme.of(context).colorScheme;
     if (!_hasUsagePermission) {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.amber.shade50,
+          color: colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.amber.shade200),
+          border: Border.all(color: const Color(0xFFC87032).withOpacity(0.3)),
         ),
         child: Column(
           children: [
             Row(
-              children: [
-                Icon(Icons.screen_lock_portrait, color: Colors.amber.shade700),
-                const SizedBox(width: 8),
+              children: const [
+                Icon(Icons.screen_lock_portrait, color: Color(0xFFC87032)),
+                SizedBox(width: 8),
                 Text(
                   'Screen Time Dashboard',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Colors.amber.shade700,
+                    color: Color(0xFFC87032),
                   ),
                 ),
               ],
@@ -182,7 +183,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 12),
             Text(
               'Usage access permission is required to display screen time data.',
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+              style: TextStyle(fontSize: 13, color: colorScheme.secondary),
             ),
             const SizedBox(height: 12),
             SizedBox(
@@ -191,7 +192,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: const Icon(Icons.settings, size: 18),
                 label: const Text('Grant Usage Access'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.amber.shade700,
+                  backgroundColor: const Color(0xFFC87032),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 10),
                 ),
@@ -214,23 +215,23 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.teal.shade50,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.teal.shade200),
+        border: Border.all(color: const Color(0xFF2E7D63).withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            children: [
-              Icon(Icons.screen_lock_portrait, color: Colors.teal.shade700),
-              const SizedBox(width: 8),
+            children: const [
+              Icon(Icons.screen_lock_portrait, color: Color(0xFF2E7D63)),
+              SizedBox(width: 8),
               Text(
                 'Screen Time Today',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.teal.shade700,
+                  color: Color(0xFF2E7D63),
                 ),
               ),
             ],
@@ -253,10 +254,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: color.shade100,
+                      color: colorScheme.background,
                       borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: color.withOpacity(0.3)),
                     ),
-                    child: Icon(icon, color: color.shade700, size: 22),
+                    child: Icon(icon, color: color, size: 22),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -272,9 +274,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: screenTimeMs > 1800000
-                          ? Colors.red.shade50
-                          : Colors.grey.shade100,
+                          ? colorScheme.error.withOpacity(0.1)
+                          : colorScheme.background,
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: screenTimeMs > 1800000
+                            ? colorScheme.error.withOpacity(0.3)
+                            : const Color(0xFF222228),
+                      ),
                     ),
                     child: Text(
                       formatted,
@@ -282,8 +289,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
                         color: screenTimeMs > 1800000
-                            ? Colors.red.shade700
-                            : Colors.grey.shade800,
+                            ? colorScheme.error
+                            : colorScheme.onBackground,
                       ),
                     ),
                   ),
@@ -299,6 +306,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // ── App Open Counts ───────────────────────────────────────────────
 
   Widget _buildAppOpenCountsCard() {
+    final colorScheme = Theme.of(context).colorScheme;
     final apps = [
       {'pkg': 'com.instagram.android', 'name': 'Instagram', 'color': Colors.pink},
       {'pkg': 'com.reddit.frontpage', 'name': 'Reddit', 'color': Colors.deepOrange},
@@ -308,23 +316,24 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.purple.shade50,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.purple.shade200),
+        border: Border.all(color: colorScheme.primary.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.touch_app, color: Colors.purple.shade700),
+              Icon(Icons.touch_app, color: colorScheme.primary),
               const SizedBox(width: 8),
               Text(
                 'App Opens Today',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.purple.shade700,
+                  color: colorScheme.primary,
+                  letterSpacing: 0.5,
                 ),
               ),
             ],
@@ -342,9 +351,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   margin: const EdgeInsets.symmetric(horizontal: 4),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   decoration: BoxDecoration(
-                    color: color.shade50,
+                    color: colorScheme.background,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: color.shade200),
+                    border: Border.all(color: color.withOpacity(0.3)),
                   ),
                   child: Column(
                     children: [
@@ -353,7 +362,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
-                          color: color.shade700,
+                          color: color,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -362,7 +371,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: color.shade700,
+                          color: colorScheme.secondary,
                         ),
                       ),
                     ],
@@ -379,6 +388,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // ── Chrome Filter Status ──────────────────────────────────────────
 
   Widget _buildChromeFilterCard() {
+    final colorScheme = Theme.of(context).colorScheme;
     final isActive = (_chromeFilterStatus['isActive'] ?? false) as bool;
     final isDeviceOwner = (_chromeFilterStatus['isDeviceOwner'] ?? false) as bool;
 
@@ -391,13 +401,17 @@ class _HomeScreenState extends State<HomeScreen> {
       subtitle = 'Inactive — Policy not applied';
     }
 
+    final activeColor = const Color(0xFF2E7D63);
+    final inactiveColor = colorScheme.secondary;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isActive ? Colors.green.shade50 : Colors.grey.shade100,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isActive ? Colors.green.shade300 : Colors.grey.shade300,
+          color: isActive ? activeColor.withOpacity(0.4) : const Color(0xFF222228),
+          width: 1.2,
         ),
       ),
       child: Row(
@@ -406,12 +420,12 @@ class _HomeScreenState extends State<HomeScreen> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: isActive ? Colors.green.shade100 : Colors.grey.shade200,
+              color: colorScheme.background,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
               Icons.shield,
-              color: isActive ? Colors.green.shade700 : Colors.grey.shade500,
+              color: isActive ? activeColor : inactiveColor,
               size: 24,
             ),
           ),
@@ -422,10 +436,9 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Text(
                   'Chrome Incognito Policy',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
-                    color: isActive ? Colors.green.shade700 : Colors.grey.shade600,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -433,7 +446,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   subtitle,
                   style: TextStyle(
                     fontSize: 12,
-                    color: isActive ? Colors.green.shade600 : Colors.grey.shade500,
+                    color: colorScheme.secondary,
                   ),
                 ),
               ],
@@ -442,13 +455,16 @@ class _HomeScreenState extends State<HomeScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: isActive ? Colors.green.shade600 : Colors.grey.shade400,
+              color: isActive ? activeColor.withOpacity(0.2) : const Color(0xFF222228),
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isActive ? activeColor.withOpacity(0.4) : Colors.transparent,
+              ),
             ),
             child: Text(
               isActive ? 'ON' : 'OFF',
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: isActive ? activeColor : colorScheme.secondary,
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
               ),
@@ -462,34 +478,36 @@ class _HomeScreenState extends State<HomeScreen> {
   // ── App Open Logs ─────────────────────────────────────────────────
 
   Widget _buildAppOpenLogsCard() {
+    final colorScheme = Theme.of(context).colorScheme;
     final displayLogs = _appLogs.take(15).toList(); // Show last 15
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: const Color(0xFF222228)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.history, color: Colors.grey.shade700),
+              Icon(Icons.history, color: colorScheme.primary),
               const SizedBox(width: 8),
               Text(
                 'Recent App Opens',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.grey.shade700,
+                  color: colorScheme.primary,
+                  letterSpacing: 0.5,
                 ),
               ),
               const Spacer(),
               Text(
                 '${_appLogs.length} total',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                style: TextStyle(fontSize: 12, color: colorScheme.secondary),
               ),
             ],
           ),
@@ -499,7 +517,7 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
                 'No app opens logged today.',
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                style: TextStyle(fontSize: 13, color: colorScheme.secondary),
               ),
             )
           else
@@ -545,7 +563,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       timeOnly,
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade500,
+                        color: colorScheme.secondary,
                         fontFamily: 'monospace',
                       ),
                     ),
@@ -561,13 +579,19 @@ class _HomeScreenState extends State<HomeScreen> {
   // ── Existing cards (unchanged logic, kept) ────────────────────────
 
   Widget _buildStatusCard(LockStateProvider lockProvider) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final lockedColor = colorScheme.error;
+    final unlockedColor = const Color(0xFF2E7D63);
+    final activeColor = lockProvider.isLocked ? lockedColor : unlockedColor;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: lockProvider.isLocked ? Colors.red.shade50 : Colors.green.shade50,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: lockProvider.isLocked ? Colors.red.shade200 : Colors.green.shade200,
+          color: activeColor.withOpacity(0.5),
+          width: 1.5,
         ),
       ),
       child: Column(
@@ -576,7 +600,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Icon(
             lockProvider.isLocked ? Icons.lock : Icons.lock_open,
             size: 50,
-            color: lockProvider.isLocked ? Colors.red.shade700 : Colors.green.shade700,
+            color: activeColor,
           ),
           const SizedBox(height: 10),
           Text(
@@ -584,14 +608,15 @@ class _HomeScreenState extends State<HomeScreen> {
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: lockProvider.isLocked ? Colors.red.shade700 : Colors.green.shade700,
+              color: activeColor,
+              letterSpacing: 0.5,
             ),
           ),
           const SizedBox(height: 5),
           if (lockProvider.isLocked)
             Text(
               'Focus period: ${lockProvider.remainingDays} days remaining',
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+              style: TextStyle(fontSize: 14, color: colorScheme.secondary),
             ),
         ],
       ),
@@ -599,11 +624,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildLockInfoCard(LockStateProvider lockProvider) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF222228)),
       ),
       child: Column(
         children: [
@@ -618,26 +645,28 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildLockInfoRow(String label, String value) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
-        Text(value, style: TextStyle(color: Colors.grey.shade700)),
+        Text(value, style: TextStyle(color: colorScheme.secondary)),
       ],
     );
   }
 
   Widget _buildEmergencyUnlockButton(LockStateProvider lockProvider) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Divider(),
+        const Divider(color: Color(0xFF222228)),
         const SizedBox(height: 10),
         const Text('Emergency Unlock',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         const SizedBox(height: 10),
         Text('Need access? Complete the emergency challenge:',
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
+            style: TextStyle(fontSize: 13, color: colorScheme.secondary)),
         const SizedBox(height: 15),
         ElevatedButton(
           onPressed: () async {
@@ -645,7 +674,8 @@ class _HomeScreenState extends State<HomeScreen> {
             if (mounted) Navigator.of(context).pushNamed('/emergency');
           },
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.orange.shade700,
+            backgroundColor: const Color(0xFFC87032),
+            foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 12),
           ),
           child: const Text('Start Emergency Unlock',
@@ -656,12 +686,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildEmergencyUnlockProgress(LockStateProvider lockProvider) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: Colors.orange.shade50,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.orange.shade200),
+        border: Border.all(color: const Color(0xFFC87032).withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -673,8 +704,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: TextStyle(fontWeight: FontWeight.bold)),
               GestureDetector(
                 onTap: () async => await lockProvider.cancelEmergencyUnlock(),
-                child: const Text('Cancel',
-                    style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                child: Text('Cancel',
+                    style: TextStyle(color: colorScheme.error, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -692,6 +723,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildProgressSection(String title, Duration duration, String subtitle) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final successColor = const Color(0xFF2E7D63);
+    final warningColor = const Color(0xFFC87032);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -704,7 +739,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ? '${duration.inHours}h ${duration.inMinutes % 60}m remaining'
                   : 'Complete',
               style: TextStyle(
-                color: duration.inSeconds > 0 ? Colors.orange : Colors.green,
+                color: duration.inSeconds > 0 ? warningColor : successColor,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -712,12 +747,13 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(height: 5),
         Text(subtitle,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+            style: TextStyle(fontSize: 12, color: colorScheme.secondary)),
       ],
     );
   }
 
   Widget _buildRedditUsageCard() {
+    final colorScheme = Theme.of(context).colorScheme;
     final usedSec = (_redditStatus['usedSeconds'] ?? 0) as int;
     final limitSec = (_redditStatus['limitSeconds'] ?? 3600) as int;
     final remainSec = (_redditStatus['remainingSeconds'] ?? 3600) as int;
@@ -725,15 +761,17 @@ class _HomeScreenState extends State<HomeScreen> {
     final extraMin = (_redditStatus['extraMinutesEarned'] ?? 0) as int;
     final progress = limitSec > 0 ? (usedSec / limitSec).clamp(0.0, 1.0) : 0.0;
 
+    final primaryAccent = colorScheme.primary;
+    final warningAccent = colorScheme.error;
+    final activeAccent = isLimitReached ? warningAccent : primaryAccent;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isLimitReached ? Colors.deepOrange.shade50 : Colors.indigo.shade50,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isLimitReached
-              ? Colors.deepOrange.shade200
-              : Colors.indigo.shade200,
+          color: activeAccent.withOpacity(0.3),
         ),
       ),
       child: Column(
@@ -742,18 +780,14 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             children: [
               Icon(isLimitReached ? Icons.block : Icons.timer,
-                  color: isLimitReached
-                      ? Colors.deepOrange.shade700
-                      : Colors.indigo.shade700),
+                  color: activeAccent),
               const SizedBox(width: 8),
               Text(
                 'Reddit Daily Limit',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: isLimitReached
-                      ? Colors.deepOrange.shade700
-                      : Colors.indigo.shade700,
+                  color: activeAccent,
                 ),
               ),
             ],
@@ -764,10 +798,8 @@ class _HomeScreenState extends State<HomeScreen> {
             child: LinearProgressIndicator(
               value: progress,
               minHeight: 10,
-              backgroundColor: Colors.grey.shade200,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                isLimitReached ? Colors.deepOrange : Colors.indigo.shade400,
-              ),
+              backgroundColor: colorScheme.background,
+              valueColor: AlwaysStoppedAnimation<Color>(activeAccent),
             ),
           ),
           const SizedBox(height: 8),
@@ -775,14 +807,13 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Used: ${RedditUsageService.formatDuration(usedSec)}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                  style: TextStyle(fontSize: 12, color: colorScheme.secondary)),
               Text(
                 'Remaining: ${RedditUsageService.formatDuration(remainSec)}',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color:
-                      isLimitReached ? Colors.deepOrange : Colors.grey.shade700,
+                  color: isLimitReached ? warningAccent : colorScheme.secondary,
                 ),
               ),
             ],
@@ -790,9 +821,9 @@ class _HomeScreenState extends State<HomeScreen> {
           if (extraMin > 0)
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Text(
+              child: const Text(
                 '+${extraMin}min earned from pushups today',
-                style: TextStyle(fontSize: 12, color: Colors.green.shade700),
+                style: TextStyle(fontSize: 12, color: Color(0xFF2E7D63), fontWeight: FontWeight.bold),
               ),
             ),
           if (isLimitReached) ...[
@@ -803,7 +834,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: const Icon(Icons.fitness_center, size: 20),
                 label: const Text('Do 100 Pushups for +10min'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepOrange.shade700,
+                  backgroundColor: warningAccent,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 10),
                 ),
@@ -820,27 +851,28 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildInfoCard() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: Colors.blue.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue.shade200),
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.primary.withOpacity(0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('How It Works',
-              style: TextStyle(fontWeight: FontWeight.bold)),
+          Text('How It Works',
+              style: TextStyle(fontWeight: FontWeight.bold, color: colorScheme.primary)),
           const SizedBox(height: 10),
-          const Text(
+          Text(
             '• Instagram, Reddit & Twitter/X are blocked when launched\n'
             '• Lock expires after 30 days\n'
             '• Reddit offers a pushup challenge for 10-min access\n'
             '• Chrome filters harmful content in incognito mode\n'
             '• Do 100 pushups to earn 10 minutes of Reddit\n'
             '• Emergency unlock requires physical effort',
-            style: TextStyle(fontSize: 12),
+            style: TextStyle(fontSize: 12, color: colorScheme.secondary, height: 1.4),
           ),
         ],
       ),

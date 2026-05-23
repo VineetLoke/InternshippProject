@@ -34,13 +34,16 @@ class FocusLockApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF225C4D),
-      brightness: Brightness.light,
-    ).copyWith(
-      primary: const Color(0xFF225C4D),
-      secondary: const Color(0xFFB87432),
-      surface: const Color(0xFFFFFCF6),
+    const colorScheme = ColorScheme.dark(
+      primary: Color(0xFFC6A85A), // Antique Gold
+      secondary: Color(0xFF8A7A6C), // Iron/Stone Grey
+      surface: Color(0xFF16161A), // Charcoal Stone
+      background: Color(0xFF0A0A0E), // Deep Slate Black
+      error: Color(0xFFB54534), // Ember Crimson Red
+      onPrimary: Color(0xFF151208),
+      onSecondary: Color(0xFFF0E6D2),
+      onSurface: Color(0xFFF0E6D2), // Parchment Cream
+      onBackground: Color(0xFFF0E6D2),
     );
 
     return MultiProvider(
@@ -52,23 +55,24 @@ class FocusLockApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           useMaterial3: true,
+          brightness: Brightness.dark,
           colorScheme: colorScheme,
-          scaffoldBackgroundColor: const Color(0xFFF5F1E8),
+          scaffoldBackgroundColor: colorScheme.background,
           appBarTheme: const AppBarTheme(
             backgroundColor: Colors.transparent,
-            foregroundColor: Color(0xFF17352E),
+            foregroundColor: Color(0xFFC6A85A),
             elevation: 0,
-            centerTitle: false,
+            centerTitle: true,
           ),
           snackBarTheme: SnackBarThemeData(
             behavior: SnackBarBehavior.floating,
-            backgroundColor: colorScheme.primary,
-            contentTextStyle: const TextStyle(color: Colors.white),
+            backgroundColor: colorScheme.surface,
+            contentTextStyle: const TextStyle(color: Color(0xFFF0E6D2)),
           ),
           elevatedButtonTheme: ElevatedButtonThemeData(
             style: ElevatedButton.styleFrom(
               backgroundColor: colorScheme.primary,
-              foregroundColor: Colors.white,
+              foregroundColor: colorScheme.onPrimary,
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
               shape: RoundedRectangleBorder(
@@ -79,7 +83,7 @@ class FocusLockApp extends StatelessWidget {
           outlinedButtonTheme: OutlinedButtonThemeData(
             style: OutlinedButton.styleFrom(
               foregroundColor: colorScheme.primary,
-              side: BorderSide(color: colorScheme.primary.withOpacity(0.2)),
+              side: BorderSide(color: colorScheme.primary.withOpacity(0.3)),
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
@@ -88,14 +92,14 @@ class FocusLockApp extends StatelessWidget {
           ),
           inputDecorationTheme: InputDecorationTheme(
             filled: true,
-            fillColor: Colors.white,
+            fillColor: colorScheme.surface,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: colorScheme.outlineVariant),
+              borderSide: const BorderSide(color: Color(0xFF222228)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: colorScheme.outlineVariant),
+              borderSide: const BorderSide(color: Color(0xFF222228)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),

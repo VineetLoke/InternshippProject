@@ -113,14 +113,15 @@ class _InstagramPushupChallengeScreenState
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final progress = (_count / _requiredPushups).clamp(0.0, 1.0);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1A1A2E),
+      backgroundColor: colorScheme.background,
       appBar: AppBar(
         title: const Text('Instagram Emergency Unlock'),
-        backgroundColor: const Color(0xFF16213E),
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
+        foregroundColor: colorScheme.primary,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -141,12 +142,13 @@ class _InstagramPushupChallengeScreenState
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.purple.shade900.withOpacity(0.3),
+                  color: colorScheme.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: colorScheme.primary.withOpacity(0.3)),
                 ),
-                child: const Text(
+                child: Text(
                   '50 pushups = 15 min access',
-                  style: TextStyle(color: Colors.purpleAccent, fontSize: 14),
+                  style: TextStyle(color: colorScheme.primary, fontSize: 14, fontWeight: FontWeight.bold),
                 ),
               ),
 
@@ -168,11 +170,11 @@ class _InstagramPushupChallengeScreenState
                         child: CircularProgressIndicator(
                           value: progress,
                           strokeWidth: 12,
-                          backgroundColor: Colors.white12,
+                          backgroundColor: const Color(0xFF222228),
                           valueColor: AlwaysStoppedAnimation<Color>(
                             progress >= 1.0
-                                ? Colors.greenAccent
-                                : Colors.purpleAccent,
+                                ? const Color(0xFF2E7D63)
+                                : colorScheme.primary,
                           ),
                         ),
                       ),
@@ -181,17 +183,17 @@ class _InstagramPushupChallengeScreenState
                         children: [
                           Text(
                             '$_count',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 56,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: colorScheme.primary,
                             ),
                           ),
                           Text(
                             '/ $_requiredPushups',
                             style: TextStyle(
                                 fontSize: 18,
-                                color: Colors.grey.shade400),
+                                color: colorScheme.secondary),
                           ),
                         ],
                       ),
@@ -205,15 +207,16 @@ class _InstagramPushupChallengeScreenState
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
+                  color: colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF222228)),
                 ),
                 child: Column(
                   children: [
-                    const Text(
+                    Text(
                       'Emergency Unlock',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: colorScheme.primary,
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
@@ -242,13 +245,13 @@ class _InstagramPushupChallengeScreenState
                     ),
                     label: Text(
                       _isDetecting ? 'Stop' : 'Start Pushup Detection',
-                      style: const TextStyle(fontSize: 18),
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _isDetecting
-                          ? Colors.red.shade700
-                          : Colors.purple.shade700,
-                      foregroundColor: Colors.white,
+                          ? colorScheme.error
+                          : colorScheme.primary,
+                      foregroundColor: _isDetecting ? Colors.white : colorScheme.onPrimary,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -263,7 +266,7 @@ class _InstagramPushupChallengeScreenState
                   padding: const EdgeInsets.only(top: 12),
                   child: Text(
                     'Proximity sensor not available on this device.',
-                    style: TextStyle(color: Colors.red.shade300),
+                    style: TextStyle(color: colorScheme.error),
                   ),
                 ),
 
@@ -276,6 +279,7 @@ class _InstagramPushupChallengeScreenState
   }
 
   Widget _instructionRow(String num, String text) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
@@ -284,19 +288,19 @@ class _InstagramPushupChallengeScreenState
             width: 22,
             height: 22,
             decoration: BoxDecoration(
-              color: Colors.purple.shade700,
+              color: colorScheme.primary,
               shape: BoxShape.circle,
             ),
             child: Center(
               child: Text(num,
                   style:
-                      const TextStyle(color: Colors.white, fontSize: 12)),
+                      TextStyle(color: colorScheme.onPrimary, fontSize: 12, fontWeight: FontWeight.bold)),
             ),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(text,
-                style: TextStyle(color: Colors.grey.shade300, fontSize: 13)),
+                style: TextStyle(color: colorScheme.onSurface, fontSize: 13)),
           ),
         ],
       ),

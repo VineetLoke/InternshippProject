@@ -141,14 +141,15 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final progress = (_count / _requiredPushups).clamp(0.0, 1.0);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1A1A2E),
+      backgroundColor: colorScheme.background,
       appBar: AppBar(
         title: const Text('Pushup Challenge'),
-        backgroundColor: const Color(0xFF16213E),
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
+        foregroundColor: colorScheme.primary,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -170,13 +171,14 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.orange.shade900.withOpacity(0.3),
+                  color: colorScheme.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: colorScheme.primary.withOpacity(0.3)),
                 ),
                 child: Text(
                   _redditRemaining,
                   style: TextStyle(
-                      color: Colors.orange.shade200, fontSize: 14),
+                      color: colorScheme.primary, fontSize: 14, fontWeight: FontWeight.bold),
                 ),
               ),
 
@@ -197,11 +199,11 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
                         child: CircularProgressIndicator(
                           value: progress,
                           strokeWidth: 12,
-                          backgroundColor: Colors.white12,
+                          backgroundColor: const Color(0xFF222228),
                           valueColor: AlwaysStoppedAnimation<Color>(
                             progress >= 1.0
-                                ? Colors.greenAccent
-                                : Colors.orange.shade400,
+                                ? const Color(0xFF2E7D63)
+                                : colorScheme.primary,
                           ),
                         ),
                       ),
@@ -210,17 +212,17 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
                         children: [
                           Text(
                             '$_count',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 56,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: colorScheme.primary,
                             ),
                           ),
                           Text(
                             '/ $_requiredPushups',
                             style: TextStyle(
                                 fontSize: 18,
-                                color: Colors.grey.shade400),
+                                color: colorScheme.secondary),
                           ),
                         ],
                       ),
@@ -235,15 +237,16 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
+                  color: colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF222228)),
                 ),
                 child: Column(
                   children: [
-                    const Text(
+                    Text(
                       'How it works',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: colorScheme.primary,
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
@@ -273,12 +276,12 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
                     ),
                     label: Text(
                       _isDetecting ? 'Stop' : 'Start Pushup Detection',
-                      style: const TextStyle(fontSize: 18),
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor:
-                          _isDetecting ? Colors.red.shade700 : Colors.orange.shade700,
-                      foregroundColor: Colors.white,
+                          _isDetecting ? colorScheme.error : colorScheme.primary,
+                      foregroundColor: _isDetecting ? Colors.white : colorScheme.onPrimary,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -293,7 +296,7 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
                   padding: const EdgeInsets.only(top: 12),
                   child: Text(
                     'Proximity sensor not available on this device.',
-                    style: TextStyle(color: Colors.red.shade300),
+                    style: TextStyle(color: colorScheme.error),
                   ),
                 ),
 
@@ -306,6 +309,7 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
   }
 
   Widget _instructionRow(String num, String text) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
@@ -314,13 +318,13 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
             width: 22,
             height: 22,
             decoration: BoxDecoration(
-              color: Colors.orange.shade700,
+              color: colorScheme.primary,
               shape: BoxShape.circle,
             ),
             child: Center(
               child: Text(num,
                   style:
-                      const TextStyle(color: Colors.white, fontSize: 12)),
+                      TextStyle(color: colorScheme.onPrimary, fontSize: 12, fontWeight: FontWeight.bold)),
             ),
           ),
           const SizedBox(width: 10),

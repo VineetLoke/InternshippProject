@@ -160,6 +160,8 @@ class _PermissionsScreenState extends State<PermissionsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Required Permissions'),
@@ -170,23 +172,23 @@ class _PermissionsScreenState extends State<PermissionsScreen>
         padding: const EdgeInsets.all(20),
         children: [
           // Header
-          Icon(Icons.security, size: 60, color: Colors.blue.shade700),
+          Icon(Icons.security, size: 60, color: colorScheme.primary),
           const SizedBox(height: 16),
           const Text(
             'FocusLock needs a few permissions to block Instagram.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
             'The first two are required. The rest are optional.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: 13, color: colorScheme.secondary),
           ),
           const SizedBox(height: 28),
 
           // ── Required ─────────────────────────────────────────────────────
-          _sectionLabel('Required', Colors.red.shade700),
+          _sectionLabel('Required', colorScheme.error),
           const SizedBox(height: 8),
 
           _permTile(
@@ -212,7 +214,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
           const SizedBox(height: 28),
 
           // ── Optional ─────────────────────────────────────────────────────
-          _sectionLabel('Optional', Colors.grey.shade700),
+          _sectionLabel('Optional', colorScheme.secondary),
           const SizedBox(height: 8),
 
           _permTile(
@@ -250,17 +252,14 @@ class _PermissionsScreenState extends State<PermissionsScreen>
             onPressed: _allRequiredGranted ? _proceed : null,
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 15),
-              backgroundColor: Colors.blue.shade700,
-              disabledBackgroundColor: Colors.grey.shade300,
             ),
             child: Text(
               _allRequiredGranted
                   ? 'Continue to Setup'
                   : 'Grant required permissions above',
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: _allRequiredGranted ? Colors.white : Colors.grey.shade600,
               ),
             ),
           ),
@@ -270,7 +269,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
             Text(
               'Both required permissions must be granted before you can continue.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: 12, color: colorScheme.secondary),
             ),
           ],
         ],
@@ -311,12 +310,17 @@ class _PermissionsScreenState extends State<PermissionsScreen>
     required VoidCallback onTap,
     required String buttonLabel,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final successColor = const Color(0xFF2E7D63);
+    final borderColor = granted ? successColor.withOpacity(0.4) : const Color(0xFF222228);
+
     return Container(
       decoration: BoxDecoration(
-        color: granted ? Colors.green.shade50 : Colors.grey.shade50,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: granted ? Colors.green.shade300 : Colors.grey.shade300,
+          color: borderColor,
+          width: 1.2,
         ),
       ),
       padding: const EdgeInsets.all(14),
@@ -324,7 +328,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
         children: [
           Icon(icon,
               size: 32,
-              color: granted ? Colors.green.shade700 : Colors.grey.shade600),
+              color: granted ? successColor : colorScheme.secondary),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -336,17 +340,17 @@ class _PermissionsScreenState extends State<PermissionsScreen>
                 const SizedBox(height: 2),
                 Text(subtitle,
                     style: TextStyle(
-                        fontSize: 12, color: Colors.grey.shade600)),
+                        fontSize: 12, color: colorScheme.secondary)),
               ],
             ),
           ),
           const SizedBox(width: 8),
           granted
-              ? Icon(Icons.check_circle, color: Colors.green.shade600, size: 28)
+              ? Icon(Icons.check_circle, color: successColor, size: 28)
               : TextButton(
                   onPressed: onTap,
                   style: TextButton.styleFrom(
-                    backgroundColor: Colors.blue.shade50,
+                    backgroundColor: colorScheme.primary.withOpacity(0.1),
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     shape: RoundedRectangleBorder(
@@ -354,7 +358,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
                   ),
                   child: Text(buttonLabel,
                       style: TextStyle(
-                          fontSize: 12, color: Colors.blue.shade700)),
+                          fontSize: 12, color: colorScheme.primary, fontWeight: FontWeight.bold)),
                 ),
         ],
       ),

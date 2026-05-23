@@ -68,17 +68,18 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: const Color(0xFFE8F3EE),
+                color: Theme.of(context).colorScheme.background,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFF225C4D).withOpacity(0.14)),
+                border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
               ),
               child: Text(
                 password,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
                   fontFamily: 'monospace',
                   letterSpacing: 1,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -103,20 +104,24 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return WillPopScope(
       onWillPop: () async => false,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF4F0E6),
         appBar: AppBar(
           title: const Text('Emergency Unlock'),
           automaticallyImplyLeading: false,
         ),
         body: DecoratedBox(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0xFFF7F4EC), Color(0xFFEDE7D9)],
+              colors: [
+                colorScheme.background,
+                colorScheme.surface,
+              ],
             ),
           ),
           child: Consumer<LockStateProvider>(
@@ -136,7 +141,7 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
                       title: 'Impulse Delay',
                       subtitle: 'A full hour must pass before reveal is allowed.',
                       icon: Icons.hourglass_bottom_rounded,
-                      accent: const Color(0xFFB87432),
+                      accent: const Color(0xFFC87032),
                       isComplete: delayComplete,
                       child: delayComplete
                           ? _buildCompleteBanner('Delay complete. Time barrier cleared.')
@@ -147,7 +152,7 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
                       title: 'Movement Requirement',
                       subtitle: 'Walk 10,000 steps in a single day to prove intent.',
                       icon: Icons.directions_walk_rounded,
-                      accent: const Color(0xFF225C4D),
+                      accent: const Color(0xFF2E7D63),
                       isComplete: stepsComplete,
                       child: _buildStepsPanel(lockProvider, stepsComplete),
                     ),
@@ -168,7 +173,7 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
                       'Live countdown: ${TimerService.formatDuration(lockProvider.remainingDelay)}',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Colors.grey.shade700,
+                        color: colorScheme.secondary,
                         fontSize: 12,
                       ),
                     ),
@@ -183,14 +188,20 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
   }
 
   Widget _buildHeroCard(bool ready) {
+    final successColor = const Color(0xFF2E7D63);
+    final warningColor = const Color(0xFFC6A85A);
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(28),
         gradient: LinearGradient(
           colors: ready
-              ? const [Color(0xFF225C4D), Color(0xFF2D7D67)]
-              : const [Color(0xFF17352E), Color(0xFF225C4D)],
+              ? [successColor, const Color(0xFF389A7B)]
+              : [const Color(0xFF16161A), const Color(0xFF222228)],
+        ),
+        border: Border.all(
+          color: ready ? successColor.withOpacity(0.5) : warningColor.withOpacity(0.3),
+          width: 1.2,
         ),
         boxShadow: const [
           BoxShadow(
@@ -207,12 +218,12 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.14),
+              color: Colors.white.withOpacity(0.1),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(
               ready ? Icons.verified_user_rounded : Icons.lock_clock_rounded,
-              color: Colors.white,
+              color: ready ? Colors.white : warningColor,
               size: 28,
             ),
           ),
@@ -249,13 +260,15 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
     required bool isComplete,
     required Widget child,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: isComplete ? accent.withOpacity(0.24) : const Color(0xFFE7DEC8),
+          color: isComplete ? accent.withOpacity(0.4) : const Color(0xFF222228),
+          width: 1.2,
         ),
       ),
       child: Column(
@@ -289,7 +302,7 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
                       subtitle,
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade700,
+                        color: colorScheme.secondary,
                       ),
                     ),
                   ],
@@ -307,11 +320,15 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
   }
 
   Widget _buildStepsPanel(LockStateProvider lockProvider, bool stepsComplete) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final successColor = const Color(0xFF2E7D63);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F7F1),
+        color: colorScheme.background,
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF222228)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -329,7 +346,7 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
               Text(
                 '${(lockProvider.getStepProgress() * 100).toStringAsFixed(1)}%',
                 style: TextStyle(
-                  color: Colors.grey.shade700,
+                  color: colorScheme.secondary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -341,9 +358,9 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
             child: LinearProgressIndicator(
               value: lockProvider.getStepProgress(),
               minHeight: 10,
-              backgroundColor: const Color(0xFFE4DDCF),
+              backgroundColor: const Color(0xFF222228),
               valueColor: AlwaysStoppedAnimation<Color>(
-                stepsComplete ? const Color(0xFF2D7D67) : const Color(0xFF225C4D),
+                stepsComplete ? successColor : colorScheme.primary,
               ),
             ),
           ),
@@ -354,7 +371,7 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
                 : '${lockProvider.getRemainingSteps()} steps remaining today.',
             style: TextStyle(
               fontSize: 13,
-              color: stepsComplete ? const Color(0xFF225C4D) : Colors.grey.shade700,
+              color: stepsComplete ? successColor : colorScheme.secondary,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -371,19 +388,22 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
   ) {
     String text;
     Color color;
+    final successColor = const Color(0xFF2E7D63);
+    final warningColor = const Color(0xFFC87032);
+    final goldColor = Theme.of(context).colorScheme.primary;
 
     if (ready) {
       text = 'All safeguards complete. The password dialog will stay available until you finish the unlock.';
-      color = const Color(0xFF225C4D);
+      color = successColor;
     } else if (delayComplete) {
       text = 'Time barrier cleared. Keep walking until the movement target is complete.';
-      color = const Color(0xFFB87432);
+      color = warningColor;
     } else if (stepsComplete) {
       text = 'Movement target reached. Wait for the delay to expire to finish the unlock.';
-      color = const Color(0xFF225C4D);
+      color = successColor;
     } else {
       text = 'Both the delay and the movement requirement must complete before reveal is allowed.';
-      color = const Color(0xFF6D5A3A);
+      color = goldColor;
     }
 
     return Container(
@@ -391,7 +411,7 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
       decoration: BoxDecoration(
         color: color.withOpacity(0.08),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.14)),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -415,21 +435,23 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
   }
 
   Widget _buildCompleteBanner(String text) {
+    final successColor = const Color(0xFF2E7D63);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFE8F3EE),
+        color: successColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: successColor.withOpacity(0.3)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.check_circle_rounded, color: Color(0xFF225C4D)),
+          Icon(Icons.check_circle_rounded, color: successColor),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(
-                color: Color(0xFF225C4D),
+              style: TextStyle(
+                color: successColor,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -440,36 +462,37 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
   }
 
   Widget _buildTimerDisplay(Duration remaining) {
+    final colorScheme = Theme.of(context).colorScheme;
     final hours = remaining.inHours;
     final minutes = remaining.inMinutes % 60;
     final seconds = remaining.inSeconds % 60;
+    final warningColor = const Color(0xFFC87032);
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFF4E6D2), Color(0xFFF9F2E8)],
-        ),
+        color: colorScheme.background,
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: warningColor.withOpacity(0.3)),
       ),
       child: Column(
         children: [
           Text(
             '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF8C5C26),
+              color: warningColor,
               fontFamily: 'monospace',
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'This cooldown is deliberate. It blocks impulse unlocks.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Color(0xFF8C5C26),
+              color: colorScheme.secondary,
               fontSize: 12,
             ),
           ),

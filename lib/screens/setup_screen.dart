@@ -85,7 +85,7 @@ class _SetupScreenState extends State<SetupScreen> {
             Icon(
               Icons.lock_outline,
               size: 60,
-              color: Colors.blue.shade700,
+              color: Theme.of(context).colorScheme.primary,
             ),
             const SizedBox(height: 20),
             const Text(
@@ -102,7 +102,7 @@ class _SetupScreenState extends State<SetupScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey.shade600,
+                color: Theme.of(context).colorScheme.secondary,
               ),
             ),
             const SizedBox(height: 30),
@@ -111,9 +111,6 @@ class _SetupScreenState extends State<SetupScreen> {
               obscureText: !_showPassword,
               decoration: InputDecoration(
                 labelText: 'Enter Password',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
                 suffixIcon: IconButton(
                   icon: Icon(
                     _showPassword ? Icons.visibility : Icons.visibility_off,
@@ -128,32 +125,31 @@ class _SetupScreenState extends State<SetupScreen> {
             TextField(
               controller: _confirmPasswordController,
               obscureText: !_showPassword,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Confirm Password',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
               ),
             ),
             const SizedBox(height: 30),
             Container(
-              padding: const EdgeInsets.all(15),
+              padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.shade200),
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     '30-Day Lock Agreement',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                      letterSpacing: 0.5,
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   Text(
                     '• Instagram, Reddit, and Twitter/X will be blocked for 30 days\n'
                     '• Lock will automatically expire after 30 days\n'
@@ -164,7 +160,8 @@ class _SetupScreenState extends State<SetupScreen> {
                     '• App will continue working after device reboot',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.grey.shade700,
+                      color: Theme.of(context).colorScheme.secondary,
+                      height: 1.4,
                     ),
                   ),
                   const SizedBox(height: 15),
@@ -173,9 +170,11 @@ class _SetupScreenState extends State<SetupScreen> {
                     onChanged: (value) {
                       setState(() => _agreedToLock = value ?? false);
                     },
+                    activeColor: Theme.of(context).colorScheme.primary,
+                    checkColor: Theme.of(context).colorScheme.onPrimary,
                     title: const Text(
                       'I agree to the 30-day lock',
-                      style: TextStyle(fontSize: 14),
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                     ),
                     contentPadding: EdgeInsets.zero,
                   ),
@@ -187,16 +186,14 @@ class _SetupScreenState extends State<SetupScreen> {
               onPressed: _isLoading ? null : _confirmSetup,
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 15),
-                backgroundColor: Colors.blue.shade700,
-                disabledBackgroundColor: Colors.grey.shade300,
               ),
               child: _isLoading
-                  ? const SizedBox(
+                  ? SizedBox(
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.onPrimary),
                       ),
                     )
                   : const Text(
@@ -204,7 +201,6 @@ class _SetupScreenState extends State<SetupScreen> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
                       ),
                     ),
             ),

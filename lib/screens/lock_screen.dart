@@ -47,14 +47,16 @@ class _LockScreenState extends State<LockScreen> {
               });
             }
 
+            final colorScheme = Theme.of(context).colorScheme;
+
             return Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.red.shade800,
-                    Colors.red.shade600,
+                    colorScheme.background,
+                    colorScheme.surface,
                   ],
                 ),
               ),
@@ -65,7 +67,7 @@ class _LockScreenState extends State<LockScreen> {
                   Icon(
                     Icons.lock_outline,
                     size: 80,
-                    color: Colors.white,
+                    color: colorScheme.primary,
                   ),
                   const SizedBox(height: 30),
 
@@ -74,21 +76,23 @@ class _LockScreenState extends State<LockScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Column(
                       children: [
-                        const Text(
+                        Text(
                           'Apps Locked',
                           style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            color: colorScheme.primary,
+                            letterSpacing: 1,
                           ),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 15),
-                        const Text(
+                        Text(
                           'Instagram, Reddit & Twitter/X are locked for your focus period.',
                           style: TextStyle(
                             fontSize: 16,
-                            color: Colors.white70,
+                            color: colorScheme.onSurface,
+                            height: 1.4,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -112,18 +116,16 @@ class _LockScreenState extends State<LockScreen> {
                           }
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 40,
                             vertical: 15,
                           ),
                         ),
-                        child: Text(
+                        child: const Text(
                           'Emergency Unlock',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Colors.red.shade800,
                           ),
                         ),
                       ),
@@ -138,37 +140,40 @@ class _LockScreenState extends State<LockScreen> {
   }
 
   Widget _buildCountdownTimer(LockStateProvider lockProvider) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white30),
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colorScheme.primary.withOpacity(0.3), width: 1.2),
       ),
       child: Column(
         children: [
-          const Text(
+          Text(
             'Unlock Date',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.white70,
+              color: colorScheme.secondary,
+              letterSpacing: 1,
             ),
           ),
           const SizedBox(height: 10),
           Text(
             lockProvider.lockEndDate?.toString().split(' ').first ?? 'N/A',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Colors.white,
+              color: colorScheme.primary,
+              letterSpacing: 0.5,
             ),
           ),
           const SizedBox(height: 10),
           Text(
             '${lockProvider.remainingDays} days remaining',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
-              color: Colors.white70,
+              color: colorScheme.onSurface,
             ),
           ),
         ],

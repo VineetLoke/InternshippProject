@@ -66,7 +66,7 @@ class _SplashScreenState extends State<SplashScreen> {
             Icon(
               Icons.lock_outline,
               size: 80,
-              color: Colors.blue.shade700,
+              color: Theme.of(context).colorScheme.primary,
             ),
             const SizedBox(height: 20),
             Text(
@@ -74,7 +74,8 @@ class _SplashScreenState extends State<SplashScreen> {
               style: TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
-                color: Colors.blue.shade700,
+                color: Theme.of(context).colorScheme.primary,
+                letterSpacing: 2,
               ),
             ),
             const SizedBox(height: 10),
@@ -82,11 +83,12 @@ class _SplashScreenState extends State<SplashScreen> {
               'Stay focused on what matters',
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.grey.shade600,
+                color: Theme.of(context).colorScheme.secondary,
+                letterSpacing: 0.5,
               ),
             ),
             const SizedBox(height: 40),
-            CircularProgressIndicator(color: Colors.blue.shade700),
+            CircularProgressIndicator(color: Theme.of(context).colorScheme.primary),
           ],
         ),
       ),
