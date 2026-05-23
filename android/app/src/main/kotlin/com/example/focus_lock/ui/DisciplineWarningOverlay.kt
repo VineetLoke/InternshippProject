@@ -36,6 +36,7 @@ import android.widget.TextView
  *
  * The AccessibilityService handles the 3-second timer and dismissal.
  */
+class DisciplineWarningOverlay : Service() {
     class CountdownRingView(context: Context) : View(context) {
         private val paintBg = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.parseColor("#22FF4444")
