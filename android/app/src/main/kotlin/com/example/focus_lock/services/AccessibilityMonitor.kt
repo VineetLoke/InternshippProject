@@ -249,9 +249,15 @@ class AccessibilityMonitor : AccessibilityService() {
                 AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
                     // Fast cache evaluation for incognito transitions
                     if (pkg == ChromeIncognitoBlocker.CHROME_PACKAGE) {
+                        val wasIncognito = ChromeIncognitoBlocker.isIncognitoCached
                         ChromeIncognitoBlocker.evaluateIncognitoState(rootInActiveWindow)
+                        // If incognito was just detected via content change, block immediately
+                        if (!wasIncognito && ChromeIncognitoBlocker.isIncognitoCached &&
+                            currentState != DisciplineState.CHROME_INCOGNITO_BLOCKED) {
+                            Log.d(TAG, "Chrome incognito detected via content change — blocking")
+                            triggerChromeIncognitoBlock()
+                        }
                     }
-                    // Content changes are not monitored for Chrome incognito blocking
                 }
             }
         } catch (e: Exception) {
@@ -319,7 +325,20 @@ class AccessibilityMonitor : AccessibilityService() {
                 if (RedditBlocker.onRedditDetected()) return
             }
             CHROME_PACKAGE -> {
-                // Chrome: incognito blocking is handled by TYPE_VIEW_TEXT_CHANGED only
+                // Chrome: check incognito status immediately on window change
+                // If incognito is detected, block immediately — don't wait for typing
+                handler.postDelayed({
+                    if (currentForegroundPackage == CHROME_PACKAGE && 
+                        currentState != DisciplineState.CHROME_INCOGNITO_BLOCKED) {
+                        val root = rootInActiveWindow
+                        if (root != null && root.packageName?.toString() == CHROME_PACKAGE) {
+                            if (ChromeIncognitoBlocker.isIncognitoMode(root)) {
+                                Log.d(TAG, "Chrome incognito detected on window change — blocking immediately")
+                                triggerChromeIncognitoBlock()
+                            }
+                        }
+                    }
+                }, 500L) // Short delay to let Chrome's accessibility tree populate
             }
             FOCUS_LOCK_PACKAGE -> {
                 // Never block ourselves
@@ -379,8 +398,8 @@ class AccessibilityMonitor : AccessibilityService() {
         Log.d(TAG, "Chrome incognito typing BLOCKED — showing overlay")
         transitionTo(DisciplineState.CHROME_INCOGNITO_BLOCKED)
 
-        // Force Chrome out of the typing state immediately
-        performGlobalAction(GLOBAL_ACTION_BACK)
+        // Force Chrome out immediately — navigate HOME (not just BACK)
+        performGlobalAction(GLOBAL_ACTION_HOME)
         handler.postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 300L)
 
         // Show DisciplineWarningOverlay
@@ -402,17 +421,17 @@ class AccessibilityMonitor : AccessibilityService() {
     }
 
     private fun dismissChromeWarning() {
-        Log.d(TAG, "Chrome overlay expired — ensuring tab is closed")
+        Log.d(TAG, "Chrome overlay expired — forcing exit from Chrome")
         stopOverlayService(DisciplineWarningOverlay::class.java)
 
-        // Repeat BACK presses to reliably close the incognito tab
-        performGlobalAction(GLOBAL_ACTION_BACK)
-        for (i in 1..2) {
+        // Force user to home screen — don't just BACK (they could re-enter incognito)
+        performGlobalAction(GLOBAL_ACTION_HOME)
+        
+        // Additional BACK presses while Chrome is backgrounded to close incognito tabs
+        for (i in 1..3) {
             handler.postDelayed({
-                if (currentForegroundPackage == CHROME_PACKAGE) {
-                    performGlobalAction(GLOBAL_ACTION_BACK)
-                    Log.d(TAG, "Chrome incognito BACK press #${i + 1}")
-                }
+                performGlobalAction(GLOBAL_ACTION_BACK)
+                Log.d(TAG, "Chrome incognito cleanup BACK press #$i")
             }, BACK_PRESS_INTERVAL_MS * i)
         }
 

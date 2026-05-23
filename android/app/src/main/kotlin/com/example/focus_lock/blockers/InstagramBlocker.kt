@@ -9,7 +9,7 @@ import android.os.Looper
 import android.util.Log
 import com.example.focus_lock.storage.database.AppDatabase
 import com.example.focus_lock.storage.database.AppOpenLog
-import com.example.focus_lock.ui.BlockingOverlayScreen
+import com.example.focus_lock.ui.LockScreenOverlay
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.util.Date
@@ -123,7 +123,8 @@ object InstagramBlocker {
                 scheduleForceClose()
                 return
             }
-            val intent = Intent(appContext, BlockingOverlayScreen::class.java)
+            val intent = Intent(appContext, LockScreenOverlay::class.java)
+            intent.putExtra("source", "instagram")
             appContext.startService(intent)
             handler.postDelayed({ scheduleForceClose() }, OVERLAY_DISPLAY_MS)
         } catch (e: Exception) {
@@ -145,7 +146,7 @@ object InstagramBlocker {
 
     fun dismissOverlay() {
         try {
-            appContext.stopService(Intent(appContext, BlockingOverlayScreen::class.java))
+            appContext.stopService(Intent(appContext, LockScreenOverlay::class.java))
         } catch (e: Exception) {
             Log.e(TAG, "Error dismissing overlay: ${e.message}")
         }
