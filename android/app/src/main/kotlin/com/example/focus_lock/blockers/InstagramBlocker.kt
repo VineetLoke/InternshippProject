@@ -34,7 +34,7 @@ object InstagramBlocker {
     private const val LOCK_DURATION_KEY = "lock_duration_days"
 
     private const val DEFAULT_LOCK_DURATION_DAYS = 30
-    private const val TEMP_UNLOCK_DURATION_MS = 15L * 60 * 1000
+    private const val TEMP_UNLOCK_DURATION_MS = 10L * 60 * 1000
     private const val OVERLAY_DISPLAY_MS = 5000L
     private const val BACK_PRESS_COUNT = 6
     private const val BACK_PRESS_INTERVAL_MS = 250L

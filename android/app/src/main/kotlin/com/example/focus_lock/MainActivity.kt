@@ -152,6 +152,22 @@ class MainActivity : FlutterActivity() {
                         val redeemed = redeemPushupsForRedditTime()
                         result.success(redeemed)
                     }
+                    "grantRedditCameraPushupReward" -> {
+                        // Camera-based pushup detection runs in Flutter/Dart.
+                        // This method bypasses the native proximity counter
+                        // and directly grants Reddit temp unlock time.
+                        val svc = AccessibilityMonitor.instance
+                        if (svc != null) {
+                            svc.onRedditChallengeCompleted()
+                            Log.d(TAG, "Camera pushups verified → Reddit temp unlock for 10 min")
+                        } else {
+                            Log.w(TAG, "Accessibility service not running — granting extra time via prefs")
+                            resetIfNewDay()
+                            val currentExtra = prefs.getLong(REDDIT_EXTRA_MS_KEY, 0L)
+                            prefs.edit().putLong(REDDIT_EXTRA_MS_KEY, currentExtra + PUSHUP_REWARD_MS).apply()
+                        }
+                        result.success(true)
+                    }
 
                     // ── Screen time (UsageStatsManager) ──────────
                     "getScreenTimeData" -> {
@@ -239,7 +255,7 @@ class MainActivity : FlutterActivity() {
                     "completeInstagramEmergencyChallenge" -> {
                         InstagramBlocker.init(applicationContext)
                         InstagramBlocker.grantTempUnlock()
-                        Log.d(TAG, "Instagram emergency challenge completed — 15min unlock")
+                        Log.d(TAG, "Instagram emergency challenge completed — 10min unlock")
                         result.success(true)
                     }
 
@@ -259,7 +275,7 @@ class MainActivity : FlutterActivity() {
                     "completeRedditEmergencyChallenge" -> {
                         RedditBlocker.init(applicationContext)
                         RedditBlocker.grantTempUnlock()
-                        Log.d(TAG, "Reddit emergency challenge completed — 15min unlock")
+                        Log.d(TAG, "Reddit emergency challenge completed — 10min unlock")
                         result.success(true)
                     }
 
