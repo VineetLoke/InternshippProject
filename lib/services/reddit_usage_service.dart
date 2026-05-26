@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 /// Manages Reddit daily usage limit (1 hour) and pushup-based extra time.
@@ -13,7 +14,7 @@ class RedditUsageService {
       final result = await _channel.invokeMethod('getRedditUsageStatus');
       return Map<String, dynamic>.from(result);
     } catch (e) {
-      print('Error getting Reddit usage status: $e');
+      debugPrint('Error getting Reddit usage status: $e');
       return {
         'usedSeconds': 0,
         'limitSeconds': 3600,
@@ -30,7 +31,7 @@ class RedditUsageService {
       final result = await _channel.invokeMethod('getRedditRemainingSeconds');
       return (result as int?) ?? 3600;
     } catch (e) {
-      print('Error getting remaining seconds: $e');
+      debugPrint('Error getting remaining seconds: $e');
       return 3600;
     }
   }
@@ -48,7 +49,7 @@ class RedditUsageService {
           await _channel.invokeMethod('getRedditTempUnlockRemainingNew');
       return (result as int?) ?? 0;
     } catch (e) {
-      print('Error getting temp unlock remaining: $e');
+      debugPrint('Error getting temp unlock remaining: $e');
       return 0;
     }
   }
@@ -59,7 +60,7 @@ class RedditUsageService {
       final result = await _channel.invokeMethod('getDisciplineState');
       return (result as String?) ?? 'IDLE';
     } catch (e) {
-      print('Error getting discipline state: $e');
+      debugPrint('Error getting discipline state: $e');
       return 'IDLE';
     }
   }

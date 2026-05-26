@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 /// Service for accessing app open logs stored in the Room database.
@@ -15,7 +16,7 @@ class AppLogService {
           .map((e) => Map<String, dynamic>.from(e as Map))
           .toList();
     } catch (e) {
-      print('Error getting app open logs: $e');
+      debugPrint('Error getting app open logs: $e');
       return [];
     }
   }
@@ -28,7 +29,7 @@ class AppLogService {
       });
       return (result as int?) ?? 0;
     } catch (e) {
-      print('Error getting open count: $e');
+      debugPrint('Error getting open count: $e');
       return 0;
     }
   }
@@ -42,7 +43,7 @@ class AppLogService {
       if (result == null) return {};
       return Map<String, int>.from(result as Map);
     } catch (e) {
-      print('Error getting all open counts: $e');
+      debugPrint('Error getting all open counts: $e');
       return {};
     }
   }

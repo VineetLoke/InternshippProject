@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -27,14 +28,14 @@ class AppBlockService {
           'lock_duration_days': _defaultLockDays,
         });
       } catch (e) {
-        print('Error calling startBlocking: $e');
+        debugPrint('Error calling startBlocking: $e');
         // Keep the lock active even if accessibility service isn't active/setup yet
       }
 
       return true;
     } catch (e) {
       await _clearLockPrefs(prefs);
-      print('Error initializing lock: $e');
+      debugPrint('Error initializing lock: $e');
       return false;
     }
   }
@@ -52,7 +53,7 @@ class AppBlockService {
 
       return DateTime.now().isBefore(lockEnd);
     } catch (e) {
-      print('Error checking lock status: $e');
+      debugPrint('Error checking lock status: $e');
       return false;
     }
   }
@@ -71,7 +72,7 @@ class AppBlockService {
       final remaining = lockEnd.difference(DateTime.now()).inDays;
       return remaining > 0 ? remaining : 0;
     } catch (e) {
-      print('Error getting remaining days: $e');
+      debugPrint('Error getting remaining days: $e');
       return 0;
     }
   }
@@ -87,7 +88,7 @@ class AppBlockService {
       final lockDays = prefs.getInt(_lockDurationDaysKey) ?? _defaultLockDays;
       return lockStart.add(Duration(days: lockDays));
     } catch (e) {
-      print('Error getting lock end date: $e');
+      debugPrint('Error getting lock end date: $e');
       return null;
     }
   }
@@ -100,10 +101,10 @@ class AppBlockService {
       try {
         await _channel.invokeMethod('unlock');
       } catch (e) {
-        print('Error calling native unlock: $e');
+        debugPrint('Error calling native unlock: $e');
       }
     } catch (e) {
-      print('Error unlocking: $e');
+      debugPrint('Error unlocking: $e');
     }
   }
 

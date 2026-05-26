@@ -25,7 +25,7 @@ class StepChallengeService {
       _currentSteps = prefs.getInt(_stepsCompletedKey) ?? 0;
       return true;
     } catch (e) {
-      print('Error initializing step counter: $e');
+      debugPrint('Error initializing step counter: $e');
       return false;
     }
   }
@@ -100,7 +100,7 @@ class StepChallengeService {
       _baselineSteps = 0;
       _currentSteps = 0;
     } catch (e) {
-      print('Error resetting challenge progress: $e');
+      debugPrint('Error resetting challenge progress: $e');
     }
   }
 
@@ -118,7 +118,7 @@ class StepChallengeService {
         _currentSteps = 0;
       }
     } catch (e) {
-      print('Error resetting step counter: $e');
+      debugPrint('Error resetting step counter: $e');
     }
   }
 
@@ -127,7 +127,7 @@ class StepChallengeService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_stepsCompletedKey, _currentSteps);
     } catch (e) {
-      print('Error persisting steps: $e');
+      debugPrint('Error persisting steps: $e');
     }
   }
 }

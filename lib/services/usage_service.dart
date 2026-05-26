@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 /// Provides screen time data from Android UsageStatsManager for tracked apps.
@@ -16,7 +17,7 @@ class UsageService {
       if (result == null) return {};
       return Map<String, dynamic>.from(result as Map);
     } catch (e) {
-      print('Error getting screen time data: $e');
+      debugPrint('Error getting screen time data: $e');
       return {};
     }
   }
@@ -27,7 +28,7 @@ class UsageService {
       final result = await _channel.invokeMethod('hasUsageStatsPermission');
       return result == true;
     } catch (e) {
-      print('Error checking usage stats permission: $e');
+      debugPrint('Error checking usage stats permission: $e');
       return false;
     }
   }
@@ -37,7 +38,7 @@ class UsageService {
     try {
       await _channel.invokeMethod('openUsageStatsSettings');
     } catch (e) {
-      print('Error opening usage stats settings: $e');
+      debugPrint('Error opening usage stats settings: $e');
     }
   }
 
