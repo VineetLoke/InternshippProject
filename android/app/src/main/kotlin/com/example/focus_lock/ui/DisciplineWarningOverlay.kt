@@ -90,9 +90,7 @@ class DisciplineWarningOverlay : Service() {
         if (overlayView != null) return
 
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
-                !android.provider.Settings.canDrawOverlays(this)
-            ) {
+            if (!android.provider.Settings.canDrawOverlays(this)) {
                 Log.w(TAG, "Overlay permission not granted")
                 stopSelf()
                 return
@@ -163,9 +161,7 @@ class DisciplineWarningOverlay : Service() {
                 gravity = Gravity.CENTER
                 typeface = Typeface.create("serif", Typeface.ITALIC)
                 setPadding(0, 0, 0, dp(16))
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    letterSpacing = 0.02f
-                }
+                letterSpacing = 0.02f
                 setLineSpacing(10f, 1.3f)
             }
             content.addView(quoteView)
@@ -209,9 +205,7 @@ class DisciplineWarningOverlay : Service() {
                 setTextColor(Color.parseColor("#8A7A6C"))
                 gravity = Gravity.CENTER
                 typeface = Typeface.create("sans-serif-light", Typeface.ITALIC)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    letterSpacing = 0.08f
-                }
+                letterSpacing = 0.08f
                 setPadding(0, 0, 0, dp(32))
             }
             content.addView(subtitleView)
@@ -232,9 +226,7 @@ class DisciplineWarningOverlay : Service() {
                 setTextColor(Color.parseColor("#FF4444"))
                 gravity = Gravity.CENTER
                 typeface = Typeface.create("sans-serif", Typeface.BOLD)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                     letterSpacing = 0.08f
-                }
             }
             content.addView(countdownText)
 
@@ -263,12 +255,7 @@ class DisciplineWarningOverlay : Service() {
             overlayView?.addView(content)
 
             // Window params
-            val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            } else {
-                @Suppress("DEPRECATION")
-                WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
-            }
+            val layoutType = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             val params = WindowManager.LayoutParams().apply {
                 type = layoutType
                 format = PixelFormat.TRANSLUCENT

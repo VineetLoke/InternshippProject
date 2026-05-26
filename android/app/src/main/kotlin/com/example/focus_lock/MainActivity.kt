@@ -124,19 +124,15 @@ class MainActivity : FlutterActivity() {
                         result.success(AccessibilityMonitor.isRunning)
                     }
                     "hasOverlayPermission" -> {
-                        val has = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
-                            Settings.canDrawOverlays(this) else true
-                        result.success(has)
+                        result.success(Settings.canDrawOverlays(this))
                     }
                     "openOverlaySettings" -> {
                         try {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                val intent = Intent(
-                                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                    android.net.Uri.parse("package:$packageName")
-                                )
-                                startActivity(intent)
-                            }
+                            val intent = Intent(
+                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                android.net.Uri.parse("package:$packageName")
+                            )
+                            startActivity(intent)
                             result.success(null)
                         } catch (e: Exception) {
                             result.error("OPEN_OVERLAY_FAILED", e.message, null)
@@ -586,20 +582,11 @@ class MainActivity : FlutterActivity() {
     private fun hasUsageStatsPermission(): Boolean {
         return try {
             val appOps = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
-            val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                appOps.unsafeCheckOpNoThrow(
+            val mode = appOps.unsafeCheckOpNoThrow(
                     AppOpsManager.OPSTR_GET_USAGE_STATS,
                     android.os.Process.myUid(),
                     packageName
                 )
-            } else {
-                @Suppress("DEPRECATION")
-                appOps.checkOpNoThrow(
-                    AppOpsManager.OPSTR_GET_USAGE_STATS,
-                    android.os.Process.myUid(),
-                    packageName
-                )
-            }
             mode == AppOpsManager.MODE_ALLOWED
         } catch (e: Exception) {
             Log.e(TAG, "Error checking usage stats permission: ${e.message}")

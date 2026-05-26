@@ -51,9 +51,7 @@ class BlockingOverlayScreen : Service() {
         if (overlayView != null) return
 
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
-                !android.provider.Settings.canDrawOverlays(this)
-            ) {
+            if (!android.provider.Settings.canDrawOverlays(this)) {
                 stopSelf()
                 return
             }
@@ -87,12 +85,7 @@ class BlockingOverlayScreen : Service() {
 
             overlayView?.addView(content)
 
-            val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            } else {
-                @Suppress("DEPRECATION")
-                WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
-            }
+            val layoutType = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
 
             val params = WindowManager.LayoutParams().apply {
                 type = layoutType

@@ -72,9 +72,7 @@ class LockScreenOverlay : Service() {
         }
 
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
-                !android.provider.Settings.canDrawOverlays(this)
-            ) {
+            if (!android.provider.Settings.canDrawOverlays(this)) {
                 Log.w(TAG, "Overlay permission not granted — skipping")
                 stopSelf()
                 return
@@ -141,9 +139,7 @@ class LockScreenOverlay : Service() {
                 setTextColor(Color.parseColor(ACCENT_COLOR))
                 gravity = Gravity.CENTER
                 typeface = Typeface.create("serif", Typeface.BOLD)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    letterSpacing = 0.1f
-                }
+                letterSpacing = 0.1f
                 setPadding(0, 0, 0, dp(32))
             }
             content.addView(title)
@@ -175,9 +171,7 @@ class LockScreenOverlay : Service() {
                 setTextColor(Color.parseColor("#F0E6D0"))
                 gravity = Gravity.CENTER
                 typeface = Typeface.create("serif", Typeface.ITALIC)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    letterSpacing = 0.02f
-                }
+                letterSpacing = 0.02f
                 setLineSpacing(10f, 1.4f)
                 setPadding(0, 0, 0, dp(16))
             }
@@ -201,9 +195,7 @@ class LockScreenOverlay : Service() {
                 setTextColor(Color.parseColor(ACCENT_COLOR))
                 gravity = Gravity.CENTER
                 typeface = Typeface.create("sans-serif", Typeface.NORMAL)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    letterSpacing = 0.12f
-                }
+                letterSpacing = 0.12f
                 setPadding(0, 0, 0, dp(48))
             }
             content.addView(subtitle)
@@ -296,12 +288,7 @@ class LockScreenOverlay : Service() {
             overlayView?.addView(content)
 
             // ── Window params ────────────────────────────────────────
-            val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            } else {
-                @Suppress("DEPRECATION")
-                WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
-            }
+            val layoutType = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             val params = WindowManager.LayoutParams().apply {
                 type = layoutType
                 format = PixelFormat.TRANSLUCENT
@@ -359,9 +346,7 @@ class LockScreenOverlay : Service() {
             setTextColor(Color.parseColor(BUTTON_TEXT))
             gravity = Gravity.CENTER
             typeface = Typeface.create("sans-serif", Typeface.NORMAL)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                letterSpacing = 0.04f
-            }
+            letterSpacing = 0.04f
             setPadding(dp(24), dp(16), dp(24), dp(16))
             background = GradientDrawable().apply {
                 setColor(Color.parseColor(BUTTON_BG))
