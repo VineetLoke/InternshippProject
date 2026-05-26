@@ -68,7 +68,7 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.background,
+                color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
               ),
@@ -106,8 +106,8 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return WillPopScope(
-      onWillPop: () async => false,
+    return PopScope(
+      canPop: false,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Emergency Unlock'),
@@ -119,7 +119,7 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                colorScheme.background,
+                colorScheme.surface,
                 colorScheme.surface,
               ],
             ),
@@ -326,7 +326,7 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colorScheme.background,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFF222228)),
       ),
@@ -472,7 +472,7 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: colorScheme.background,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: warningColor.withOpacity(0.3)),
       ),

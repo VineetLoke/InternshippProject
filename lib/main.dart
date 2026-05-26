@@ -38,12 +38,10 @@ class FocusLockApp extends StatelessWidget {
       primary: Color(0xFFC6A85A), // Antique Gold
       secondary: Color(0xFF8A7A6C), // Iron/Stone Grey
       surface: Color(0xFF16161A), // Charcoal Stone
-      background: Color(0xFF0A0A0E), // Deep Slate Black
       error: Color(0xFFB54534), // Ember Crimson Red
       onPrimary: Color(0xFF151208),
       onSecondary: Color(0xFFF0E6D2),
       onSurface: Color(0xFFF0E6D2), // Parchment Cream
-      onBackground: Color(0xFFF0E6D2),
     );
 
     return MultiProvider(
@@ -57,7 +55,7 @@ class FocusLockApp extends StatelessWidget {
           useMaterial3: true,
           brightness: Brightness.dark,
           colorScheme: colorScheme,
-          scaffoldBackgroundColor: colorScheme.background,
+          scaffoldBackgroundColor: colorScheme.surface,
           appBarTheme: const AppBarTheme(
             backgroundColor: Colors.transparent,
             foregroundColor: Color(0xFFC6A85A),

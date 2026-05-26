@@ -254,7 +254,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: colorScheme.background,
+                      color: colorScheme.surface,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: color.withOpacity(0.3)),
                     ),
@@ -275,7 +275,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     decoration: BoxDecoration(
                       color: screenTimeMs > 1800000
                           ? colorScheme.error.withOpacity(0.1)
-                          : colorScheme.background,
+                          : colorScheme.surface,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: screenTimeMs > 1800000
@@ -290,7 +290,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontWeight: FontWeight.bold,
                         color: screenTimeMs > 1800000
                             ? colorScheme.error
-                            : colorScheme.onBackground,
+                            : colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -351,7 +351,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   margin: const EdgeInsets.symmetric(horizontal: 4),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   decoration: BoxDecoration(
-                    color: colorScheme.background,
+                    color: colorScheme.surface,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: color.withOpacity(0.3)),
                   ),
@@ -420,7 +420,7 @@ class _HomeScreenState extends State<HomeScreen> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: colorScheme.background,
+              color: colorScheme.surface,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
@@ -798,7 +798,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: LinearProgressIndicator(
               value: progress,
               minHeight: 10,
-              backgroundColor: colorScheme.background,
+              backgroundColor: colorScheme.surface,
               valueColor: AlwaysStoppedAnimation<Color>(activeAccent),
             ),
           ),

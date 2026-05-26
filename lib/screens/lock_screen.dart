@@ -11,6 +11,7 @@ class LockScreen extends StatefulWidget {
 
 class _LockScreenState extends State<LockScreen> {
   late PageController _pageController;
+  bool _hasNavigated = false;
 
   @override
   void initState() {
@@ -31,17 +32,15 @@ class _LockScreenState extends State<LockScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        // Prevent back button from dismissing
-        return false;
-      },
+    return PopScope(
+      canPop: false,
       child: Scaffold(
         body: Consumer<LockStateProvider>(
           builder: (context, lockProvider, _) {
             // Check if still locked
-            if (!lockProvider.isLocked) {
-              // Auto-navigate to home if unlocked
+            if (!lockProvider.isLocked && !_hasNavigated) {
+              // Auto-navigate to home if unlocked (one-shot guard)
+              _hasNavigated = true;
               Future.microtask(() {
                 Navigator.of(context).pushReplacementNamed('/home');
               });
@@ -55,7 +54,7 @@ class _LockScreenState extends State<LockScreen> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    colorScheme.background,
+                    colorScheme.surface,
                     colorScheme.surface,
                   ],
                 ),
