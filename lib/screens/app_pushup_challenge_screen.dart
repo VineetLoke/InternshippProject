@@ -72,6 +72,17 @@ class _AppPushupChallengeScreenState extends State<AppPushupChallengeScreen>
       _appName = args['appName'] ?? 'App';
       _challengeMethod = args['challengeMethod'] ?? '';
     }
+    // Validate required arguments
+    if (_challengeMethod.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Challenge configuration error')),
+          );
+          Navigator.of(context).pop();
+        }
+      });
+    }
   }
 
   Future<void> _initCamera() async {

@@ -45,7 +45,7 @@ class RedditUsageService {
   Future<int> getTempUnlockRemainingSeconds() async {
     try {
       final result =
-          await _channel.invokeMethod('getRedditTempUnlockRemaining');
+          await _channel.invokeMethod('getRedditTempUnlockRemainingNew');
       return (result as int?) ?? 0;
     } catch (e) {
       print('Error getting temp unlock remaining: $e');
