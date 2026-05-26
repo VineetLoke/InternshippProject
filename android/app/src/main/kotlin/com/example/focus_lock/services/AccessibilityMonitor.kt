@@ -247,16 +247,12 @@ class AccessibilityMonitor : AccessibilityService() {
                     }
                 }
                 AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
-                    // Fast cache evaluation for incognito transitions
+                    // Keep the incognito cache fresh, but do not block from content
+                    // changes alone. Normal Chrome screens can expose "incognito"
+                    // labels in menus or tab controls, so blocking is only triggered
+                    // from the explicit typing path below.
                     if (pkg == ChromeIncognitoBlocker.CHROME_PACKAGE) {
-                        val wasIncognito = ChromeIncognitoBlocker.isIncognitoCached
                         ChromeIncognitoBlocker.evaluateIncognitoState(rootInActiveWindow)
-                        // If incognito was just detected via content change, block immediately
-                        if (!wasIncognito && ChromeIncognitoBlocker.isIncognitoCached &&
-                            currentState != DisciplineState.CHROME_INCOGNITO_BLOCKED) {
-                            Log.d(TAG, "Chrome incognito detected via content change — blocking")
-                            triggerChromeIncognitoBlock()
-                        }
                     }
                 }
             }
@@ -330,18 +326,12 @@ class AccessibilityMonitor : AccessibilityService() {
                 if (RedditBlocker.onRedditDetected()) return
             }
             CHROME_PACKAGE -> {
-                // Chrome: check incognito status immediately on window change
-                // If incognito is detected, block immediately — don't wait for typing
+                // Chrome is monitored only for incognito state. Do not block on
+                // window changes because normal Chrome can briefly expose
+                // incognito-related controls in the accessibility tree.
                 handler.postDelayed({
-                    if (currentForegroundPackage == CHROME_PACKAGE && 
-                        currentState != DisciplineState.CHROME_INCOGNITO_BLOCKED) {
-                        val root = rootInActiveWindow
-                        if (root != null && root.packageName?.toString() == CHROME_PACKAGE) {
-                            if (ChromeIncognitoBlocker.isIncognitoMode(root)) {
-                                Log.d(TAG, "Chrome incognito detected on window change — blocking immediately")
-                                triggerChromeIncognitoBlock()
-                            }
-                        }
+                    if (currentForegroundPackage == CHROME_PACKAGE) {
+                        ChromeIncognitoBlocker.evaluateIncognitoState(rootInActiveWindow)
                     }
                 }, 500L) // Short delay to let Chrome's accessibility tree populate
             }
@@ -403,9 +393,8 @@ class AccessibilityMonitor : AccessibilityService() {
         Log.d(TAG, "Chrome incognito typing BLOCKED — showing overlay")
         transitionTo(DisciplineState.CHROME_INCOGNITO_BLOCKED)
 
-        // Force Chrome out immediately — navigate HOME (not just BACK)
-        performGlobalAction(GLOBAL_ACTION_HOME)
-        handler.postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 300L)
+        // Leave the current incognito interaction without closing normal Chrome.
+        performGlobalAction(GLOBAL_ACTION_BACK)
 
         // Show DisciplineWarningOverlay
         try {
@@ -428,21 +417,11 @@ class AccessibilityMonitor : AccessibilityService() {
     }
 
     private fun dismissChromeWarning() {
-        Log.d(TAG, "Chrome overlay expired — forcing exit from Chrome")
+        Log.d(TAG, "Chrome overlay expired — clearing warning state")
         stopOverlayService(DisciplineWarningOverlay::class.java)
 
-        // Force user to home screen — don't just BACK (they could re-enter incognito)
-        performGlobalAction(GLOBAL_ACTION_HOME)
-        
-        // Additional BACK presses while Chrome is backgrounded to close incognito tabs
-        for (i in 1..3) {
-            handler.postDelayed({
-                performGlobalAction(GLOBAL_ACTION_BACK)
-                Log.d(TAG, "Chrome incognito cleanup BACK press #$i")
-            }, BACK_PRESS_INTERVAL_MS * i)
-        }
-
         transitionTo(DisciplineState.IDLE)
+        ChromeIncognitoBlocker.resetDebounce()
     }
 
     // ══════════════════════════════════════════════════════════════════
