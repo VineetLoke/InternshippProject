@@ -45,7 +45,6 @@ class MainActivity : FlutterActivity() {
         private const val REDDIT_USAGE_MS_KEY = "flutter.reddit_usage_ms"
         private const val REDDIT_EXTRA_MS_KEY = "flutter.reddit_extra_ms"
         private const val REDDIT_DAILY_LIMIT_MS = 60L * 60L * 1000L
-        private const val PUSHUP_REWARD_MS = 10L * 60L * 1000L  // 10 minutes
         private const val PUSHUPS_REQUIRED = 100
     }
 
@@ -53,6 +52,26 @@ class MainActivity : FlutterActivity() {
     private var pushupDetector: PushupDetectorService? = null
     private var pushupEventSink: EventChannel.EventSink? = null
     private lateinit var prefs: SharedPreferences
+
+    override fun getInitialRoute(): String {
+        return routeFromIntent(intent) ?: super.getInitialRoute()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        routeFromIntent(intent)?.let { route ->
+            flutterEngine?.navigationChannel?.pushRoute(route)
+        }
+    }
+
+    private fun routeFromIntent(intent: Intent?): String? {
+        return when (intent?.getStringExtra("navigate_to")) {
+            "pushup_challenge" -> "/pushup_challenge"
+            "instagram_pushup_challenge" -> "/instagram_pushup_challenge"
+            else -> null
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -154,18 +173,16 @@ class MainActivity : FlutterActivity() {
                     }
                     "grantRedditCameraPushupReward" -> {
                         // Camera-based pushup detection runs in Flutter/Dart.
-                        // This method bypasses the native proximity counter
-                        // and directly grants Reddit temp unlock time.
+                        // Grant through the deterministic blocker module used
+                        // by foreground app detection.
+                        RedditBlocker.init(applicationContext)
                         val svc = AccessibilityMonitor.instance
                         if (svc != null) {
                             svc.onRedditChallengeCompleted()
-                            Log.d(TAG, "Camera pushups verified → Reddit temp unlock for 10 min")
                         } else {
-                            Log.w(TAG, "Accessibility service not running — granting extra time via prefs")
-                            resetIfNewDay()
-                            val currentExtra = prefs.getLong(REDDIT_EXTRA_MS_KEY, 0L)
-                            prefs.edit().putLong(REDDIT_EXTRA_MS_KEY, currentExtra + PUSHUP_REWARD_MS).apply()
+                            RedditBlocker.grantTempUnlock()
                         }
+                        Log.d(TAG, "Camera pushups verified → Reddit temp unlock for 10 min")
                         result.success(true)
                     }
 
@@ -554,17 +571,14 @@ class MainActivity : FlutterActivity() {
         }
         pushupDetector?.reset()
 
-        // Trigger the accessibility service state machine for 10-min temp unlock
+        RedditBlocker.init(applicationContext)
         val svc = AccessibilityMonitor.instance
         if (svc != null) {
             svc.onRedditChallengeCompleted()
-            Log.d(TAG, "Redeemed $PUSHUPS_REQUIRED pushups → Reddit temp unlock for 10 min")
         } else {
-            Log.w(TAG, "Accessibility service not running — granting extra time via prefs")
-            resetIfNewDay()
-            val currentExtra = prefs.getLong(REDDIT_EXTRA_MS_KEY, 0L)
-            prefs.edit().putLong(REDDIT_EXTRA_MS_KEY, currentExtra + PUSHUP_REWARD_MS).apply()
+            RedditBlocker.grantTempUnlock()
         }
+        Log.d(TAG, "Redeemed $PUSHUPS_REQUIRED pushups → Reddit temp unlock for 10 min")
         return true
     }
 

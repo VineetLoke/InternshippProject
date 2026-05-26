@@ -49,8 +49,8 @@ class InstagramBlockService {
     }
   }
 
-  /// Called after the user completes 50 pushups.
-  /// Grants exactly 15 minutes of Instagram access.
+  /// Called after the user completes 100 pushups.
+  /// Grants exactly 10 minutes of Instagram access.
   Future<bool> completeEmergencyChallenge() async {
     try {
       final result =

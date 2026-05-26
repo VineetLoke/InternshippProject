@@ -82,6 +82,7 @@ class LockScreenOverlay : Service() {
 
             windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
             val isReddit = source == "reddit"
+            val isInstagram = source == "instagram"
 
             // ── Root container ───────────────────────────────────────
             val gradientBackground = GradientDrawable().apply {
@@ -129,9 +130,9 @@ class LockScreenOverlay : Service() {
             content.addView(lockIcon)
 
             // Title — serif all-caps gold
-            val titleText = when {
-                isReddit -> "REDDIT LOCKED"
-                source == "twitter" -> "TWITTER/X LOCKED"
+            val titleText = when (source) {
+                "reddit" -> "REDDIT LOCKED"
+                "twitter" -> "TWITTER/X LOCKED"
                 else -> "INSTAGRAM LOCKED"
             }
             val title = TextView(this).apply {
@@ -246,16 +247,21 @@ class LockScreenOverlay : Service() {
                 alpha = 0f
             }
 
-            if (isReddit) {
-                // "Earn access" button for Reddit
+            if (isReddit || isInstagram) {
+                // "Earn access" button for camera-verified pushup challenges.
                 val earnBtn = createButton("Earn 10 minutes access") {
-                    Log.d(TAG, "User tapped Earn Access — starting pushup challenge")
-                    AccessibilityMonitor.instance?.onRedditChallengeStarted()
+                    Log.d(TAG, "User tapped Earn Access — starting $source pushup challenge")
+                    if (isReddit) {
+                        AccessibilityMonitor.instance?.onRedditChallengeStarted()
+                    }
                     hideOverlay()
                     val launchIntent = packageManager.getLaunchIntentForPackage(
                         applicationContext.packageName
                     )?.apply {
-                        putExtra("navigate_to", "pushup_challenge")
+                        putExtra(
+                            "navigate_to",
+                            if (isInstagram) "instagram_pushup_challenge" else "pushup_challenge"
+                        )
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                     }
                     if (launchIntent != null) startActivity(launchIntent)

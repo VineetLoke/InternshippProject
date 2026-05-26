@@ -158,7 +158,7 @@ object InstagramBlocker {
         dismissOverlay()
         handler.removeCallbacks(tempUnlockExpiryRunnable)
         handler.postDelayed(tempUnlockExpiryRunnable, TEMP_UNLOCK_DURATION_MS)
-        Log.d(TAG, "Temp unlock GRANTED - 15 minutes starting now")
+        Log.d(TAG, "Temp unlock GRANTED - 10 minutes starting now")
     }
 
     private fun onTempUnlockExpired() {

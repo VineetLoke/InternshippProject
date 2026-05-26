@@ -634,6 +634,7 @@ class AccessibilityMonitor : AccessibilityService() {
      * Grants exactly 10 minutes of Reddit access. (PART 4)
      */
     fun onRedditChallengeCompleted() {
+        RedditBlocker.grantTempUnlock()
         transitionTo(DisciplineState.REDDIT_TEMP_UNLOCK)
         val now = System.currentTimeMillis()
         prefs.edit().putLong(REDDIT_TEMP_UNLOCK_START_KEY, now).apply()
