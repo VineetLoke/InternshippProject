@@ -462,7 +462,11 @@ class MainActivity : FlutterActivity() {
         serviceStarted = true
         try {
             val intent = Intent(this, AppBlockingService::class.java)
-            startService(intent)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
             Log.d(TAG, "✅ Monitoring service started")
         } catch (e: Exception) {
             Log.e(TAG, "Could not start monitoring service: ${e.message}")
