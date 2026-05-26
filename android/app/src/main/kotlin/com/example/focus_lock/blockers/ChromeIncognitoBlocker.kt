@@ -4,16 +4,15 @@ import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
 
 /**
- * Chrome incognito typing blocker — accessibility-tree approach.
+ * Chrome incognito blocker — accessibility-tree approach.
  *
- * Activates ONLY when ALL three conditions are true:
+ * Activates ONLY when both conditions are true:
  *  1. Chrome is the foreground app
- *  2. Chrome is in incognito mode (detected via accessibility tree)
- *  3. A text input event (TYPE_VIEW_TEXT_CHANGED) occurs
+ *  2. Chrome is in an active incognito surface (detected via accessibility tree)
  *
  * Design rules:
- *  • No keyword lists. No pattern matching.
- *  • Any single typed character in incognito triggers the block.
+ *  • Ignore normal-tab menu controls such as "New incognito tab".
+ *  • Opening an active incognito tab triggers the block.
  *  • Normal Chrome browsing is NEVER affected.
  *  • Uses AccessibilityNodeInfo tree scanning — no enterprise policy required.
  */
@@ -51,12 +50,11 @@ object ChromeIncognitoBlocker {
                     val desc = n.contentDescription?.toString()?.lowercase() ?: ""
                     val text = n.text?.toString()?.lowercase() ?: ""
 
-                    // Precise matches:
-                    val isBadgeId = viewId.contains("incognito_badge") || viewId.contains("incognito_toggle")
-                    val isExactDesc = desc == "incognito" || desc == "incognito mode" || desc == "incognito mode active"
-                    val isExactText = text == "incognito" || text.contains("gone incognito")
+                    val isBadgeId = viewId.contains("incognito_badge")
+                    val isActiveDesc = desc == "incognito mode active"
+                    val isIncognitoStartPage = text.contains("gone incognito")
 
-                    if (isBadgeId || isExactDesc || isExactText) {
+                    if (isBadgeId || isActiveDesc || isIncognitoStartPage) {
                         hasIncognitoIndicator = true
                         break
                     }
@@ -98,11 +96,11 @@ object ChromeIncognitoBlocker {
                     val desc = node.contentDescription?.toString()?.lowercase() ?: ""
                     val text = node.text?.toString()?.lowercase() ?: ""
 
-                    val isBadgeId = viewId.contains("incognito_badge") || viewId.contains("incognito_toggle")
-                    val isExactDesc = desc == "incognito" || desc == "incognito mode" || desc == "incognito mode active"
-                    val isExactText = text == "incognito" || text.contains("gone incognito")
+                    val isBadgeId = viewId.contains("incognito_badge")
+                    val isActiveDesc = desc == "incognito mode active"
+                    val isIncognitoStartPage = text.contains("gone incognito")
 
-                    if (isBadgeId || isExactDesc || isExactText) {
+                    if (isBadgeId || isActiveDesc || isIncognitoStartPage) {
                         detected = true
                         break
                     }
@@ -123,10 +121,13 @@ object ChromeIncognitoBlocker {
         if (depth > MAX_TREE_DEPTH) return false
 
         val viewId = node.viewIdResourceName ?: ""
-        if (viewId.contains("incognito_badge") || viewId.contains("incognito_toggle")) return true
+        if (viewId.contains("incognito_badge")) return true
 
         val desc = node.contentDescription?.toString()?.lowercase() ?: ""
-        if (desc == "incognito" || desc == "incognito mode" || desc == "incognito mode active") return true
+        if (desc == "incognito mode active") return true
+
+        val text = node.text?.toString()?.lowercase() ?: ""
+        if (text.contains("gone incognito")) return true
 
         for (i in 0 until node.childCount) {
             val child = node.getChild(i) ?: continue

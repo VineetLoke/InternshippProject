@@ -247,12 +247,8 @@ class AccessibilityMonitor : AccessibilityService() {
                     }
                 }
                 AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
-                    // Keep the incognito cache fresh, but do not block from content
-                    // changes alone. Normal Chrome screens can expose "incognito"
-                    // labels in menus or tab controls, so blocking is only triggered
-                    // from the explicit typing path below.
                     if (pkg == ChromeIncognitoBlocker.CHROME_PACKAGE) {
-                        ChromeIncognitoBlocker.evaluateIncognitoState(rootInActiveWindow)
+                        handleChromeIncognitoSurfaceChanged()
                     }
                 }
             }
@@ -326,12 +322,14 @@ class AccessibilityMonitor : AccessibilityService() {
                 if (RedditBlocker.onRedditDetected()) return
             }
             CHROME_PACKAGE -> {
-                // Chrome is monitored only for incognito state. Do not block on
-                // window changes because normal Chrome can briefly expose
-                // incognito-related controls in the accessibility tree.
+                // Chrome can populate its active tab tree slightly after the
+                // window event. Check after that delay so an opened incognito
+                // tab is blocked, while normal Chrome menus are ignored by the
+                // stricter detector.
                 handler.postDelayed({
-                    if (currentForegroundPackage == CHROME_PACKAGE) {
-                        ChromeIncognitoBlocker.evaluateIncognitoState(rootInActiveWindow)
+                    if (currentForegroundPackage == CHROME_PACKAGE &&
+                        currentState != DisciplineState.CHROME_INCOGNITO_BLOCKED) {
+                        handleChromeIncognitoSurfaceChanged()
                     }
                 }, 500L) // Short delay to let Chrome's accessibility tree populate
             }
@@ -389,8 +387,21 @@ class AccessibilityMonitor : AccessibilityService() {
         }
     }
 
+    private fun handleChromeIncognitoSurfaceChanged() {
+        if (currentState == DisciplineState.CHROME_INCOGNITO_BLOCKED) return
+
+        val rootNode = rootInActiveWindow ?: return
+        if (rootNode.packageName?.toString() != ChromeIncognitoBlocker.CHROME_PACKAGE) return
+
+        ChromeIncognitoBlocker.evaluateIncognitoState(rootNode)
+        if (ChromeIncognitoBlocker.isIncognitoMode(rootNode)) {
+            Log.d(TAG, "Chrome active incognito surface detected — blocking")
+            triggerChromeIncognitoBlock()
+        }
+    }
+
     private fun triggerChromeIncognitoBlock() {
-        Log.d(TAG, "Chrome incognito typing BLOCKED — showing overlay")
+        Log.d(TAG, "Chrome incognito BLOCKED — showing overlay")
         transitionTo(DisciplineState.CHROME_INCOGNITO_BLOCKED)
 
         // Leave the current incognito interaction without closing normal Chrome.
