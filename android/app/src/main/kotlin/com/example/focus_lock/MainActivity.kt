@@ -53,7 +53,7 @@ class MainActivity : FlutterActivity() {
     private var pushupEventSink: EventChannel.EventSink? = null
     private lateinit var prefs: SharedPreferences
 
-    override fun getInitialRoute(): String {
+    override fun getInitialRoute(): String? {
         return routeFromIntent(intent) ?: super.getInitialRoute()
     }
 
