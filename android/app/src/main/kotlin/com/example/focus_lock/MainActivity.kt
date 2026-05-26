@@ -251,9 +251,8 @@ class MainActivity : FlutterActivity() {
                         result.success(AccessibilityMonitor.currentState.name)
                     }
                     "getRedditTempUnlockRemaining" -> {
-                        val remainingMs = AccessibilityMonitor.instance
-                            ?.getRedditTempUnlockRemainingMs() ?: 0L
-                        result.success(remainingMs / 1000)
+                        RedditBlocker.init(applicationContext)
+                        result.success(RedditBlocker.getTempUnlockRemainingSeconds())
                     }
 
                     // ── Instagram blocker (deterministic module) ──

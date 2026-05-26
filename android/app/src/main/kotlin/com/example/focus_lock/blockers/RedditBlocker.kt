@@ -74,10 +74,14 @@ object RedditBlocker {
     }
 
     fun getTempUnlockRemainingSeconds(): Long {
+        return getTempUnlockRemainingMs() / 1000
+    }
+
+    private fun getTempUnlockRemainingMs(): Long {
         val start = modulePrefs.getLong(KEY_TEMP_UNLOCK_START, 0L)
         if (start == 0L) return 0L
         val remaining = TEMP_UNLOCK_DURATION_MS - (System.currentTimeMillis() - start)
-        return if (remaining > 0) remaining / 1000 else 0L
+        return if (remaining > 0) remaining else 0L
     }
 
     fun getRemainingDays(): Int {
@@ -150,11 +154,13 @@ object RedditBlocker {
 
     fun grantTempUnlock() {
         val now = System.currentTimeMillis()
-        modulePrefs.edit().putLong(KEY_TEMP_UNLOCK_START, now).apply()
+        val newRemaining = getTempUnlockRemainingMs() + TEMP_UNLOCK_DURATION_MS
+        val syntheticStart = now - (TEMP_UNLOCK_DURATION_MS - newRemaining)
+        modulePrefs.edit().putLong(KEY_TEMP_UNLOCK_START, syntheticStart).apply()
         dismissOverlay()
         handler.removeCallbacks(tempUnlockExpiryRunnable)
-        handler.postDelayed(tempUnlockExpiryRunnable, TEMP_UNLOCK_DURATION_MS)
-        Log.d(TAG, "Temp unlock GRANTED - 10 minutes starting now")
+        handler.postDelayed(tempUnlockExpiryRunnable, newRemaining)
+        Log.d(TAG, "Temp unlock GRANTED - ${newRemaining / 60000} minutes remaining")
     }
 
     private fun onTempUnlockExpired() {
