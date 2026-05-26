@@ -36,6 +36,7 @@ class CameraPushupDetector {
   // ── State ─────────────────────────────────────────────────────────
   bool _isProcessing = false;
   bool _isActive = false;
+  bool _isDisposed = false;
   String _stage = 'idle'; // idle, up, down
   int _count = 0;
   int _lastRepTimestamp = 0;
@@ -99,9 +100,9 @@ class CameraPushupDetector {
         return false;
       }
 
-      // Prefer front camera for selfie-style pushup detection
+      // Use back camera for pushup detection (phone placed on wall facing side)
       _activeCamera = _cameras!.firstWhere(
-        (c) => c.lensDirection == CameraLensDirection.front,
+        (c) => c.lensDirection == CameraLensDirection.back,
         orElse: () => _cameras!.first,
       );
 
@@ -170,6 +171,7 @@ class CameraPushupDetector {
 
   /// Dispose all resources.
   Future<void> dispose() async {
+    _isDisposed = true;
     _isActive = false;
     try {
       if (_cameraController != null &&
@@ -198,6 +200,7 @@ class CameraPushupDetector {
     }
 
     _poseDetector.processImage(inputImage).then((poses) {
+      if (_isDisposed) return;
       if (poses.isNotEmpty) {
         final pose = poses.first;
         _poseController.add(pose);
@@ -340,11 +343,11 @@ class CameraPushupDetector {
     final shoulder = leftShoulder ?? rightShoulder;
     final hip = leftHip ?? rightHip;
 
-    if (shoulder == null || hip == null) return true; // can't verify, allow
+    if (shoulder == null || hip == null) return false; // can't verify, reject
 
     if (shoulder.likelihood < _minConfidence ||
         hip.likelihood < _minConfidence) {
-      return true; // low confidence, allow
+      return false; // low confidence, reject
     }
 
     // In a pushup position, the vertical distance between shoulder and hip
@@ -354,11 +357,12 @@ class CameraPushupDetector {
 
     // If the person is standing upright, vertical diff >> horizontal diff
     // Allow if vertical/horizontal ratio < 2.0 (generous to avoid false negatives)
-    if (horizontalDiff < 10) return true; // too close to determine
+    if (horizontalDiff < 10) return false; // too close to determine, reject
     return (verticalDiff / horizontalDiff) < 2.5;
   }
 
   void _updateState(double angle) {
+    if (_isDisposed) return;
     final now = DateTime.now().millisecondsSinceEpoch;
 
     if (angle > _upAngleThreshold) {

@@ -1,3 +1,7 @@
+// DEPRECATED: This proximity-sensor-based pushup service is no longer used.
+// All pushup screens now use CameraPushupDetector instead.
+// Kept for reference only.
+
 import 'dart:async';
 import 'package:flutter/services.dart';
 
