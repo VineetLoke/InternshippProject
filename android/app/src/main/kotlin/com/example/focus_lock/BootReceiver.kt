@@ -20,11 +20,14 @@ class BootReceiver : BroadcastReceiver() {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
             Log.d(TAG, "Device booted — starting monitoring service")
             try {
-                // Use plain startService (not startForegroundService) to avoid
-                // ForegroundServiceStartNotAllowedException when launched from
-                // a background broadcast context on Android 12+.
                 val serviceIntent = Intent(context, AppBlockingService::class.java)
-                context.startService(serviceIntent)
+                // Use startForegroundService on Android O+ (API 26+) to avoid
+                // BackgroundServiceStartNotAllowedException on Android 12+.
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    context.startForegroundService(serviceIntent)
+                } else {
+                    context.startService(serviceIntent)
+                }
                 Log.d(TAG, "Monitoring service started after boot")
             } catch (e: Exception) {
                 Log.e(TAG, "Error starting service on boot: ${e.message}")

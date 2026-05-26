@@ -89,11 +89,7 @@ class UninstallChallengeOverlay : Service(), SensorEventListener {
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            else
-                @Suppress("DEPRECATION")
-                WindowManager.LayoutParams.TYPE_PHONE,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                 WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED,
@@ -179,9 +175,9 @@ class UninstallChallengeOverlay : Service(), SensorEventListener {
         progressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
             max = REQUIRED_PUSHUPS
             progress = 0
-            progressDrawable.setColorFilter(
+            progressDrawable.colorFilter = android.graphics.BlendModeColorFilter(
                 Color.parseColor("#C6A85A"),
-                android.graphics.PorterDuff.Mode.SRC_IN
+                android.graphics.BlendMode.SRC_IN
             )
             minimumHeight = 16
         }
