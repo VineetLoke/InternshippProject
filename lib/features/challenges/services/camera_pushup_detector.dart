@@ -110,7 +110,7 @@ class CameraPushupDetector {
         _activeCamera!,
         ResolutionPreset.medium,
         enableAudio: false,
-        imageFormatGroup: ImageFormatGroup.nv21,
+        imageFormatGroup: ImageFormatGroup.yuv420,
       );
 
       await _cameraController!.initialize();
@@ -239,12 +239,10 @@ class CameraPushupDetector {
     }
 
     var format = InputImageFormatValue.fromRawValue(image.format.raw);
-    if (format == null) {
-      if (defaultTargetPlatform == TargetPlatform.android) {
-        format = InputImageFormat.nv21;
-      } else {
-        format = InputImageFormat.bgra8888;
-      }
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      format = InputImageFormat.nv21;
+    } else if (format == null) {
+      format = InputImageFormat.bgra8888;
     }
 
     // Concatenate all planes for YUV420/NV21 image format to ensure complete bytes are processed

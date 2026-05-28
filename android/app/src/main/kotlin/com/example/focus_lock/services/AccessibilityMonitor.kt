@@ -220,7 +220,7 @@ class AccessibilityMonitor : AccessibilityService() {
         blockedPackage = null
         overlayShownAt = 0L
         backPressCount = 0
-        ChromeIncognitoBlocker.resetDebounce()
+        BrowserIncognitoBlocker.resetDebounce()
         stopOverlayService(DisciplineWarningOverlay::class.java)
         stopOverlayService(LockScreenOverlay::class.java)
     }
@@ -371,7 +371,7 @@ class AccessibilityMonitor : AccessibilityService() {
                 handler.removeCallbacks(chromeWarningDismissRunnable)
                 cleanupAllOverlays()
                 transitionTo(DisciplineState.IDLE)
-                ChromeIncognitoBlocker.resetDebounce()
+                BrowserIncognitoBlocker.resetDebounce()
             }
             DisciplineState.REDDIT_CHALLENGE_ACTIVE -> {
                 // User might be in FocusLock doing pushups — don't interfere

@@ -125,7 +125,11 @@ object RedditBlocker {
             }
             val intent = Intent(appContext, LockScreenOverlay::class.java)
             intent.putExtra("source", "reddit")
-            appContext.startService(intent)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                appContext.startForegroundService(intent)
+            } else {
+                appContext.startService(intent)
+            }
             handler.postDelayed({ scheduleForceClose() }, OVERLAY_DISPLAY_MS)
         } catch (e: Exception) {
             Log.e(TAG, "Error showing overlay: ${e.message}")

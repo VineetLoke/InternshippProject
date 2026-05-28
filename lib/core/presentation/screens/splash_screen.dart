@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:focus_lock/features/app_blocker/presentation/providers/lock_state_provider.dart';
@@ -46,6 +47,25 @@ class _SplashScreenState extends State<SplashScreen> {
 
   void _navigate() {
     if (!mounted) return;
+
+    // Check if the splash screen is the active (topmost) route.
+    // If we launched directly into a challenge, wait until it is popped
+    // and we become the topmost route before navigating to Home/Permissions.
+    final isCurrent = ModalRoute.of(context)?.isCurrent ?? true;
+    if (!isCurrent) {
+      Timer.periodic(const Duration(milliseconds: 200), (timer) {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+        if (ModalRoute.of(context)?.isCurrent ?? false) {
+          timer.cancel();
+          _navigate();
+        }
+      });
+      return;
+    }
+
     final lockProvider = context.read<LockStateProvider>();
     if (lockProvider.passwordSet) {
       // Setup complete — always show the main dashboard.
