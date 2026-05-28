@@ -50,9 +50,9 @@ object ChromeIncognitoBlocker {
                     val desc = n.contentDescription?.toString()?.lowercase() ?: ""
                     val text = n.text?.toString()?.lowercase() ?: ""
 
-                    val isBadgeId = viewId.contains("incognito_badge")
-                    val isActiveDesc = desc == "incognito mode active"
-                    val isIncognitoStartPage = text.contains("gone incognito")
+                    val isBadgeId = viewId.contains("incognito_badge") && n.isVisibleToUser
+                    val isActiveDesc = desc == "incognito mode active" && n.isVisibleToUser
+                    val isIncognitoStartPage = text.contains("gone incognito") && n.isVisibleToUser
 
                     if (isBadgeId || isActiveDesc || isIncognitoStartPage) {
                         hasIncognitoIndicator = true
@@ -96,9 +96,9 @@ object ChromeIncognitoBlocker {
                     val desc = node.contentDescription?.toString()?.lowercase() ?: ""
                     val text = node.text?.toString()?.lowercase() ?: ""
 
-                    val isBadgeId = viewId.contains("incognito_badge")
-                    val isActiveDesc = desc == "incognito mode active"
-                    val isIncognitoStartPage = text.contains("gone incognito")
+                    val isBadgeId = viewId.contains("incognito_badge") && node.isVisibleToUser
+                    val isActiveDesc = desc == "incognito mode active" && node.isVisibleToUser
+                    val isIncognitoStartPage = text.contains("gone incognito") && node.isVisibleToUser
 
                     if (isBadgeId || isActiveDesc || isIncognitoStartPage) {
                         detected = true
@@ -120,14 +120,16 @@ object ChromeIncognitoBlocker {
     private fun scanTreeForIncognito(node: AccessibilityNodeInfo, depth: Int): Boolean {
         if (depth > MAX_TREE_DEPTH) return false
 
-        val viewId = node.viewIdResourceName ?: ""
-        if (viewId.contains("incognito_badge")) return true
+        if (node.isVisibleToUser) {
+            val viewId = node.viewIdResourceName ?: ""
+            if (viewId.contains("incognito_badge")) return true
 
-        val desc = node.contentDescription?.toString()?.lowercase() ?: ""
-        if (desc == "incognito mode active") return true
+            val desc = node.contentDescription?.toString()?.lowercase() ?: ""
+            if (desc == "incognito mode active") return true
 
-        val text = node.text?.toString()?.lowercase() ?: ""
-        if (text.contains("gone incognito")) return true
+            val text = node.text?.toString()?.lowercase() ?: ""
+            if (text.contains("gone incognito")) return true
+        }
 
         for (i in 0 until node.childCount) {
             val child = node.getChild(i) ?: continue

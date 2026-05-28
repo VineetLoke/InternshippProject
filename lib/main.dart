@@ -1,17 +1,17 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'screens/splash_screen.dart';
-import 'screens/permissions_screen.dart';
-import 'screens/setup_screen.dart';
-import 'screens/home_screen.dart';
-import 'screens/lock_screen.dart';
-import 'screens/emergency_unlock_screen.dart';
-import 'screens/pushup_challenge_screen.dart';
-import 'screens/instagram_pushup_challenge_screen.dart';
-import 'screens/app_pushup_challenge_screen.dart';
-import 'screens/uninstall_protection_screen.dart';
-import 'providers/lock_state_provider.dart';
+import 'package:focus_lock/core/presentation/screens/splash_screen.dart';
+import 'package:focus_lock/core/presentation/screens/permissions_screen.dart';
+import 'package:focus_lock/core/presentation/screens/setup_screen.dart';
+import 'package:focus_lock/features/dashboard/presentation/screens/home_screen.dart';
+import 'package:focus_lock/features/app_blocker/presentation/screens/lock_screen.dart';
+import 'package:focus_lock/features/app_blocker/presentation/screens/emergency_unlock_screen.dart';
+import 'package:focus_lock/features/challenges/presentation/screens/pushup_challenge_screen.dart';
+import 'package:focus_lock/features/challenges/presentation/screens/instagram_pushup_challenge_screen.dart';
+import 'package:focus_lock/features/challenges/presentation/screens/app_pushup_challenge_screen.dart';
+import 'package:focus_lock/features/uninstall_protection/presentation/screens/uninstall_protection_screen.dart';
+import 'package:focus_lock/features/app_blocker/presentation/providers/lock_state_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

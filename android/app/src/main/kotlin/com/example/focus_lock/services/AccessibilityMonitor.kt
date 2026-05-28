@@ -415,7 +415,7 @@ class AccessibilityMonitor : AccessibilityService() {
                 return
             }
             val intent = Intent(applicationContext, DisciplineWarningOverlay::class.java)
-            startService(intent)
+            startOverlayService(intent)
             overlayShownAt = System.currentTimeMillis()
             startOverlayWatchdog()
         } catch (e: Exception) {
@@ -508,7 +508,7 @@ class AccessibilityMonitor : AccessibilityService() {
 
                 val intent = Intent(this, com.example.focus_lock.ui.UninstallChallengeOverlay::class.java)
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                startService(intent)
+                startOverlayService(intent)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error checking uninstall attempt: ${e.message}")
@@ -619,7 +619,7 @@ class AccessibilityMonitor : AccessibilityService() {
             }
             val intent = Intent(applicationContext, LockScreenOverlay::class.java)
             intent.putExtra("source", source)
-            startService(intent)
+            startOverlayService(intent)
             overlayShownAt = System.currentTimeMillis()
             startOverlayWatchdog()
             Log.d(TAG, "Lock overlay shown (source=$source)")
@@ -764,6 +764,18 @@ class AccessibilityMonitor : AccessibilityService() {
                     handler.postDelayed(redditLockRunnable, remaining)
                 }
             }
+        }
+    }
+
+    private fun startOverlayService(intent: Intent) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting overlay service: ${e.message}", e)
         }
     }
 

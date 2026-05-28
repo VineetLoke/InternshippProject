@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/lock_state_provider.dart';
-import '../services/timer_service.dart';
+import 'package:focus_lock/features/app_blocker/presentation/providers/lock_state_provider.dart';
+import 'package:focus_lock/features/app_blocker/services/timer_service.dart';
 
 class EmergencyUnlockScreen extends StatefulWidget {
   const EmergencyUnlockScreen({Key? key}) : super(key: key);

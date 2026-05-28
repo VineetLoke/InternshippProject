@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../services/app_block_service.dart';
-import '../services/password_manager.dart';
-import '../services/permission_service.dart';
-import '../services/step_challenge.dart';
-import '../services/timer_service.dart';
+import 'package:focus_lock/features/app_blocker/services/app_block_service.dart';
+import 'package:focus_lock/core/services/password_manager.dart';
+import 'package:focus_lock/core/services/permission_service.dart';
+import 'package:focus_lock/features/challenges/services/step_challenge.dart';
+import 'package:focus_lock/features/app_blocker/services/timer_service.dart';
 
 class LockStateProvider extends ChangeNotifier {
   final _appBlockService = AppBlockService();

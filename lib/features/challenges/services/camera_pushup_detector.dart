@@ -238,18 +238,29 @@ class CameraPushupDetector {
         rotation = InputImageRotation.rotation0deg;
     }
 
-    final format = InputImageFormatValue.fromRawValue(image.format.raw);
-    if (format == null) return null;
+    var format = InputImageFormatValue.fromRawValue(image.format.raw);
+    if (format == null) {
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        format = InputImageFormat.nv21;
+      } else {
+        format = InputImageFormat.bgra8888;
+      }
+    }
 
-    final plane = image.planes.first;
+    // Concatenate all planes for YUV420/NV21 image format to ensure complete bytes are processed
+    final WriteBuffer allBytes = WriteBuffer();
+    for (final Plane plane in image.planes) {
+      allBytes.putUint8List(plane.bytes);
+    }
+    final bytes = allBytes.done().buffer.asUint8List();
 
     return InputImage.fromBytes(
-      bytes: plane.bytes,
+      bytes: bytes,
       metadata: InputImageMetadata(
         size: Size(image.width.toDouble(), image.height.toDouble()),
         rotation: rotation,
         format: format,
-        bytesPerRow: plane.bytesPerRow,
+        bytesPerRow: image.planes[0].bytesPerRow,
       ),
     );
   }

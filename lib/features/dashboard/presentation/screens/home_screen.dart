@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/lock_state_provider.dart';
-import '../services/reddit_usage_service.dart';
-import '../services/usage_service.dart';
-import '../services/app_log_service.dart';
-import '../services/chrome_filter_service.dart';
+import 'package:focus_lock/features/app_blocker/presentation/providers/lock_state_provider.dart';
+import 'package:focus_lock/features/dashboard/services/reddit_usage_service.dart';
+import 'package:focus_lock/features/dashboard/services/usage_service.dart';
+import 'package:focus_lock/features/dashboard/services/app_log_service.dart';
+import 'package:focus_lock/features/chrome_filter/services/chrome_filter_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);

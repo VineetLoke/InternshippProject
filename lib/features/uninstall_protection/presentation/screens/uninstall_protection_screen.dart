@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../services/uninstall_protection_service.dart';
+import 'package:focus_lock/features/uninstall_protection/services/uninstall_protection_service.dart';
 
 /// Settings screen for managing FocusLock uninstall protection.
 /// Controls: hide icon, device admin, protection status, cooldown display.

@@ -48,7 +48,7 @@ class AppBlockingService : Service() {
         val notification = android.app.Notification.Builder(this, CHANNEL_ID)
             .setContentTitle("FocusLock")
             .setContentText("Protection active")
-            .setSmallIcon(android.R.drawable.ic_lock_lock)
+            .setSmallIcon(com.example.focus_lock.R.mipmap.ic_launcher)
             .build()
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(

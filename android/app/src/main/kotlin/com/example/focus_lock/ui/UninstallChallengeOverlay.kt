@@ -64,6 +64,7 @@ class UninstallChallengeOverlay : Service(), SensorEventListener {
 
     override fun onCreate() {
         super.onCreate()
+        startForegroundNotification()
         UninstallProtectionManager.init(this)
         showOverlay()
         startProximitySensor()
@@ -71,6 +72,35 @@ class UninstallChallengeOverlay : Service(), SensorEventListener {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         return START_STICKY
+    }
+
+    private fun startForegroundNotification() {
+        val channelId = "focus_lock_overlay_channel"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = android.app.NotificationChannel(
+                channelId,
+                "FocusLock Lockscreen Overlay",
+                android.app.NotificationManager.IMPORTANCE_MIN
+            ).apply {
+                description = "Keeps FocusLock overlay active"
+            }
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            manager.createNotificationChannel(channel)
+        }
+        val notification = android.app.Notification.Builder(this, channelId)
+            .setContentTitle("FocusLock Active")
+            .setContentText("Enforcing focus screen")
+            .setSmallIcon(com.example.focus_lock.R.mipmap.ic_launcher)
+            .build()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(
+                1004, 
+                notification, 
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            )
+        } else {
+            startForeground(1004, notification)
+        }
     }
 
     override fun onDestroy() {

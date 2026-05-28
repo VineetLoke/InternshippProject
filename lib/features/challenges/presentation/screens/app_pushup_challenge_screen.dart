@@ -4,8 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '../services/camera_pushup_detector.dart';
-import '../services/pose_painter.dart';
+import 'package:focus_lock/features/challenges/services/camera_pushup_detector.dart';
+import 'package:focus_lock/features/challenges/presentation/widgets/pose_painter.dart';
 
 /// Generic emergency unlock screen for any blocked app.
 ///

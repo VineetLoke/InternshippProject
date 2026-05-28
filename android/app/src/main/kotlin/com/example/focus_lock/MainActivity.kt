@@ -384,7 +384,11 @@ class MainActivity : FlutterActivity() {
                     "launchUninstallChallenge" -> {
                         try {
                             val intent = Intent(this, UninstallChallengeOverlay::class.java)
-                            startService(intent)
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                startForegroundService(intent)
+                            } else {
+                                startService(intent)
+                            }
                             result.success(true)
                         } catch (e: Exception) {
                             result.error("CHALLENGE_ERROR", e.message, null)

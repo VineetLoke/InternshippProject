@@ -4,28 +4,29 @@ import 'package:flutter/services.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '../services/camera_pushup_detector.dart';
-import '../services/pose_painter.dart';
-import '../services/reddit_usage_service.dart';
+import 'package:focus_lock/features/challenges/services/camera_pushup_detector.dart';
+import 'package:focus_lock/features/challenges/presentation/widgets/pose_painter.dart';
+import 'package:focus_lock/features/app_blocker/services/instagram_block_service.dart';
 
-/// Full-screen pushup challenge to earn 10 minutes of Reddit.
+/// Emergency unlock screen for Instagram.
 ///
-/// Uses the device camera with ML Kit Pose Detection to verify real pushups.
-/// Tracks elbow angle (shoulder→elbow→wrist) to detect UP/DOWN positions.
-/// Cheat-proof: requires actual pushup form visible to camera.
-class PushupChallengeScreen extends StatefulWidget {
-  const PushupChallengeScreen({Key? key}) : super(key: key);
+/// Requires 100 pushups verified by camera to grant 10 minutes of access.
+/// Uses ML Kit Pose Detection for cheat-proof pushup verification.
+class InstagramPushupChallengeScreen extends StatefulWidget {
+  const InstagramPushupChallengeScreen({Key? key}) : super(key: key);
 
   @override
-  State<PushupChallengeScreen> createState() => _PushupChallengeScreenState();
+  State<InstagramPushupChallengeScreen> createState() =>
+      _InstagramPushupChallengeScreenState();
 }
 
-class _PushupChallengeScreenState extends State<PushupChallengeScreen>
+class _InstagramPushupChallengeScreenState
+    extends State<InstagramPushupChallengeScreen>
     with SingleTickerProviderStateMixin {
   static const int _requiredPushups = 100;
   static const _channel = MethodChannel('com.example.focus_lock/app_block');
 
-  final _redditService = RedditUsageService();
+  final _igService = InstagramBlockService();
   final _detector = CameraPushupDetector();
 
   StreamSubscription<int>? _countSub;
@@ -38,7 +39,6 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
   bool _cameraReady = false;
   bool _redeemed = false;
   bool _cameraError = false;
-  String _redditRemaining = '--';
   String _stage = 'idle';
   String _feedback = 'Tap Start to begin';
   Pose? _currentPose;
@@ -55,30 +55,10 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
     )..repeat(reverse: true);
     _pulseAnimation =
         Tween<double>(begin: 1.0, end: 1.15).animate(_pulseController);
-    _loadRedditStatus();
     _initCamera();
   }
 
-  Future<void> _loadRedditStatus() async {
-    final tempUnlock = await _redditService.getTempUnlockRemainingSeconds();
-    if (tempUnlock > 0) {
-      if (mounted) {
-        setState(() {
-          _redditRemaining =
-              'Unlock active: ${RedditUsageService.formatDuration(tempUnlock)}';
-        });
-      }
-    } else {
-      if (mounted) {
-        setState(() {
-          _redditRemaining = 'Reddit is locked';
-        });
-      }
-    }
-  }
-
   Future<void> _initCamera() async {
-    // Request camera permission
     final status = await Permission.camera.request();
     if (!status.isGranted) {
       if (mounted) {
@@ -153,40 +133,33 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
   Future<void> _onChallengeComplete() async {
     await _stopDetection();
 
-    // Grant Reddit temp unlock via native side
     bool success = false;
     try {
-      final result = await _channel.invokeMethod('grantRedditCameraPushupReward');
+      final result = await _channel.invokeMethod('completeInstagramEmergencyChallenge');
       success = result == true;
     } catch (e) {
-      debugPrint('Error granting Reddit reward: $e');
-      // Fallback: try the old method
-      try {
-        final result = await _channel.invokeMethod('completeRedditEmergencyChallenge');
-        success = result == true;
-      } catch (_) {}
+      debugPrint('Error completing Instagram challenge: $e');
     }
 
     setState(() => _redeemed = success);
 
     if (success && mounted) {
-      await _loadRedditStatus();
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (_) => AlertDialog(
           title: const Text('🎉 Challenge Complete!'),
           content: const Text(
-            'Reddit unlocked for 10 minutes.\n\n'
-            'Discipline is forged in resistance.',
+            'Instagram unlocked for 10 minutes.\n\n'
+            'Use the time wisely.',
           ),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // close dialog
-                Navigator.of(context).pop(); // back to home
+                Navigator.of(context).pop();
+                Navigator.of(context).pop();
               },
-              child: const Text('Open Reddit'),
+              child: const Text('OK'),
             ),
           ],
         ),
@@ -205,8 +178,6 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
     super.dispose();
   }
 
-  // ── UI ────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -215,7 +186,7 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
     return Scaffold(
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        title: const Text('Pushup Challenge'),
+        title: const Text('Instagram Emergency Unlock'),
         backgroundColor: Colors.transparent,
         foregroundColor: colorScheme.primary,
         elevation: 0,
@@ -232,7 +203,7 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
           children: [
             const SizedBox(height: 8),
 
-            // ── Reddit status chip ─────────────────────────────────
+            // ── Status chip ────────────────────────────────────────
             Container(
               padding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -242,15 +213,14 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
                 border: Border.all(color: colorScheme.primary.withOpacity(0.3)),
               ),
               child: Text(
-                _redditRemaining,
-                style: TextStyle(
-                    color: colorScheme.primary, fontSize: 14, fontWeight: FontWeight.bold),
+                '100 pushups = 10 min access',
+                style: TextStyle(color: colorScheme.primary, fontSize: 14, fontWeight: FontWeight.bold),
               ),
             ),
 
             const SizedBox(height: 12),
 
-            // ── Camera Preview with Overlay ─────────────────────────
+            // ── Camera Preview ─────────────────────────────────────
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -281,7 +251,7 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
                 child: Column(
                   children: [
                     Text(
-                      'How it works',
+                      'Emergency Unlock',
                       style: TextStyle(
                         color: colorScheme.primary,
                         fontWeight: FontWeight.bold,
@@ -292,7 +262,7 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
                     _instructionRow('1', 'Place phone on a wall facing your side'),
                     _instructionRow('2', 'Keep your full body visible in frame'),
                     _instructionRow('3', 'Tap "Start" — camera verifies each rep'),
-                    _instructionRow('4', 'Every 100 pushups adds 10 min Reddit access'),
+                    _instructionRow('4', 'Every 100 pushups adds 10 min Instagram access'),
                   ],
                 ),
               ),
@@ -317,8 +287,9 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          _isDetecting ? colorScheme.error : colorScheme.primary,
+                      backgroundColor: _isDetecting
+                          ? colorScheme.error
+                          : colorScheme.primary,
                       foregroundColor: _isDetecting ? Colors.white : colorScheme.onPrimary,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -372,10 +343,8 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Camera preview
         CameraPreview(_detector.cameraController!),
 
-        // Skeleton overlay
         if (_currentPose != null && _detector.previewSize != null)
           CustomPaint(
             painter: PosePainter(
@@ -386,7 +355,7 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
             ),
           ),
 
-        // Counter overlay (top-right)
+        // Counter overlay
         Positioned(
           top: 16,
           right: 16,
@@ -429,7 +398,7 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
           ),
         ),
 
-        // Stage indicator (top-left)
+        // Stage indicator
         if (_isDetecting)
           Positioned(
             top: 16,
@@ -543,7 +512,7 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
           const SizedBox(width: 8),
           Expanded(
             child: Text(text,
-                style: TextStyle(color: Colors.grey.shade300, fontSize: 12)),
+                style: TextStyle(color: colorScheme.onSurface, fontSize: 12)),
           ),
         ],
       ),
