@@ -212,9 +212,12 @@ class _AppPushupChallengeScreenState extends State<AppPushupChallengeScreen>
     final progress = (_count / _requiredPushups).clamp(0.0, 1.0);
 
     return Scaffold(
-      backgroundColor: colorScheme.surface,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        title: Text('$_appName Emergency Unlock'),
+        title: Text(
+          '$_appName Emergency Unlock',
+          style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
+        ),
         backgroundColor: Colors.transparent,
         foregroundColor: colorScheme.primary,
         elevation: 0,
@@ -226,120 +229,147 @@ class _AppPushupChallengeScreenState extends State<AppPushupChallengeScreen>
           },
         ),
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 8),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            colors: [Color(0xFF14130E), Color(0xFF0A0A0C)],
+            center: Alignment.topCenter,
+            radius: 1.5,
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              const SizedBox(height: 8),
 
-            // ── Status chip ────────────────────────────────────────
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: colorScheme.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: colorScheme.primary.withOpacity(0.3)),
-              ),
-              child: Text(
-                '100 pushups = 10 min access',
-                style: TextStyle(color: colorScheme.primary, fontSize: 14, fontWeight: FontWeight.bold),
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // ── Camera Preview ─────────────────────────────────────
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: _buildCameraPreview(colorScheme, progress),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // ── Feedback bar ───────────────────────────────────────
-            _buildFeedbackBar(colorScheme),
-
-            const SizedBox(height: 8),
-
-            // ── Instructions ───────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Container(
-                padding: const EdgeInsets.all(12),
+              // ── Status chip ────────────────────────────────────────
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: colorScheme.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF222228)),
+                  color: colorScheme.primary.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: colorScheme.primary.withOpacity(0.2)),
                 ),
-                child: Column(
-                  children: [
-                    Text(
-                      'Emergency Unlock',
-                      style: TextStyle(
-                        color: colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    _instructionRow('1', 'Place phone on a wall facing your side'),
-                    _instructionRow('2', 'Keep your full body visible in frame'),
-                    _instructionRow('3', 'Tap "Start" — camera verifies each rep'),
-                    _instructionRow('4', 'Every 100 pushups adds 10 min access'),
-                  ],
+                child: Text(
+                  '100 pushups = 10 min access',
+                  style: TextStyle(color: colorScheme.primary, fontSize: 13, fontWeight: FontWeight.bold),
                 ),
               ),
-            ),
 
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
 
-            // ── Start / Stop button ────────────────────────────────
-            if (!_redeemed)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton.icon(
-                    icon: Icon(
-                      _isDetecting ? Icons.stop : Icons.videocam,
-                      size: 24,
-                    ),
-                    label: Text(
-                      _isDetecting ? 'Stop' : 'Start Camera Detection',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _isDetecting
-                          ? colorScheme.error
-                          : colorScheme.primary,
-                      foregroundColor: _isDetecting ? Colors.white : colorScheme.onPrimary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+              // ── Camera Preview ─────────────────────────────────────
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: _stageColor,
+                        width: 3.0,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _stageColor.withOpacity(0.18),
+                          blurRadius: 16,
+                          spreadRadius: 1,
+                        ),
+                      ],
                     ),
-                    onPressed:
-                        _isDetecting ? _stopDetection : _startDetection,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(21),
+                      child: _buildCameraPreview(colorScheme, progress),
+                    ),
                   ),
                 ),
               ),
 
-            if (_cameraError)
+              const SizedBox(height: 14),
+
+              // ── Feedback bar ───────────────────────────────────────
+              _buildFeedbackBar(colorScheme),
+
+              const SizedBox(height: 10),
+
+              // ── Instructions ───────────────────────────────────────
               Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'Camera not available. Please grant camera permission.',
-                  style: TextStyle(color: colorScheme.error, fontSize: 13),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF131316),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFF222226)),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Emergency Unlock',
+                        style: TextStyle(
+                          color: colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _instructionRow('1', 'Place phone on a wall facing your side'),
+                      _instructionRow('2', 'Keep your full body visible in frame'),
+                      _instructionRow('3', 'Tap "Start" — camera verifies each rep'),
+                      _instructionRow('4', 'Every 100 pushups adds 10 min access'),
+                    ],
+                  ),
                 ),
               ),
 
-            const SizedBox(height: 16),
-          ],
+              const SizedBox(height: 14),
+
+              // ── Start / Stop button ────────────────────────────────
+              if (!_redeemed)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton.icon(
+                      icon: Icon(
+                        _isDetecting ? Icons.stop_rounded : Icons.videocam_rounded,
+                        size: 22,
+                      ),
+                      label: Text(
+                        _isDetecting ? 'ABORT CHALLENGE' : 'START CAMERA DETECTION',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.0),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _isDetecting
+                            ? colorScheme.error
+                            : colorScheme.primary,
+                        foregroundColor: _isDetecting ? Colors.white : colorScheme.onPrimary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      onPressed:
+                          _isDetecting ? _stopDetection : _startDetection,
+                    ),
+                  ),
+                ),
+
+              if (_cameraError)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Camera not available. Please grant camera permission.',
+                    style: TextStyle(color: colorScheme.error, fontSize: 13),
+                  ),
+                ),
+
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
     );
@@ -349,18 +379,18 @@ class _AppPushupChallengeScreenState extends State<AppPushupChallengeScreen>
     if (!_cameraReady || _detector.cameraController == null) {
       return Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF16161A),
+          color: const Color(0xFF131316),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.videocam_off, size: 48, color: colorScheme.secondary),
+              Icon(Icons.videocam_off_outlined, size: 44, color: colorScheme.secondary),
               const SizedBox(height: 12),
               Text(
                 _cameraError ? 'Camera unavailable' : 'Initializing camera...',
-                style: TextStyle(color: colorScheme.secondary, fontSize: 14),
+                style: TextStyle(color: colorScheme.secondary, fontSize: 13),
               ),
             ],
           ),
@@ -390,16 +420,16 @@ class _AppPushupChallengeScreenState extends State<AppPushupChallengeScreen>
           child: ScaleTransition(
             scale: _isDetecting ? _pulseAnimation : const AlwaysStoppedAnimation(1.0),
             child: Container(
-              width: 90,
-              height: 90,
+              width: 80,
+              height: 80,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.black.withOpacity(0.6),
+                color: Colors.black.withOpacity(0.7),
                 border: Border.all(
                   color: progress >= 1.0
-                      ? const Color(0xFF2E7D63)
+                      ? const Color(0xFF4ADE80)
                       : colorScheme.primary,
-                  width: 3,
+                  width: 2.5,
                 ),
               ),
               child: Column(
@@ -408,15 +438,18 @@ class _AppPushupChallengeScreenState extends State<AppPushupChallengeScreen>
                   Text(
                     '$_count',
                     style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.primary,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      color: progress >= 1.0
+                          ? const Color(0xFF4ADE80)
+                          : colorScheme.primary,
                     ),
                   ),
                   Text(
                     '/$_requiredPushups',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
                       color: colorScheme.secondary,
                     ),
                   ),
@@ -432,9 +465,9 @@ class _AppPushupChallengeScreenState extends State<AppPushupChallengeScreen>
             top: 16,
             left: 16,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: _stageColor.withOpacity(0.8),
+                color: _stageColor.withOpacity(0.85),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
@@ -442,20 +475,20 @@ class _AppPushupChallengeScreenState extends State<AppPushupChallengeScreen>
                 children: [
                   Icon(
                     _stage == 'up'
-                        ? Icons.arrow_upward
+                        ? Icons.arrow_upward_rounded
                         : _stage == 'down'
-                            ? Icons.arrow_downward
-                            : Icons.remove,
-                    color: Colors.white,
-                    size: 16,
+                            ? Icons.arrow_downward_rounded
+                            : Icons.remove_rounded,
+                    color: const Color(0xFF0F0E0B),
+                    size: 14,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     _stage.toUpperCase(),
                     style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0F0E0B),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                 ],
@@ -473,10 +506,10 @@ class _AppPushupChallengeScreenState extends State<AppPushupChallengeScreen>
             backgroundColor: Colors.black.withOpacity(0.4),
             valueColor: AlwaysStoppedAnimation<Color>(
               progress >= 1.0
-                  ? const Color(0xFF2E7D63)
+                  ? const Color(0xFF4ADE80)
                   : colorScheme.primary,
             ),
-            minHeight: 4,
+            minHeight: 5,
           ),
         ),
       ],
@@ -485,22 +518,22 @@ class _AppPushupChallengeScreenState extends State<AppPushupChallengeScreen>
 
   Widget _buildFeedbackBar(ColorScheme colorScheme) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: _stageColor.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: _stageColor.withOpacity(0.3)),
+          color: _stageColor.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _stageColor.withOpacity(0.25)),
         ),
         child: Text(
           _feedback,
           textAlign: TextAlign.center,
           style: TextStyle(
             color: _stageColor,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
           ),
         ),
       ),
@@ -510,9 +543,9 @@ class _AppPushupChallengeScreenState extends State<AppPushupChallengeScreen>
   Color get _stageColor {
     switch (_stage) {
       case 'up':
-        return const Color(0xFF4CAF50);
+        return const Color(0xFF4ADE80);
       case 'down':
-        return const Color(0xFFFF5722);
+        return const Color(0xFFB54534);
       default:
         return const Color(0xFFC6A85A);
     }
@@ -521,26 +554,27 @@ class _AppPushupChallengeScreenState extends State<AppPushupChallengeScreen>
   Widget _instructionRow(String num, String text) {
     final colorScheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         children: [
           Container(
-            width: 20,
-            height: 20,
+            width: 18,
+            height: 18,
             decoration: BoxDecoration(
-              color: colorScheme.primary,
+              color: colorScheme.primary.withOpacity(0.12),
               shape: BoxShape.circle,
             ),
             child: Center(
-              child: Text(num,
-                  style:
-                      TextStyle(color: colorScheme.onPrimary, fontSize: 11, fontWeight: FontWeight.bold)),
+              child: Text(
+                num,
+                style: TextStyle(color: colorScheme.primary, fontSize: 10, fontWeight: FontWeight.bold),
+              ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(text,
-                style: TextStyle(color: colorScheme.onSurface, fontSize: 12)),
+                style: const TextStyle(color: Color(0xFF8A7A6C), fontSize: 11.5)),
           ),
         ],
       ),

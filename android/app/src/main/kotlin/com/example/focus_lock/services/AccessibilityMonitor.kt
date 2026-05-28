@@ -14,7 +14,7 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.example.focus_lock.blockers.InstagramBlocker
 import com.example.focus_lock.blockers.RedditBlocker
-import com.example.focus_lock.blockers.ChromeIncognitoBlocker
+import com.example.focus_lock.blockers.BrowserIncognitoBlocker
 import com.example.focus_lock.blockers.TwitterBlocker
 import com.example.focus_lock.controllers.DisciplineState
 import com.example.focus_lock.storage.database.AppDatabase
@@ -36,13 +36,24 @@ class AccessibilityMonitor : AccessibilityService() {
         const val REDDIT_PACKAGE = "com.reddit.frontpage"
         const val TWITTER_PACKAGE = "com.twitter.android"
         const val CHROME_PACKAGE = "com.android.chrome"
+        const val FIREFOX_PACKAGE = "org.mozilla.firefox"
+        const val OPERA_PACKAGE = "com.opera.browser"
+        const val SAMSUNG_BROWSER_PACKAGE = "com.sec.android.app.sbrowser"
         const val FOCUS_LOCK_PACKAGE = "com.example.focus_lock"
 
         // Only these packages are blocked outright (immediate block on open)
         val BLOCKED_PACKAGES = setOf(INSTAGRAM_PACKAGE, REDDIT_PACKAGE, TWITTER_PACKAGE)
 
-        // Monitored packages = blocked + Chrome (incognito keyword detection)
-        val MONITORED_PACKAGES = BLOCKED_PACKAGES + CHROME_PACKAGE
+        // Browser packages to monitor for private browsing
+        val BROWSER_PACKAGES = setOf(
+            CHROME_PACKAGE,
+            FIREFOX_PACKAGE,
+            OPERA_PACKAGE,
+            SAMSUNG_BROWSER_PACKAGE
+        )
+
+        // Monitored packages = blocked + browsers
+        val MONITORED_PACKAGES = BLOCKED_PACKAGES + BROWSER_PACKAGES
 
         // Packages tracked for open-count logging
         val TRACKED_PACKAGES = BLOCKED_PACKAGES
@@ -162,8 +173,8 @@ class AccessibilityMonitor : AccessibilityService() {
             performGlobalAction(GLOBAL_ACTION_BACK)
         }
 
-        // Chrome incognito keyword blocker — monitors search text in incognito tabs
-        ChromeIncognitoBlocker.resetDebounce()
+        // Universal browser private blocker
+        BrowserIncognitoBlocker.resetDebounce()
 
         Log.d(TAG, "ServiceInfo applied — listening for events")
     }
@@ -225,12 +236,18 @@ class AccessibilityMonitor : AccessibilityService() {
 
             when (event.eventType) {
                 AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
-                    if (pkg == ChromeIncognitoBlocker.CHROME_PACKAGE) {
-                        ChromeIncognitoBlocker.evaluateIncognitoState(rootInActiveWindow)
+                    if (pkg in BrowserIncognitoBlocker.BROWSER_PACKAGES) {
+                        BrowserIncognitoBlocker.evaluateIncognitoState(rootInActiveWindow, pkg)
                     }
                     // Debounce: ignore same-package events within 2 seconds
+                    // BYPASS debounce for Settings and Installer packages to prevent race condition bypasses
                     val now = System.currentTimeMillis()
-                    if (pkg == lastEventPackage && now - lastEventTime < EVENT_DEBOUNCE_MS) {
+                    val lowerPkg = pkg.lowercase()
+                    val isSettingsOrInstaller = lowerPkg.contains("settings") || 
+                                                lowerPkg.contains("installer") || 
+                                                lowerPkg.contains("packageinstaller")
+
+                    if (!isSettingsOrInstaller && pkg == lastEventPackage && now - lastEventTime < EVENT_DEBOUNCE_MS) {
                         // Still update foreground package even when debounced,
                         // so BACK press guards use fresh data
                         currentForegroundPackage = pkg
@@ -241,14 +258,14 @@ class AccessibilityMonitor : AccessibilityService() {
                     handleWindowStateChanged(pkg)
                 }
                 AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED -> {
-                    // Chrome incognito typing detection — any typing in incognito triggers block
-                    if (pkg == ChromeIncognitoBlocker.CHROME_PACKAGE) {
-                        handleChromeTypingEvent()
+                    // Typing detection in private tabs — triggers block
+                    if (pkg in BrowserIncognitoBlocker.BROWSER_PACKAGES) {
+                        handleBrowserTypingEvent(pkg)
                     }
                 }
                 AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
-                    if (pkg == ChromeIncognitoBlocker.CHROME_PACKAGE) {
-                        handleChromeIncognitoSurfaceChanged()
+                    if (pkg in BrowserIncognitoBlocker.BROWSER_PACKAGES) {
+                        handleBrowserIncognitoSurfaceChanged(pkg)
                     }
                 }
             }
@@ -272,9 +289,9 @@ class AccessibilityMonitor : AccessibilityService() {
             redditForegroundSince = System.currentTimeMillis()
         }
 
-        // Reset Chrome incognito cache when user leaves Chrome entirely
-        if (currentForegroundPackage == CHROME_PACKAGE && packageName != CHROME_PACKAGE) {
-            ChromeIncognitoBlocker.resetCache()
+        // Reset private cache when user leaves any monitored browser
+        if (currentForegroundPackage in BrowserIncognitoBlocker.BROWSER_PACKAGES && packageName != currentForegroundPackage) {
+            BrowserIncognitoBlocker.resetCache()
         }
 
         currentForegroundPackage = packageName
@@ -321,17 +338,15 @@ class AccessibilityMonitor : AccessibilityService() {
                 // Delegated to deterministic RedditBlocker module.
                 if (RedditBlocker.onRedditDetected()) return
             }
-            CHROME_PACKAGE -> {
-                // Chrome can populate its active tab tree slightly after the
-                // window event. Check after that delay so an opened incognito
-                // tab is blocked, while normal Chrome menus are ignored by the
-                // stricter detector.
+            in BROWSER_PACKAGES -> {
+                // Browsers can populate active tab trees slightly after window state event.
+                // Check after that delay to ensure accurate detection.
                 handler.postDelayed({
-                    if (currentForegroundPackage == CHROME_PACKAGE &&
+                    if (currentForegroundPackage == packageName &&
                         currentState != DisciplineState.CHROME_INCOGNITO_BLOCKED) {
-                        handleChromeIncognitoSurfaceChanged()
+                        handleBrowserIncognitoSurfaceChanged(packageName)
                     }
-                }, 500L) // Short delay to let Chrome's accessibility tree populate
+                }, 500L)
             }
             FOCUS_LOCK_PACKAGE -> {
                 // Never block ourselves
@@ -366,45 +381,40 @@ class AccessibilityMonitor : AccessibilityService() {
     }
 
     // ══════════════════════════════════════════════════════════════════
-    // Chrome incognito typing blocker
-    // Activates when: Chrome foreground + incognito mode + any typing
+    // Universal browser private mode blocker
+    // Activates when: browser foreground + private mode + any typing / layout change
     // Normal browsing is NEVER affected.
     // ══════════════════════════════════════════════════════════════════
 
-    /**
-     * Handle any typing event inside Chrome.
-     * If incognito mode is active, block immediately — no keyword check.
-     * Debounce is handled solely by ChromeIncognitoBlocker (5s).
-     */
-    private fun handleChromeTypingEvent() {
+    private fun handleBrowserTypingEvent(packageName: String) {
         if (currentState == DisciplineState.CHROME_INCOGNITO_BLOCKED) return
 
         val rootNode = rootInActiveWindow ?: return
-        if (rootNode.packageName?.toString() != ChromeIncognitoBlocker.CHROME_PACKAGE) return
+        if (rootNode.packageName?.toString() != packageName) return
 
-        if (ChromeIncognitoBlocker.shouldBlockTyping(rootNode)) {
-            triggerChromeIncognitoBlock()
+        if (BrowserIncognitoBlocker.shouldBlockTyping(rootNode, packageName)) {
+            triggerBrowserIncognitoBlock(packageName)
         }
     }
 
-    private fun handleChromeIncognitoSurfaceChanged() {
+    private fun handleBrowserIncognitoSurfaceChanged(packageName: String) {
         if (currentState == DisciplineState.CHROME_INCOGNITO_BLOCKED) return
 
         val rootNode = rootInActiveWindow ?: return
-        if (rootNode.packageName?.toString() != ChromeIncognitoBlocker.CHROME_PACKAGE) return
+        if (rootNode.packageName?.toString() != packageName) return
 
-        ChromeIncognitoBlocker.evaluateIncognitoState(rootNode)
-        if (ChromeIncognitoBlocker.isIncognitoMode(rootNode)) {
-            Log.d(TAG, "Chrome active incognito surface detected — blocking")
-            triggerChromeIncognitoBlock()
+        BrowserIncognitoBlocker.evaluateIncognitoState(rootNode, packageName)
+        if (BrowserIncognitoBlocker.isIncognitoMode(rootNode, packageName)) {
+            Log.d(TAG, "$packageName active private surface detected — blocking")
+            triggerBrowserIncognitoBlock(packageName)
         }
     }
 
-    private fun triggerChromeIncognitoBlock() {
-        Log.d(TAG, "Chrome incognito BLOCKED — showing overlay")
+    private fun triggerBrowserIncognitoBlock(packageName: String) {
+        Log.d(TAG, "$packageName private tab BLOCKED — showing overlay")
         transitionTo(DisciplineState.CHROME_INCOGNITO_BLOCKED)
 
-        // Leave the current incognito interaction without closing normal Chrome.
+        // Leave the current incognito interaction
         performGlobalAction(GLOBAL_ACTION_BACK)
 
         // Show DisciplineWarningOverlay
@@ -428,11 +438,11 @@ class AccessibilityMonitor : AccessibilityService() {
     }
 
     private fun dismissChromeWarning() {
-        Log.d(TAG, "Chrome overlay expired — clearing warning state")
+        Log.d(TAG, "Browser private warning expired — clearing state")
         stopOverlayService(DisciplineWarningOverlay::class.java)
 
         transitionTo(DisciplineState.IDLE)
-        ChromeIncognitoBlocker.resetDebounce()
+        BrowserIncognitoBlocker.resetDebounce()
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -442,9 +452,9 @@ class AccessibilityMonitor : AccessibilityService() {
     private var lastUninstallGuardTime = 0L
 
     private fun handlePossibleUninstallAttempt() {
-        // Debounce: only check every 3 seconds
+        // Debounce: check settings events every 300ms for instantaneous reaction
         val now = System.currentTimeMillis()
-        if (now - lastUninstallGuardTime < 3000L) return
+        if (now - lastUninstallGuardTime < 300L) return
         lastUninstallGuardTime = now
 
         UninstallProtectionManager.init(applicationContext)

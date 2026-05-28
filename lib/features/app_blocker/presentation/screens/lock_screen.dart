@@ -12,6 +12,7 @@ class LockScreen extends StatefulWidget {
 class _LockScreenState extends State<LockScreen> {
   late PageController _pageController;
   bool _hasNavigated = false;
+  double _buttonScale = 1.0;
 
   @override
   void initState() {
@@ -46,90 +47,137 @@ class _LockScreenState extends State<LockScreen> {
               });
             }
 
-            final colorScheme = Theme.of(context).colorScheme;
+            final goldColor = const Color(0xFFC6A85A);
+            final mutedGold = const Color(0xFF8A7A6C);
 
             return Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    colorScheme.surface,
-                    colorScheme.surface,
-                  ],
+              decoration: const BoxDecoration(
+                gradient: RadialGradient(
+                  colors: [Color(0xFF1B1812), Color(0xFF060608)],
+                  center: Alignment.center,
+                  radius: 1.4,
                 ),
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Lock Icon
-                  Icon(
-                    Icons.lock_outline,
-                    size: 80,
-                    color: colorScheme.primary,
-                  ),
-                  const SizedBox(height: 30),
-
-                  // Message
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      children: [
-                        Text(
-                          'Apps Locked',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.primary,
-                            letterSpacing: 1,
-                          ),
-                          textAlign: TextAlign.center,
+              child: SafeArea(
+                child: Column(
+                  children: [
+                    const Spacer(),
+                    
+                    // Top Icon Indicator
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: goldColor.withOpacity(0.05),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: goldColor.withOpacity(0.15),
+                          width: 1,
                         ),
-                        const SizedBox(height: 15),
-                        Text(
-                          'Instagram, Reddit & Twitter/X are locked for your focus period.',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: colorScheme.onSurface,
-                            height: 1.4,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 30),
-                        _buildCountdownTimer(lockProvider),
-                      ],
+                      ),
+                      child: Icon(
+                        Icons.lock_outline_rounded,
+                        size: 36,
+                        color: goldColor,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 24),
 
-                  const SizedBox(height: 50),
-
-                  // Emergency Unlock Button
-                  if (!lockProvider.emergencyUnlockRequested)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          await lockProvider.requestEmergencyUnlock();
-                          if (mounted) {
-                            Navigator.of(context).pushNamed('/emergency');
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 40,
-                            vertical: 15,
-                          ),
-                        ),
-                        child: const Text(
-                          'Emergency Unlock',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                    // Main Headers
+                    const Text(
+                      'FOCUS MODE ACTIVE',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFFC6A85A),
+                        letterSpacing: 3,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 40),
+                      child: Text(
+                        'Impulsive apps are currently locked down.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFF0E6D2),
                         ),
                       ),
                     ),
-                ],
+                    const SizedBox(height: 8),
+                    Text(
+                      'Instagram, Reddit, & Twitter/X are inaccessible.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: mutedGold,
+                      ),
+                    ),
+                    
+                    const Spacer(),
+
+                    // Circular Countdown Tracker
+                    _buildCircularCountdown(lockProvider),
+
+                    const Spacer(),
+
+                    // Action buttons
+                    if (!lockProvider.emergencyUnlockRequested)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 30),
+                        child: GestureDetector(
+                          onTapDown: (_) => setState(() => _buttonScale = 0.94),
+                          onTapUp: (_) => setState(() => _buttonScale = 1.0),
+                          onTapCancel: () => setState(() => _buttonScale = 1.0),
+                          onTap: () async {
+                            await lockProvider.requestEmergencyUnlock();
+                            if (mounted) {
+                              Navigator.of(context).pushNamed('/emergency');
+                            }
+                          },
+                          child: AnimatedScale(
+                            scale: _buttonScale,
+                            duration: const Duration(milliseconds: 150),
+                            curve: Curves.easeOutBack,
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 18),
+                              decoration: BoxDecoration(
+                                color: goldColor,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: goldColor.withOpacity(0.25),
+                                    blurRadius: 15,
+                                    spreadRadius: 1,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.shield_outlined, color: Color(0xFF0F0E0B), size: 20),
+                                  SizedBox(width: 10),
+                                  Text(
+                                    'EMERGENCY UNLOCK',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w900,
+                                      color: Color(0xFF0F0E0B),
+                                      letterSpacing: 1.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      
+                    const SizedBox(height: 30),
+                  ],
+                ),
               ),
             );
           },
@@ -138,45 +186,90 @@ class _LockScreenState extends State<LockScreen> {
     );
   }
 
-  Widget _buildCountdownTimer(LockStateProvider lockProvider) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colorScheme.primary.withOpacity(0.3), width: 1.2),
-      ),
-      child: Column(
-        children: [
-          Text(
-            'Unlock Date',
-            style: TextStyle(
-              fontSize: 14,
-              color: colorScheme.secondary,
-              letterSpacing: 1,
-            ),
+  Widget _buildCircularCountdown(LockStateProvider lockProvider) {
+    final goldColor = const Color(0xFFC6A85A);
+    final mutedGold = const Color(0xFF8A7A6C);
+    
+    // Normal progress visual representation out of 30 days maximum
+    final double progress = (lockProvider.remainingDays.clamp(0, 30)) / 30.0;
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        // Outer glow
+        Container(
+          width: 200,
+          height: 200,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: goldColor.withOpacity(0.03),
+                blurRadius: 30,
+                spreadRadius: 2,
+              ),
+            ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            lockProvider.lockEndDate?.toString().split(' ').first ?? 'N/A',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: colorScheme.primary,
-              letterSpacing: 0.5,
-            ),
+        ),
+        
+        // Progress Track
+        SizedBox(
+          width: 200,
+          height: 200,
+          child: CircularProgressIndicator(
+            value: progress,
+            strokeWidth: 8,
+            backgroundColor: Colors.white.withOpacity(0.02),
+            valueColor: AlwaysStoppedAnimation<Color>(goldColor),
           ),
-          const SizedBox(height: 10),
-          Text(
-            '${lockProvider.remainingDays} days remaining',
-            style: TextStyle(
-              fontSize: 16,
-              color: colorScheme.onSurface,
+        ),
+        
+        // Timer Text Box
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '${lockProvider.remainingDays}',
+              style: const TextStyle(
+                fontSize: 64,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFFF0E6D2),
+                height: 1.0,
+              ),
             ),
-          ),
-        ],
-      ),
+            const SizedBox(height: 4),
+            Text(
+              'DAYS REMAINING',
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+                color: mutedGold,
+                letterSpacing: 1.5,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.04),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.08),
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                'Ends: ${lockProvider.lockEndDate?.toString().split(' ').first ?? 'N/A'}',
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: Color(0xFFF0E6D2),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

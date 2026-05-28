@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/services.dart';
+import 'dart:io';
 
 /// Walks users through every permission the app needs before setup begins.
 /// Must be completed before the 30-day lock is activated.
@@ -13,14 +14,14 @@ class PermissionsScreen extends StatefulWidget {
 
 class _PermissionsScreenState extends State<PermissionsScreen>
     with WidgetsBindingObserver {
-  static const _platform =
-      MethodChannel('com.example.focus_lock/app_block');
+  static const _platform = MethodChannel('com.example.focus_lock/app_block');
 
   bool _overlayGranted = false;
   bool _accessibilityEnabled = false;
   bool _activityRecognitionGranted = false;
   bool _notificationGranted = false;
   bool _usageAccessGranted = false;
+  bool _batteryExempt = false;
 
   bool get _allRequiredGranted => _overlayGranted && _accessibilityEnabled;
 
@@ -52,6 +53,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
       _checkActivityRecognition(),
       _checkNotification(),
       _checkUsageAccess(),
+      _checkBatteryOptimization(),
     ]);
   }
 
@@ -64,13 +66,11 @@ class _PermissionsScreenState extends State<PermissionsScreen>
 
   Future<void> _checkAccessibility() async {
     try {
-      // Ask the native side; fall back to false if channel not set up yet.
       final enabled = await _platform
           .invokeMethod<bool>('isAccessibilityEnabled')
           .timeout(const Duration(seconds: 2), onTimeout: () => false);
       if (mounted) setState(() => _accessibilityEnabled = enabled ?? false);
     } catch (_) {
-      // Channel not wired yet — treat as not enabled
       if (mounted) setState(() => _accessibilityEnabled = false);
     }
   }
@@ -104,11 +104,25 @@ class _PermissionsScreenState extends State<PermissionsScreen>
     }
   }
 
+  Future<void> _checkBatteryOptimization() async {
+    try {
+      if (!Platform.isAndroid) {
+        if (mounted) setState(() => _batteryExempt = true);
+        return;
+      }
+      final result = await _platform
+          .invokeMethod<bool>('isIgnoringBatteryOptimizations')
+          .timeout(const Duration(seconds: 2), onTimeout: () => false);
+      if (mounted) setState(() => _batteryExempt = result ?? false);
+    } catch (_) {
+      if (mounted) setState(() => _batteryExempt = false);
+    }
+  }
+
   // ── Actions ──────────────────────────────────────────────────────────────
 
   Future<void> _requestOverlay() async {
     try {
-      // On Android, systemAlertWindow.request() opens the Settings page.
       await Permission.systemAlertWindow.request();
       await _checkOverlay();
     } catch (e) {
@@ -120,7 +134,6 @@ class _PermissionsScreenState extends State<PermissionsScreen>
     try {
       await _platform.invokeMethod('openAccessibilitySettings');
     } catch (_) {
-      // If channel not ready, try app settings fallback
       await openAppSettings();
     }
   }
@@ -151,6 +164,15 @@ class _PermissionsScreenState extends State<PermissionsScreen>
     }
   }
 
+  Future<void> _requestBatteryOptimization() async {
+    try {
+      await _platform.invokeMethod('requestIgnoreBatteryOptimizations');
+      await _checkBatteryOptimization();
+    } catch (e) {
+      debugPrint('Battery optimization exemption error: $e');
+    }
+  }
+
   void _proceed() {
     Navigator.of(context).pushReplacementNamed('/setup');
   }
@@ -159,142 +181,220 @@ class _PermissionsScreenState extends State<PermissionsScreen>
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
+    final theme = Theme.of(context);
+    final goldColor = const Color(0xFFC6A85A);
+    final mutedGold = const Color(0xFF8A7A6C);
+    
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Required Permissions'),
+        title: const Text(
+          'Security Configuration',
+          style: TextStyle(
+            color: Color(0xFFC6A85A),
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
+          ),
+        ),
         elevation: 0,
         automaticallyImplyLeading: false,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          // Header
-          Icon(Icons.security, size: 60, color: colorScheme.primary),
-          const SizedBox(height: 16),
-          const Text(
-            'FocusLock needs a few permissions to block Instagram.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            colors: [Color(0xFF14130E), Color(0xFF0A0A0C)],
+            center: Alignment.topCenter,
+            radius: 1.5,
           ),
-          const SizedBox(height: 8),
-          Text(
-            'The first two are required. The rest are optional.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: colorScheme.secondary),
-          ),
-          const SizedBox(height: 28),
-
-          // ── Required ─────────────────────────────────────────────────────
-          _sectionLabel('Required', colorScheme.error),
-          const SizedBox(height: 8),
-
-          _permTile(
-            icon: Icons.layers,
-            title: 'Display Over Other Apps',
-            subtitle:
-                'Lets FocusLock show a block screen on top of Instagram.',
-            granted: _overlayGranted,
-            onTap: _requestOverlay,
-            buttonLabel: 'Open Settings',
-          ),
-          const SizedBox(height: 12),
-
-          _permTile(
-            icon: Icons.accessibility_new,
-            title: 'Accessibility Service',
-            subtitle:
-                'Detects when Instagram is opened so it can be blocked.',
-            granted: _accessibilityEnabled,
-            onTap: _openAccessibilitySettings,
-            buttonLabel: 'Enable Service',
-          ),
-          const SizedBox(height: 28),
-
-          // ── Optional ─────────────────────────────────────────────────────
-          _sectionLabel('Optional', colorScheme.secondary),
-          const SizedBox(height: 8),
-
-          _permTile(
-            icon: Icons.directions_walk,
-            title: 'Physical Activity',
-            subtitle: 'Used for the 10,000-step emergency unlock challenge.',
-            granted: _activityRecognitionGranted,
-            onTap: _requestActivityRecognition,
-            buttonLabel: 'Allow',
-          ),
-          const SizedBox(height: 12),
-
-          _permTile(
-            icon: Icons.notifications,
-            title: 'Notifications',
-            subtitle: 'Shows status notifications while the lock is active.',
-            granted: _notificationGranted,
-            onTap: _requestNotification,
-            buttonLabel: 'Allow',
-          ),
-          const SizedBox(height: 12),
-
-          _permTile(
-            icon: Icons.bar_chart,
-            title: 'Usage Access',
-            subtitle: 'Enables screen time tracking for Instagram, Reddit & Twitter/X.',
-            granted: _usageAccessGranted,
-            onTap: _openUsageAccessSettings,
-            buttonLabel: 'Open Settings',
-          ),
-          const SizedBox(height: 36),
-
-          // Continue button
-          ElevatedButton(
-            onPressed: _allRequiredGranted ? _proceed : null,
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 15),
-            ),
-            child: Text(
-              _allRequiredGranted
-                  ? 'Continue to Setup'
-                  : 'Grant required permissions above',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+        ),
+        child: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          children: [
+            const SizedBox(height: 10),
+            // Header Shield
+            Center(
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    width: 76,
+                    height: 76,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: goldColor.withOpacity(0.08),
+                    ),
+                  ),
+                  Icon(Icons.shield_outlined, size: 48, color: goldColor),
+                ],
               ),
             ),
-          ),
-
-          if (!_allRequiredGranted) ...[
-            const SizedBox(height: 10),
-            Text(
-              'Both required permissions must be granted before you can continue.',
+            const SizedBox(height: 20),
+            const Text(
+              'Unbypassable Defense System',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: colorScheme.secondary),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFFF0E6D2),
+                letterSpacing: 0.5,
+              ),
             ),
+            const SizedBox(height: 8),
+            Text(
+              'FocusLock requires system permissions to secure your lock against modifications, settings bypasses, and task terminations.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: mutedGold,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 30),
+
+            // ── Required Permissions ──
+            _sectionLabel('CRITICAL DEFENSES', const Color(0xFFB54534)),
+            const SizedBox(height: 12),
+
+            _permTile(
+              icon: Icons.layers_outlined,
+              title: 'Display Over Other Apps',
+              subtitle: 'Secures social apps instantly with a gold blocker overlay upon unauthorized entry.',
+              granted: _overlayGranted,
+              onTap: _requestOverlay,
+              buttonLabel: 'Configure',
+            ),
+            const SizedBox(height: 12),
+
+            _permTile(
+              icon: Icons.accessibility_new_outlined,
+              title: 'Accessibility Control',
+              subtitle: 'Active background blocker daemon detecting and preventing unauthorized settings changes and package managers.',
+              granted: _accessibilityEnabled,
+              onTap: _openAccessibilitySettings,
+              buttonLabel: 'Configure',
+            ),
+            const SizedBox(height: 28),
+
+            // ── Optional/Recommended Permissions ──
+            _sectionLabel('SYSTEM DURABILITY', const Color(0xFFC6A85A)),
+            const SizedBox(height: 12),
+
+            _permTile(
+              icon: Icons.battery_saver_outlined,
+              title: 'Battery Optimization Exemption',
+              subtitle: 'Exempts FocusLock from background termination policies to guarantee continuous protection.',
+              granted: _batteryExempt,
+              onTap: _requestBatteryOptimization,
+              buttonLabel: 'Exempt',
+            ),
+            const SizedBox(height: 12),
+
+            _permTile(
+              icon: Icons.bar_chart_outlined,
+              title: 'App Usage Metrics',
+              subtitle: 'Tracks real-time active screen-time metrics to accurately compute daily usage rules.',
+              granted: _usageAccessGranted,
+              onTap: _openUsageAccessSettings,
+              buttonLabel: 'Configure',
+            ),
+            const SizedBox(height: 12),
+
+            _permTile(
+              icon: Icons.notifications_none_outlined,
+              title: 'System Notifications',
+              subtitle: 'Enables high-priority persistent notifications required to keep Android from killing the block service.',
+              granted: _notificationGranted,
+              onTap: _requestNotification,
+              buttonLabel: 'Allow',
+            ),
+            const SizedBox(height: 12),
+
+            _permTile(
+              icon: Icons.directions_walk_outlined,
+              title: 'Physical Activity Sensor',
+              subtitle: 'Detects steps taken to unlock the fallback rescue door.',
+              granted: _activityRecognitionGranted,
+              onTap: _requestActivityRecognition,
+              buttonLabel: 'Allow',
+            ),
+            const SizedBox(height: 40),
+
+            // Continue action
+            ElevatedButton(
+              onPressed: _allRequiredGranted ? _proceed : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _allRequiredGranted ? goldColor : const Color(0xFF222226),
+                foregroundColor: _allRequiredGranted ? const Color(0xFF0F0E0B) : mutedGold,
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: BorderSide(
+                    color: _allRequiredGranted ? goldColor : Colors.transparent,
+                    width: 1,
+                  ),
+                ),
+                elevation: _allRequiredGranted ? 4 : 0,
+                shadowColor: goldColor.withOpacity(0.3),
+              ),
+              child: Text(
+                _allRequiredGranted
+                    ? 'ACTIVATE SHIELD SETUP'
+                    : 'GRANT CRITICAL DEFENSES ABOVE',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.5,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Both critical defenses must be active to initiate setup.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 11,
+                color: _allRequiredGranted ? mutedGold.withOpacity(0.6) : const Color(0xFFB54534),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 24),
           ],
-        ],
+        ),
       ),
     );
   }
 
-  Widget _sectionLabel(String label, Color color) {
+  Widget _sectionLabel(String label, Color accentColor) {
     return Row(
       children: [
         Container(
-          width: 4,
-          height: 16,
+          width: 3,
+          height: 14,
           decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(2),
+            color: accentColor,
+            borderRadius: BorderRadius.circular(1.5),
+            boxShadow: [
+              BoxShadow(
+                color: accentColor.withOpacity(0.5),
+                blurRadius: 4,
+              ),
+            ],
           ),
         ),
         const SizedBox(width: 8),
         Text(
           label,
           style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: color,
-            letterSpacing: 0.5,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            color: accentColor,
+            letterSpacing: 1.5,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Divider(
+            color: accentColor.withOpacity(0.15),
+            thickness: 1,
           ),
         ),
       ],
@@ -309,56 +409,133 @@ class _PermissionsScreenState extends State<PermissionsScreen>
     required VoidCallback onTap,
     required String buttonLabel,
   }) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final successColor = const Color(0xFF2E7D63);
-    final borderColor = granted ? successColor.withOpacity(0.4) : const Color(0xFF222228);
+    final goldColor = const Color(0xFFC6A85A);
+    final forestGreen = const Color(0xFF1B4332);
+    final activeGreen = const Color(0xFF4ADE80);
+    
+    final cardColor = granted ? const Color(0xFF0D0F0E) : const Color(0xFF131316);
+    final borderColor = granted 
+        ? forestGreen.withOpacity(0.6) 
+        : goldColor.withOpacity(0.25);
+        
+    final glowColor = granted 
+        ? activeGreen.withOpacity(0.03) 
+        : goldColor.withOpacity(0.04);
 
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        color: cardColor,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: borderColor,
           width: 1.2,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: glowColor,
+            blurRadius: 10,
+            spreadRadius: 1,
+          ),
+        ],
       ),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon,
-              size: 32,
-              color: granted ? successColor : colorScheme.secondary),
-          const SizedBox(width: 14),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: granted ? activeGreen.withOpacity(0.06) : goldColor.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              icon,
+              size: 24,
+              color: granted ? activeGreen : goldColor,
+            ),
+          ),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 14)),
-                const SizedBox(height: 2),
-                Text(subtitle,
-                    style: TextStyle(
-                        fontSize: 12, color: colorScheme.secondary)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: Color(0xFFF0E6D2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    // Small capsule status badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: granted 
+                            ? activeGreen.withOpacity(0.1) 
+                            : goldColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        granted ? 'SECURED' : 'PENDING',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          color: granted ? activeGreen : goldColor,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    color: Color(0xFF8A7A6C),
+                    height: 1.4,
+                  ),
+                ),
+                if (!granted) ...[
+                  const SizedBox(height: 14),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: SizedBox(
+                      height: 32,
+                      child: ElevatedButton(
+                        onPressed: onTap,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: goldColor.withOpacity(0.12),
+                          foregroundColor: goldColor,
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            side: BorderSide(color: goldColor.withOpacity(0.4), width: 1),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: Text(
+                          buttonLabel.toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          granted
-              ? Icon(Icons.check_circle, color: successColor, size: 28)
-              : TextButton(
-                  onPressed: onTap,
-                  style: TextButton.styleFrom(
-                    backgroundColor: colorScheme.primary.withOpacity(0.1),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
-                  ),
-                  child: Text(buttonLabel,
-                      style: TextStyle(
-                          fontSize: 12, color: colorScheme.primary, fontWeight: FontWeight.bold)),
-                ),
         ],
       ),
     );

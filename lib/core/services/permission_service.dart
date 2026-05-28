@@ -119,6 +119,30 @@ class PermissionService {
     }
   }
 
+  /// Check if battery optimizations are ignored (exempted)
+  Future<bool> isIgnoringBatteryOptimizations() async {
+    try {
+      if (!Platform.isAndroid) return true;
+      final result = await _channel.invokeMethod<bool>('isIgnoringBatteryOptimizations');
+      return result == true;
+    } catch (e) {
+      debugPrint('Error checking battery optimization exemption: $e');
+      return true;
+    }
+  }
+
+  /// Request battery optimization exemption
+  Future<bool> requestIgnoreBatteryOptimizations() async {
+    try {
+      if (!Platform.isAndroid) return true;
+      final result = await _channel.invokeMethod<bool>('requestIgnoreBatteryOptimizations');
+      return result == true;
+    } catch (e) {
+      debugPrint('Error requesting battery optimization exemption: $e');
+      return false;
+    }
+  }
+
   /// Tell the native side to start blocking now.
   Future<bool> startBlocking() async {
     try {
@@ -138,6 +162,7 @@ class PermissionService {
     results['activityRecognition'] = await requestActivityRecognition();
     results['overlay'] = await hasOverlayPermission();
     results['accessibility'] = await isAccessibilityServiceEnabled();
+    results['batteryOptimization'] = await isIgnoringBatteryOptimizations();
 
     return results;
   }

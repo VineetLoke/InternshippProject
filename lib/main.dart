@@ -55,7 +55,7 @@ class FocusLockApp extends StatelessWidget {
           useMaterial3: true,
           brightness: Brightness.dark,
           colorScheme: colorScheme,
-          scaffoldBackgroundColor: colorScheme.surface,
+          scaffoldBackgroundColor: const Color(0xFF0A0A0C),
           appBarTheme: const AppBarTheme(
             backgroundColor: Colors.transparent,
             foregroundColor: Color(0xFFC6A85A),
