@@ -5,7 +5,7 @@ import 'package:focus_lock/features/app_blocker/presentation/providers/lock_stat
 import 'package:focus_lock/features/app_blocker/services/timer_service.dart';
 
 class EmergencyUnlockScreen extends StatefulWidget {
-  const EmergencyUnlockScreen({Key? key}) : super(key: key);
+  const EmergencyUnlockScreen({super.key});
 
   @override
   State<EmergencyUnlockScreen> createState() => _EmergencyUnlockScreenState();
@@ -70,7 +70,7 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
+                border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)),
               ),
               child: Text(
                 password,
@@ -90,10 +90,9 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
           TextButton(
             onPressed: () async {
               await lockProvider.unlockApp();
-              if (mounted) {
-                Navigator.of(context).pop();
-                Navigator.of(context).pushReplacementNamed('/home');
-              }
+              if (!mounted) return;
+              Navigator.of(context).pop();
+              Navigator.of(context).pushReplacementNamed('/home');
             },
             child: const Text('Finish Unlock'),
           ),
@@ -162,9 +161,8 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
                     OutlinedButton(
                       onPressed: () async {
                         await context.read<LockStateProvider>().cancelEmergencyUnlock();
-                        if (mounted) {
-                          Navigator.of(context).pop();
-                        }
+                        if (!mounted) return;
+                        Navigator.of(context).pop();
                       },
                       child: const Text('Cancel Emergency Unlock'),
                     ),
@@ -188,8 +186,8 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
   }
 
   Widget _buildHeroCard(bool ready) {
-    final successColor = const Color(0xFF2E7D63);
-    final warningColor = const Color(0xFFC6A85A);
+    const successColor = Color(0xFF2E7D63);
+    const warningColor = Color(0xFFC6A85A);
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
@@ -200,7 +198,7 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
               : [const Color(0xFF16161A), const Color(0xFF222228)],
         ),
         border: Border.all(
-          color: ready ? successColor.withOpacity(0.5) : warningColor.withOpacity(0.3),
+          color: ready ? successColor.withValues(alpha: 0.5) : warningColor.withValues(alpha: 0.3),
           width: 1.2,
         ),
         boxShadow: const [
@@ -218,7 +216,7 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(
@@ -242,7 +240,7 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
                 ? 'Your password can now be revealed safely.'
                 : 'Both safeguards must complete before the password is shown.',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.86),
+              color: Colors.white.withValues(alpha: 0.86),
               fontSize: 14,
               height: 1.4,
             ),
@@ -267,7 +265,7 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: isComplete ? accent.withOpacity(0.4) : const Color(0xFF222228),
+          color: isComplete ? accent.withValues(alpha: 0.4) : const Color(0xFF222228),
           width: 1.2,
         ),
       ),
@@ -280,7 +278,7 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: accent.withOpacity(0.1),
+                  color: accent.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(icon, color: accent),
@@ -321,7 +319,7 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
 
   Widget _buildStepsPanel(LockStateProvider lockProvider, bool stepsComplete) {
     final colorScheme = Theme.of(context).colorScheme;
-    final successColor = const Color(0xFF2E7D63);
+    const successColor = Color(0xFF2E7D63);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -388,8 +386,8 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
   ) {
     String text;
     Color color;
-    final successColor = const Color(0xFF2E7D63);
-    final warningColor = const Color(0xFFC87032);
+    const successColor = Color(0xFF2E7D63);
+    const warningColor = Color(0xFFC87032);
     final goldColor = Theme.of(context).colorScheme.primary;
 
     if (ready) {
@@ -409,9 +407,9 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -435,22 +433,22 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
   }
 
   Widget _buildCompleteBanner(String text) {
-    final successColor = const Color(0xFF2E7D63);
+    const successColor = Color(0xFF2E7D63);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: successColor.withOpacity(0.1),
+        color: successColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: successColor.withOpacity(0.3)),
+        border: Border.all(color: successColor.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          Icon(Icons.check_circle_rounded, color: successColor),
+          const Icon(Icons.check_circle_rounded, color: successColor),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               text,
-              style: TextStyle(
+              style: const TextStyle(
                 color: successColor,
                 fontWeight: FontWeight.w600,
               ),
@@ -466,7 +464,7 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
     final hours = remaining.inHours;
     final minutes = remaining.inMinutes % 60;
     final seconds = remaining.inSeconds % 60;
-    final warningColor = const Color(0xFFC87032);
+    const warningColor = Color(0xFFC87032);
 
     return Container(
       width: double.infinity,
@@ -474,13 +472,13 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: warningColor.withOpacity(0.3)),
+        border: Border.all(color: warningColor.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
           Text(
             '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}',
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.w800,
               color: warningColor,

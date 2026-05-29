@@ -6,7 +6,7 @@ import 'dart:io';
 /// Walks users through every permission the app needs before setup begins.
 /// Must be completed before the 30-day lock is activated.
 class PermissionsScreen extends StatefulWidget {
-  const PermissionsScreen({Key? key}) : super(key: key);
+  const PermissionsScreen({super.key});
 
   @override
   State<PermissionsScreen> createState() => _PermissionsScreenState();
@@ -181,9 +181,8 @@ class _PermissionsScreenState extends State<PermissionsScreen>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final goldColor = const Color(0xFFC6A85A);
-    final mutedGold = const Color(0xFF8A7A6C);
+    const goldColor = Color(0xFFC6A85A);
+    const mutedGold = Color(0xFF8A7A6C);
     
     return Scaffold(
       appBar: AppBar(
@@ -220,10 +219,10 @@ class _PermissionsScreenState extends State<PermissionsScreen>
                     height: 76,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: goldColor.withOpacity(0.08),
+                      color: goldColor.withValues(alpha: 0.08),
                     ),
                   ),
-                  Icon(Icons.shield_outlined, size: 48, color: goldColor),
+                  const Icon(Icons.shield_outlined, size: 48, color: goldColor),
                 ],
               ),
             ),
@@ -239,7 +238,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
               ),
             ),
             const SizedBox(height: 8),
-            Text(
+            const Text(
               'FocusLock requires system permissions to secure your lock against modifications, settings bypasses, and task terminations.',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -333,7 +332,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
                   ),
                 ),
                 elevation: _allRequiredGranted ? 4 : 0,
-                shadowColor: goldColor.withOpacity(0.3),
+                shadowColor: goldColor.withValues(alpha: 0.3),
               ),
               child: Text(
                 _allRequiredGranted
@@ -352,7 +351,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 11,
-                color: _allRequiredGranted ? mutedGold.withOpacity(0.6) : const Color(0xFFB54534),
+                color: _allRequiredGranted ? mutedGold.withValues(alpha: 0.6) : const Color(0xFFB54534),
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -374,7 +373,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
             borderRadius: BorderRadius.circular(1.5),
             boxShadow: [
               BoxShadow(
-                color: accentColor.withOpacity(0.5),
+                color: accentColor.withValues(alpha: 0.5),
                 blurRadius: 4,
               ),
             ],
@@ -393,7 +392,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
         const SizedBox(width: 12),
         Expanded(
           child: Divider(
-            color: accentColor.withOpacity(0.15),
+            color: accentColor.withValues(alpha: 0.15),
             thickness: 1,
           ),
         ),
@@ -409,18 +408,18 @@ class _PermissionsScreenState extends State<PermissionsScreen>
     required VoidCallback onTap,
     required String buttonLabel,
   }) {
-    final goldColor = const Color(0xFFC6A85A);
-    final forestGreen = const Color(0xFF1B4332);
-    final activeGreen = const Color(0xFF4ADE80);
+    const goldColor = Color(0xFFC6A85A);
+    const forestGreen = Color(0xFF1B4332);
+    const activeGreen = Color(0xFF4ADE80);
     
     final cardColor = granted ? const Color(0xFF0D0F0E) : const Color(0xFF131316);
     final borderColor = granted 
-        ? forestGreen.withOpacity(0.6) 
-        : goldColor.withOpacity(0.25);
+        ? forestGreen.withValues(alpha: 0.6)
+        : goldColor.withValues(alpha: 0.25);
         
     final glowColor = granted 
-        ? activeGreen.withOpacity(0.03) 
-        : goldColor.withOpacity(0.04);
+        ? activeGreen.withValues(alpha: 0.03)
+        : goldColor.withValues(alpha: 0.04);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -446,7 +445,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: granted ? activeGreen.withOpacity(0.06) : goldColor.withOpacity(0.06),
+              color: granted ? activeGreen.withValues(alpha: 0.06) : goldColor.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
@@ -478,8 +477,8 @@ class _PermissionsScreenState extends State<PermissionsScreen>
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: granted 
-                            ? activeGreen.withOpacity(0.1) 
-                            : goldColor.withOpacity(0.1),
+                            ? activeGreen.withValues(alpha: 0.1)
+                            : goldColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -512,12 +511,12 @@ class _PermissionsScreenState extends State<PermissionsScreen>
                       child: ElevatedButton(
                         onPressed: onTap,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: goldColor.withOpacity(0.12),
+                          backgroundColor: goldColor.withValues(alpha: 0.12),
                           foregroundColor: goldColor,
                           padding: const EdgeInsets.symmetric(horizontal: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
-                            side: BorderSide(color: goldColor.withOpacity(0.4), width: 1),
+                            side: BorderSide(color: goldColor.withValues(alpha: 0.4), width: 1),
                           ),
                           elevation: 0,
                         ),

@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:focus_lock/features/app_blocker/presentation/providers/lock_state_provider.dart';
 
 class LockScreen extends StatefulWidget {
-  const LockScreen({Key? key}) : super(key: key);
+  const LockScreen({super.key});
 
   @override
   State<LockScreen> createState() => _LockScreenState();
@@ -43,12 +43,13 @@ class _LockScreenState extends State<LockScreen> {
               // Auto-navigate to home if unlocked (one-shot guard)
               _hasNavigated = true;
               Future.microtask(() {
+                if (!mounted) return;
                 Navigator.of(context).pushReplacementNamed('/home');
               });
             }
 
-            final goldColor = const Color(0xFFC6A85A);
-            final mutedGold = const Color(0xFF8A7A6C);
+            const goldColor = Color(0xFFC6A85A);
+            const mutedGold = Color(0xFF8A7A6C);
 
             return Container(
               decoration: const BoxDecoration(
@@ -67,14 +68,14 @@ class _LockScreenState extends State<LockScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: goldColor.withOpacity(0.05),
+                        color: goldColor.withValues(alpha: 0.05),
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: goldColor.withOpacity(0.15),
+                          color: goldColor.withValues(alpha: 0.15),
                           width: 1,
                         ),
                       ),
-                      child: Icon(
+                      child: const Icon(
                         Icons.lock_outline_rounded,
                         size: 36,
                         color: goldColor,
@@ -106,7 +107,7 @@ class _LockScreenState extends State<LockScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Text(
+                    const Text(
                       'Instagram, Reddit, & Twitter/X are inaccessible.',
                       style: TextStyle(
                         fontSize: 12,
@@ -131,9 +132,8 @@ class _LockScreenState extends State<LockScreen> {
                           onTapCancel: () => setState(() => _buttonScale = 1.0),
                           onTap: () async {
                             await lockProvider.requestEmergencyUnlock();
-                            if (mounted) {
-                              Navigator.of(context).pushNamed('/emergency');
-                            }
+                            if (!mounted) return;
+                            Navigator.of(context).pushNamed('/emergency');
                           },
                           child: AnimatedScale(
                             scale: _buttonScale,
@@ -147,7 +147,7 @@ class _LockScreenState extends State<LockScreen> {
                                 borderRadius: BorderRadius.circular(16),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: goldColor.withOpacity(0.25),
+                                    color: goldColor.withValues(alpha: 0.25),
                                     blurRadius: 15,
                                     spreadRadius: 1,
                                     offset: const Offset(0, 4),
@@ -187,8 +187,8 @@ class _LockScreenState extends State<LockScreen> {
   }
 
   Widget _buildCircularCountdown(LockStateProvider lockProvider) {
-    final goldColor = const Color(0xFFC6A85A);
-    final mutedGold = const Color(0xFF8A7A6C);
+    const goldColor = Color(0xFFC6A85A);
+    const mutedGold = Color(0xFF8A7A6C);
     
     // Normal progress visual representation out of 30 days maximum
     final double progress = (lockProvider.remainingDays.clamp(0, 30)) / 30.0;
@@ -204,7 +204,7 @@ class _LockScreenState extends State<LockScreen> {
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: goldColor.withOpacity(0.03),
+                color: goldColor.withValues(alpha: 0.03),
                 blurRadius: 30,
                 spreadRadius: 2,
               ),
@@ -219,8 +219,8 @@ class _LockScreenState extends State<LockScreen> {
           child: CircularProgressIndicator(
             value: progress,
             strokeWidth: 8,
-            backgroundColor: Colors.white.withOpacity(0.02),
-            valueColor: AlwaysStoppedAnimation<Color>(goldColor),
+            backgroundColor: Colors.white.withValues(alpha: 0.02),
+            valueColor: const AlwaysStoppedAnimation<Color>(goldColor),
           ),
         ),
         
@@ -238,7 +238,7 @@ class _LockScreenState extends State<LockScreen> {
               ),
             ),
             const SizedBox(height: 4),
-            Text(
+            const Text(
               'DAYS REMAINING',
               style: TextStyle(
                 fontSize: 9,
@@ -251,10 +251,10 @@ class _LockScreenState extends State<LockScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.04),
+                color: Colors.white.withValues(alpha: 0.04),
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.08),
+                  color: Colors.white.withValues(alpha: 0.08),
                   width: 1,
                 ),
               ),

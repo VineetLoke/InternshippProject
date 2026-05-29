@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:focus_lock/features/app_blocker/presentation/providers/lock_state_provider.dart';
 
 class SetupScreen extends StatefulWidget {
-  const SetupScreen({Key? key}) : super(key: key);
+  const SetupScreen({super.key});
 
   @override
   State<SetupScreen> createState() => _SetupScreenState();
@@ -135,7 +135,7 @@ class _SetupScreenState extends State<SetupScreen> {
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
+                border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

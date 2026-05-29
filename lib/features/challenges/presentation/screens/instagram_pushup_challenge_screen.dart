@@ -6,14 +6,13 @@ import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:focus_lock/features/challenges/services/camera_pushup_detector.dart';
 import 'package:focus_lock/features/challenges/presentation/widgets/pose_painter.dart';
-import 'package:focus_lock/features/app_blocker/services/instagram_block_service.dart';
 
 /// Emergency unlock screen for Instagram.
 ///
 /// Requires 100 pushups verified by camera to grant 10 minutes of access.
 /// Uses ML Kit Pose Detection for cheat-proof pushup verification.
 class InstagramPushupChallengeScreen extends StatefulWidget {
-  const InstagramPushupChallengeScreen({Key? key}) : super(key: key);
+  const InstagramPushupChallengeScreen({super.key});
 
   @override
   State<InstagramPushupChallengeScreen> createState() =>
@@ -26,7 +25,6 @@ class _InstagramPushupChallengeScreenState
   static const int _requiredPushups = 100;
   static const _channel = MethodChannel('com.example.focus_lock/app_block');
 
-  final _igService = InstagramBlockService();
   final _detector = CameraPushupDetector();
 
   StreamSubscription<int>? _countSub;
@@ -197,7 +195,8 @@ class _InstagramPushupChallengeScreenState
           icon: const Icon(Icons.arrow_back),
           onPressed: () async {
             await _stopDetection();
-            if (mounted) Navigator.of(context).pop();
+            if (!mounted) return;
+            Navigator.of(context).pop();
           },
         ),
       ),
@@ -219,9 +218,9 @@ class _InstagramPushupChallengeScreenState
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: colorScheme.primary.withOpacity(0.08),
+                  color: colorScheme.primary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: colorScheme.primary.withOpacity(0.2)),
+                  border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2)),
                 ),
                 child: Text(
                   '100 pushups = 10 min access',
@@ -245,7 +244,7 @@ class _InstagramPushupChallengeScreenState
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: _stageColor.withOpacity(0.18),
+                          color: _stageColor.withValues(alpha: 0.18),
                           blurRadius: 16,
                           spreadRadius: 1,
                         ),
@@ -396,7 +395,7 @@ class _InstagramPushupChallengeScreenState
               height: 80,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.black.withOpacity(0.7),
+                color: Colors.black.withValues(alpha: 0.7),
                 border: Border.all(
                   color: progress >= 1.0
                       ? const Color(0xFF4ADE80)
@@ -439,7 +438,7 @@ class _InstagramPushupChallengeScreenState
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: _stageColor.withOpacity(0.85),
+                color: _stageColor.withValues(alpha: 0.85),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
@@ -475,7 +474,7 @@ class _InstagramPushupChallengeScreenState
           right: 0,
           child: LinearProgressIndicator(
             value: progress,
-            backgroundColor: Colors.black.withOpacity(0.4),
+            backgroundColor: Colors.black.withValues(alpha: 0.4),
             valueColor: AlwaysStoppedAnimation<Color>(
               progress >= 1.0
                   ? const Color(0xFF4ADE80)
@@ -495,9 +494,9 @@ class _InstagramPushupChallengeScreenState
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: _stageColor.withOpacity(0.08),
+          color: _stageColor.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _stageColor.withOpacity(0.25)),
+          border: Border.all(color: _stageColor.withValues(alpha: 0.25)),
         ),
         child: Text(
           _feedback,
@@ -533,7 +532,7 @@ class _InstagramPushupChallengeScreenState
             width: 18,
             height: 18,
             decoration: BoxDecoration(
-              color: colorScheme.primary.withOpacity(0.12),
+              color: colorScheme.primary.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: Center(

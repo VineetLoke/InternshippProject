@@ -30,7 +30,7 @@ void main() async {
 }
 
 class FocusLockApp extends StatelessWidget {
-  const FocusLockApp({Key? key}) : super(key: key);
+  const FocusLockApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -81,7 +81,7 @@ class FocusLockApp extends StatelessWidget {
           outlinedButtonTheme: OutlinedButtonThemeData(
             style: OutlinedButton.styleFrom(
               foregroundColor: colorScheme.primary,
-              side: BorderSide(color: colorScheme.primary.withOpacity(0.3)),
+              side: BorderSide(color: colorScheme.primary.withValues(alpha: 0.3)),
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),

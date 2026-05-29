@@ -7,7 +7,7 @@ import 'package:focus_lock/features/dashboard/services/app_log_service.dart';
 import 'package:focus_lock/features/chrome_filter/services/chrome_filter_service.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -80,14 +80,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final goldColor = const Color(0xFFC6A85A);
+    const goldColor = Color(0xFFC6A85A);
     
     return Scaffold(
       appBar: AppBar(
         title: const Text(
           'FOCUSLOCK',
           style: TextStyle(
-            fontWeight: FontWeight.black,
+            fontWeight: FontWeight.w900,
             fontSize: 16,
             letterSpacing: 2.0,
             color: Color(0xFFC6A85A),
@@ -193,7 +193,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: glowColor ?? Colors.black.withOpacity(0.2),
+            color: glowColor ?? Colors.black.withValues(alpha: 0.2),
             blurRadius: 12,
             spreadRadius: 1,
             offset: const Offset(0, 4),
@@ -207,20 +207,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── Status Header Card ──────────────────────────────────────────────
   Widget _buildStatusCard(LockStateProvider lockProvider) {
-    final goldColor = const Color(0xFFC6A85A);
-    final warningColor = const Color(0xFFB54534);
-    final successColor = const Color(0xFF1B4332);
-    final activeGreen = const Color(0xFF4ADE80);
+    const goldColor = Color(0xFFC6A85A);
+    const warningColor = Color(0xFFB54534);
+    const successColor = Color(0xFF1B4332);
+    const activeGreen = Color(0xFF4ADE80);
 
-    final activeColor = lockProvider.isLocked ? warningColor : goldColor;
-    final bannerColor = lockProvider.isLocked ? warningColor.withOpacity(0.06) : successColor.withOpacity(0.1);
-    final outlineColor = lockProvider.isLocked ? warningColor.withOpacity(0.4) : activeGreen.withOpacity(0.4);
+    final bannerColor = lockProvider.isLocked ? warningColor.withValues(alpha: 0.06) : successColor.withValues(alpha: 0.1);
+    final outlineColor = lockProvider.isLocked ? warningColor.withValues(alpha: 0.4) : activeGreen.withValues(alpha: 0.4);
 
     return _buildGlassCard(
       borderColor: outlineColor,
       glowColor: lockProvider.isLocked 
-          ? warningColor.withOpacity(0.04) 
-          : activeGreen.withOpacity(0.04),
+          ? warningColor.withValues(alpha: 0.04)
+          : activeGreen.withValues(alpha: 0.04),
       child: Container(
         decoration: BoxDecoration(
           color: bannerColor,
@@ -232,7 +231,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: (lockProvider.isLocked ? warningColor : activeGreen).withOpacity(0.1),
+                color: (lockProvider.isLocked ? warningColor : activeGreen).withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -267,12 +266,12 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.04),
+                  color: Colors.white.withValues(alpha: 0.04),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   '${lockProvider.remainingDays} Days Left',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: goldColor,
@@ -327,19 +326,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── Emergency Unlock Control ────────────────────────────────────────
   Widget _buildEmergencyUnlockButton(LockStateProvider lockProvider) {
-    final goldColor = const Color(0xFFC6A85A);
-    final warningColor = const Color(0xFFB54534);
+    const goldColor = Color(0xFFC6A85A);
+    const warningColor = Color(0xFFB54534);
 
     return _buildGlassCard(
-      borderColor: warningColor.withOpacity(0.3),
+      borderColor: warningColor.withValues(alpha: 0.3),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
+          const Row(
             children: [
               Icon(Icons.warning_amber_rounded, color: warningColor, size: 20),
-              const SizedBox(width: 8),
-              const Text(
+              SizedBox(width: 8),
+              Text(
                 'Emergency Unlock System',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
@@ -365,7 +364,7 @@ class _HomeScreenState extends State<HomeScreen> {
               foregroundColor: goldColor,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
-                side: BorderSide(color: goldColor.withOpacity(0.3)),
+                side: BorderSide(color: goldColor.withValues(alpha: 0.3)),
               ),
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
@@ -385,10 +384,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildEmergencyUnlockProgress(LockStateProvider lockProvider) {
     final colorScheme = Theme.of(context).colorScheme;
-    final goldColor = const Color(0xFFC6A85A);
+    const goldColor = Color(0xFFC6A85A);
 
     return _buildGlassCard(
-      borderColor: goldColor.withOpacity(0.4),
+      borderColor: goldColor.withValues(alpha: 0.4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -410,7 +409,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: colorScheme.error.withOpacity(0.1),
+                    color: colorScheme.error.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -440,8 +439,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildProgressSection(String title, Duration duration, String subtitle) {
-    final goldColor = const Color(0xFFC6A85A);
-    final activeGreen = const Color(0xFF4ADE80);
+    const goldColor = Color(0xFFC6A85A);
+    const activeGreen = Color(0xFF4ADE80);
 
     final complete = duration.inSeconds <= 0;
 
@@ -482,19 +481,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── Screen Time Dashboard ──────────────────────────────────────────
   Widget _buildScreenTimeDashboard() {
-    final goldColor = const Color(0xFFC6A85A);
-    final warningColor = const Color(0xFFB54534);
+    const goldColor = Color(0xFFC6A85A);
+    const warningColor = Color(0xFFB54534);
 
     if (!_hasUsagePermission) {
       return _buildGlassCard(
-        borderColor: warningColor.withOpacity(0.3),
+        borderColor: warningColor.withValues(alpha: 0.3),
         child: Column(
           children: [
-            Row(
+            const Row(
               children: [
                 Icon(Icons.screen_lock_portrait_rounded, color: warningColor, size: 20),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'Screen Time Dashboard',
                   style: TextStyle(
                     fontSize: 15,
@@ -517,9 +516,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: const Icon(Icons.settings_outlined, size: 16),
                 label: const Text('AUTHORIZE MONITORING'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: warningColor.withOpacity(0.12),
+                  backgroundColor: warningColor.withValues(alpha: 0.12),
                   foregroundColor: warningColor,
-                  side: BorderSide(color: warningColor.withOpacity(0.3)),
+                  side: BorderSide(color: warningColor.withValues(alpha: 0.3)),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   elevation: 0,
@@ -544,11 +543,11 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               Icon(Icons.analytics_outlined, color: goldColor, size: 20),
-              const SizedBox(width: 8),
-              const Text(
+              SizedBox(width: 8),
+              Text(
                 'Screen Time Today',
                 style: TextStyle(
                   fontSize: 15,
@@ -577,9 +576,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     width: 36,
                     height: 36,
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.06),
+                      color: color.withValues(alpha: 0.06),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: color.withOpacity(0.2)),
+                      border: Border.all(color: color.withValues(alpha: 0.2)),
                     ),
                     child: Icon(icon, color: color, size: 18),
                   ),
@@ -597,10 +596,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: heavyUsage ? warningColor.withOpacity(0.08) : const Color(0xFF1C1B1F),
+                      color: heavyUsage ? warningColor.withValues(alpha: 0.08) : const Color(0xFF1C1B1F),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: heavyUsage ? warningColor.withOpacity(0.3) : const Color(0xFF222226),
+                        color: heavyUsage ? warningColor.withValues(alpha: 0.3) : const Color(0xFF222226),
                       ),
                     ),
                     child: Text(
@@ -623,7 +622,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── App Open Counts Card Grid ──────────────────────────────────────
   Widget _buildAppOpenCountsCard() {
-    final goldColor = const Color(0xFFC6A85A);
+    const goldColor = Color(0xFFC6A85A);
     final apps = [
       {'pkg': 'com.instagram.android', 'name': 'Instagram', 'color': Colors.pink},
       {'pkg': 'com.reddit.frontpage', 'name': 'Reddit', 'color': Colors.deepOrange},
@@ -634,11 +633,11 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               Icon(Icons.touch_app_outlined, color: goldColor, size: 20),
-              const SizedBox(width: 8),
-              const Text(
+              SizedBox(width: 8),
+              Text(
                 'Interceptions Today',
                 style: TextStyle(
                   fontSize: 15,
@@ -663,7 +662,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   decoration: BoxDecoration(
                     color: const Color(0xFF17171C),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: color.withOpacity(0.15)),
+                    border: Border.all(color: color.withValues(alpha: 0.15)),
                   ),
                   child: Column(
                     children: [
@@ -697,22 +696,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── Chrome Filter Card ──────────────────────────────────────────────
   Widget _buildChromeFilterCard() {
-    final goldColor = const Color(0xFFC6A85A);
     final isActive = (_chromeFilterStatus['isActive'] ?? false) as bool;
-    final activeGreen = const Color(0xFF4ADE80);
-    final warningColor = const Color(0xFFB54534);
+    const activeGreen = Color(0xFF4ADE80);
+    const warningColor = Color(0xFFB54534);
 
     final statusColor = isActive ? activeGreen : warningColor;
     final statusText = isActive ? 'ENFORCED' : 'DISABLED';
 
     return _buildGlassCard(
-      borderColor: statusColor.withOpacity(0.3),
+      borderColor: statusColor.withValues(alpha: 0.3),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.06),
+              color: statusColor.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
@@ -751,7 +749,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
+              color: statusColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
@@ -771,7 +769,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── App Open Logs Card ──────────────────────────────────────────────
   Widget _buildAppOpenLogsCard() {
-    final goldColor = const Color(0xFFC6A85A);
+    const goldColor = Color(0xFFC6A85A);
     final displayLogs = _appLogs.take(10).toList();
 
     return _buildGlassCard(
@@ -780,7 +778,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.history_toggle_off_rounded, color: goldColor, size: 20),
+              const Icon(Icons.history_toggle_off_rounded, color: goldColor, size: 20),
               const SizedBox(width: 8),
               const Text(
                 'Recent Intercept Audit Logs',
@@ -794,7 +792,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.04),
+                  color: Colors.white.withValues(alpha: 0.04),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
@@ -870,8 +868,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── Reddit Usage Card ───────────────────────────────────────────────
   Widget _buildRedditUsageCard() {
-    final goldColor = const Color(0xFFC6A85A);
-    final warningColor = const Color(0xFFB54534);
+    const goldColor = Color(0xFFC6A85A);
+    const warningColor = Color(0xFFB54534);
 
     final usedSec = (_redditStatus['usedSeconds'] ?? 0) as int;
     final limitSec = (_redditStatus['limitSeconds'] ?? 3600) as int;
@@ -883,7 +881,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final activeAccent = isLimitReached ? warningColor : goldColor;
 
     return _buildGlassCard(
-      borderColor: activeAccent.withOpacity(0.3),
+      borderColor: activeAccent.withValues(alpha: 0.3),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -953,9 +951,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: const Icon(Icons.fitness_center_outlined, size: 18),
                 label: const Text('EARN +10 MINUTES (100 PUSHUPS)'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: warningColor.withOpacity(0.12),
+                  backgroundColor: warningColor.withValues(alpha: 0.12),
                   foregroundColor: warningColor,
-                  side: BorderSide(color: warningColor.withOpacity(0.3)),
+                  side: BorderSide(color: warningColor.withValues(alpha: 0.3)),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   elevation: 0,
@@ -974,30 +972,30 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── System Mechanics Information Card ──────────────────────────────
   Widget _buildInfoCard() {
-    final goldColor = const Color(0xFFC6A85A);
+    const goldColor = Color(0xFFC6A85A);
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFF0F0E0B),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: goldColor.withOpacity(0.2), width: 1),
+        border: Border.all(color: goldColor.withValues(alpha: 0.2), width: 1),
       ),
-      child: Column(
+      child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Icon(Icons.info_outline, color: goldColor, size: 18),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Text(
                 'FocusLock Core Dynamics',
                 style: TextStyle(fontWeight: FontWeight.bold, color: goldColor, fontSize: 13),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          const Text(
+          SizedBox(height: 12),
+          Text(
             '• Immediate overlay shields block access to distraction apps.\n'
             '• Physical effort required to temporarily access Reddit.\n'
             '• Device Administrator prevents impulsive app uninstalls.\n'

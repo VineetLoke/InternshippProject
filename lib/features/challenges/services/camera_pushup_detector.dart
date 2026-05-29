@@ -241,8 +241,8 @@ class CameraPushupDetector {
     var format = InputImageFormatValue.fromRawValue(image.format.raw);
     if (defaultTargetPlatform == TargetPlatform.android) {
       format = InputImageFormat.nv21;
-    } else if (format == null) {
-      format = InputImageFormat.bgra8888;
+    } else {
+      format ??= InputImageFormat.bgra8888;
     }
 
     // Concatenate all planes for YUV420/NV21 image format to ensure complete bytes are processed

@@ -1,4 +1,3 @@
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import 'package:camera/camera.dart';
@@ -46,12 +45,12 @@ class PosePainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     final linePaint = Paint()
-      ..color = stageColor.withOpacity(0.7)
+      ..color = stageColor.withValues(alpha: 0.7)
       ..strokeWidth = 3.0
       ..style = PaintingStyle.stroke;
 
     final lowConfidencePaint = Paint()
-      ..color = Colors.grey.withOpacity(0.4)
+      ..color = Colors.grey.withValues(alpha: 0.4)
       ..strokeWidth = 2.0
       ..style = PaintingStyle.fill;
 
