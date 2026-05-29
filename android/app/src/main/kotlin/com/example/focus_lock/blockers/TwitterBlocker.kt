@@ -31,7 +31,7 @@ object TwitterBlocker {
     private const val LOCK_DURATION_KEY = "lock_duration_days"
 
     private const val DEFAULT_LOCK_DURATION_DAYS = 30
-    private const val TEMP_UNLOCK_DURATION_MS = 15L * 60 * 1000
+    private const val TEMP_UNLOCK_DURATION_MS = 10L * 60 * 1000
     private const val OVERLAY_DISPLAY_MS = 5000L
     private const val BACK_PRESS_COUNT = 6
     private const val BACK_PRESS_INTERVAL_MS = 250L
@@ -42,7 +42,9 @@ object TwitterBlocker {
     private lateinit var lockPrefs: SharedPreferences
     private lateinit var appContext: Context
     private val handler = Handler(Looper.getMainLooper())
-    private val dbExecutor = Executors.newSingleThreadExecutor()
+    private val dbExecutor = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "TwitterBlocker-Db").apply { isDaemon = true }
+    }
 
     private var lastBlockTime = 0L
 
@@ -74,10 +76,14 @@ object TwitterBlocker {
     }
 
     fun getTempUnlockRemainingSeconds(): Long {
+        return getTempUnlockRemainingMs() / 1000
+    }
+
+    private fun getTempUnlockRemainingMs(): Long {
         val start = modulePrefs.getLong(KEY_TEMP_UNLOCK_START, 0L)
         if (start == 0L) return 0L
         val remaining = TEMP_UNLOCK_DURATION_MS - (System.currentTimeMillis() - start)
-        return if (remaining > 0) remaining / 1000 else 0L
+        return if (remaining > 0) remaining else 0L
     }
 
     fun getRemainingDays(): Int {
@@ -154,11 +160,13 @@ object TwitterBlocker {
 
     fun grantTempUnlock() {
         val now = System.currentTimeMillis()
-        modulePrefs.edit().putLong(KEY_TEMP_UNLOCK_START, now).apply()
+        val newRemaining = getTempUnlockRemainingMs() + TEMP_UNLOCK_DURATION_MS
+        val syntheticStart = now - (TEMP_UNLOCK_DURATION_MS - newRemaining)
+        modulePrefs.edit().putLong(KEY_TEMP_UNLOCK_START, syntheticStart).apply()
         dismissOverlay()
         handler.removeCallbacks(tempUnlockExpiryRunnable)
-        handler.postDelayed(tempUnlockExpiryRunnable, TEMP_UNLOCK_DURATION_MS)
-        Log.d(TAG, "Temp unlock GRANTED - 15 minutes starting now")
+        handler.postDelayed(tempUnlockExpiryRunnable, newRemaining)
+        Log.d(TAG, "Temp unlock GRANTED - ${newRemaining / 60000} minutes remaining")
     }
 
     private fun onTempUnlockExpired() {
@@ -169,7 +177,7 @@ object TwitterBlocker {
     private fun restoreTempUnlockTimer() {
         val start = modulePrefs.getLong(KEY_TEMP_UNLOCK_START, 0L)
         if (start > 0L) {
-            val remaining = TEMP_UNLOCK_DURATION_MS - (System.currentTimeMillis() - start)
+            val remaining = getTempUnlockRemainingMs()
             if (remaining > 0) {
                 handler.postDelayed(tempUnlockExpiryRunnable, remaining)
                 Log.d(TAG, "Restored temp unlock timer: ${remaining / 1000}s remaining")

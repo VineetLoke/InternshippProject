@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import android.net.Uri
 import com.example.focus_lock.services.AppIconManager
 
 /**
@@ -19,6 +20,12 @@ class SecretCodeReceiver : BroadcastReceiver() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
+        val host = intent.data?.host
+        if (intent.action != "android.telephony.action.SECRET_CODE" || host != SECRET_CODE) {
+            Log.w(TAG, "Ignoring unexpected broadcast: action=${intent.action}, host=$host")
+            return
+        }
+
         Log.d(TAG, "Secret code received — restoring app access")
         // Temporarily show the icon for 30 seconds
         AppIconManager.temporaryShow(context, 30_000L)

@@ -332,7 +332,7 @@ class MainActivity : FlutterActivity() {
                     "completeTwitterEmergencyChallenge" -> {
                         TwitterBlocker.init(applicationContext)
                         TwitterBlocker.grantTempUnlock()
-                        Log.d(TAG, "Twitter emergency challenge completed — 15min unlock")
+                        Log.d(TAG, "Twitter emergency challenge completed — 10min unlock")
                         result.success(true)
                     }
 
@@ -566,22 +566,22 @@ class MainActivity : FlutterActivity() {
     // ── Pushup detection ──────────────────────────────────────────────
 
     private fun startPushupDetection(): Boolean {
-        if (pushupDetector == null) {
-            pushupDetector = PushupDetectorService(this)
+        val detector = pushupDetector ?: PushupDetectorService(this).also {
+            pushupDetector = it
         }
-        pushupDetector!!.reset()
-        pushupDetector!!.onPushupCount = { count ->
+        detector.reset()
+        detector.onPushupCount = { count ->
             Log.d(TAG, "💪 Pushup count update: $count")
             runOnUiThread {
                 pushupEventSink?.success(count)
             }
         }
-        pushupDetector!!.onError = { error ->
+        detector.onError = { error ->
             runOnUiThread {
                 pushupEventSink?.error("SENSOR_ERROR", error, null)
             }
         }
-        val started = pushupDetector!!.start()
+        val started = detector.start()
         Log.d(TAG, "Pushup detection start result: $started")
         return started
     }

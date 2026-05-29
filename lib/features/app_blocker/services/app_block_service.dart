@@ -69,8 +69,11 @@ class AppBlockService {
       final lockDays = prefs.getInt(_lockDurationDaysKey) ?? _defaultLockDays;
       final lockEnd = lockStart.add(Duration(days: lockDays));
 
-      final remaining = lockEnd.difference(DateTime.now()).inDays;
-      return remaining > 0 ? remaining : 0;
+      final remainingMs = lockEnd.difference(DateTime.now()).inMilliseconds;
+      if (remainingMs <= 0) return 0;
+      const dayMs = Duration.millisecondsPerDay;
+      final remainingDays = ((remainingMs + dayMs - 1) / dayMs).floor();
+      return remainingDays > 0 ? remainingDays : 0;
     } catch (e) {
       debugPrint('Error getting remaining days: $e');
       return 0;

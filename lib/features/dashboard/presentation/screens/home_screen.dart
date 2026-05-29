@@ -357,8 +357,16 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: () async {
-              await lockProvider.requestEmergencyUnlock();
-              if (mounted) Navigator.of(context).pushNamed('/emergency');
+              final started = await lockProvider.requestEmergencyUnlock();
+              if (started && mounted) {
+                Navigator.of(context).pushNamed('/emergency');
+              } else if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Emergency unlock could not start. Check permissions and try again.'),
+                  ),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1A1512),
@@ -432,7 +440,12 @@ class _HomeScreenState extends State<HomeScreen> {
           const Divider(color: Color(0xFF222226), height: 20),
           _buildProgressSection(
               'Physique Challenge',
-              Duration(seconds: (lockProvider.currentSteps / 10000 * 3600).toInt()),
+              Duration(
+                seconds: ((1 - (lockProvider.currentSteps / 10000))
+                        .clamp(0.0, 1.0) *
+                    3600)
+                    .toInt(),
+              ),
               '${lockProvider.currentSteps} / 10,000 steps'),
         ],
       ),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:focus_lock/features/app_blocker/services/app_block_service.dart';
 import 'package:focus_lock/core/services/password_manager.dart';
@@ -97,9 +99,9 @@ class LockStateProvider extends ChangeNotifier {
     return await _passwordManager.verifyPassword(password);
   }
 
-  Future<void> requestEmergencyUnlock() async {
+  Future<bool> requestEmergencyUnlock() async {
     final requested = await _timerService.requestEmergencyUnlock();
-    if (!requested) return;
+    if (!requested) return false;
 
     _emergencyUnlockRequested = true;
     _remainingDelay = await _timerService.getRemainingTime();
@@ -111,7 +113,16 @@ class LockStateProvider extends ChangeNotifier {
 
     final hasPermission = await _permissionService.requestActivityRecognition();
     if (hasPermission) {
-      await _stepChallenge.initialize();
+      final initialized = await _stepChallenge.initialize();
+      if (!initialized) {
+        await _timerService.cancelEmergencyUnlock();
+        _emergencyUnlockRequested = false;
+        _remainingDelay = Duration.zero;
+        _currentSteps = 0;
+        _stepChallengeComplete = false;
+        notifyListeners();
+        return false;
+      }
       _currentSteps = _stepChallenge.getCurrentSteps();
       _stepChallengeComplete = await _stepChallenge.isChallengeComplete();
       _stepChallenge.startMonitoring((steps) {
@@ -120,17 +131,23 @@ class LockStateProvider extends ChangeNotifier {
         notifyListeners();
       });
     } else {
+      await _timerService.cancelEmergencyUnlock();
       _currentSteps = 0;
       _stepChallengeComplete = false;
       debugPrint('ACTIVITY_RECOGNITION not granted - step challenge disabled');
+      _emergencyUnlockRequested = false;
+      _remainingDelay = Duration.zero;
+      notifyListeners();
+      return false;
     }
 
     notifyListeners();
+    return true;
   }
 
   Future<void> cancelEmergencyUnlock() async {
     await _timerService.cancelEmergencyUnlock();
-    _stepChallenge.stopMonitoring();
+    await _stepChallenge.stopMonitoring();
     await _stepChallenge.resetProgress();
     _emergencyUnlockRequested = false;
     _remainingDelay = Duration.zero;
@@ -140,6 +157,7 @@ class LockStateProvider extends ChangeNotifier {
   }
 
   Future<void> checkStepChallenge() async {
+    _remainingDelay = await _timerService.getRemainingTime();
     _stepChallengeComplete = await _stepChallenge.isChallengeComplete();
     _currentSteps = _stepChallenge.getCurrentSteps();
     notifyListeners();
@@ -156,9 +174,21 @@ class LockStateProvider extends ChangeNotifier {
   }
 
   Future<void> unlockApp() async {
+    _remainingDelay = await _timerService.getRemainingTime();
+    _stepChallengeComplete = await _stepChallenge.isChallengeComplete();
+    _currentSteps = _stepChallenge.getCurrentSteps();
+
+    if (_remainingDelay > Duration.zero || !_stepChallengeComplete) {
+      debugPrint(
+        'Unlock blocked: delay complete=${_remainingDelay == Duration.zero}, challenge complete=$_stepChallengeComplete',
+      );
+      notifyListeners();
+      return;
+    }
+
     await _appBlockService.unlock();
     await _timerService.cancelEmergencyUnlock();
-    _stepChallenge.stopMonitoring();
+    await _stepChallenge.stopMonitoring();
     await _stepChallenge.resetProgress();
     _isLocked = false;
     _emergencyUnlockRequested = false;
@@ -180,7 +210,7 @@ class LockStateProvider extends ChangeNotifier {
   @override
   void dispose() {
     _timerService.stopCountdown();
-    _stepChallenge.stopMonitoring();
+    unawaited(_stepChallenge.stopMonitoring());
     super.dispose();
   }
 }

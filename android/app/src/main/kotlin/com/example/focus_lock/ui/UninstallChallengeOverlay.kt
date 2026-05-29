@@ -58,7 +58,7 @@ class UninstallChallengeOverlay : Service(), SensorEventListener {
     private var countText: TextView? = null
     private var progressBar: ProgressBar? = null
     private var statusText: TextView? = null
-    private var tapButton: TextView? = null
+
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -233,24 +233,8 @@ class UninstallChallengeOverlay : Service(), SensorEventListener {
             LinearLayout.LayoutParams.WRAP_CONTENT
         ).apply { bottomMargin = 60 })
 
-        // Manual tap counter button (fallback)
-        tapButton = TextView(this).apply {
-            text = "TAP TO COUNT"
-            setTextColor(Color.parseColor("#0D0D0D"))
-            setBackgroundColor(Color.parseColor("#C6A85A"))
-            textSize = 16f
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            setPadding(60, 30, 60, 30)
-            setOnClickListener { onManualTap() }
-        }
-        container.addView(tapButton, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply {
-            gravity = Gravity.CENTER_HORIZONTAL
-            bottomMargin = 40
-        })
+        // Manual tap counter removed — pushups must be detected via
+        // proximity sensor (hardware) to prevent cheating.
 
         // Dismiss button (only visible after completion)
         val dismissText = TextView(this).apply {
@@ -324,22 +308,8 @@ class UninstallChallengeOverlay : Service(), SensorEventListener {
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
-    // ══════════════════════════════════════════════════════════════════
-    // Manual tap counter
-    // ══════════════════════════════════════════════════════════════════
-
-    private var lastTapTime = 0L
-
-    private fun onManualTap() {
-        if (challengeCompleted) return
-        val now = System.currentTimeMillis()
-        // Debounce taps: minimum 800ms between taps (anti-spam)
-        if (now - lastTapTime < MIN_CYCLE_MS) return
-        lastTapTime = now
-        pushupCount++
-        updateUI()
-        checkCompletion()
-    }
+    // Manual tap counter removed — pushups must be detected via
+    // proximity sensor (hardware) to prevent cheating.
 
     // ══════════════════════════════════════════════════════════════════
     // UI updates
@@ -364,7 +334,6 @@ class UninstallChallengeOverlay : Service(), SensorEventListener {
                 progressBar?.progress = REQUIRED_PUSHUPS
                 statusText?.text = "Protection disabled for 5 minutes.\nYou may now uninstall the app."
                 statusText?.setTextColor(Color.parseColor("#C6A85A"))
-                tapButton?.visibility = View.GONE
             }
 
             // Auto-dismiss after 10 seconds

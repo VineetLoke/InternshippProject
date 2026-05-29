@@ -43,6 +43,7 @@ class _LockScreenState extends State<LockScreen> {
               // Auto-navigate to home if unlocked (one-shot guard)
               _hasNavigated = true;
               Future.microtask(() {
+                if (!mounted) return;
                 Navigator.of(context).pushReplacementNamed('/home');
               });
             }
@@ -130,9 +131,15 @@ class _LockScreenState extends State<LockScreen> {
                           onTapUp: (_) => setState(() => _buttonScale = 1.0),
                           onTapCancel: () => setState(() => _buttonScale = 1.0),
                           onTap: () async {
-                            await lockProvider.requestEmergencyUnlock();
-                            if (mounted) {
+                            final started = await lockProvider.requestEmergencyUnlock();
+                            if (started && mounted) {
                               Navigator.of(context).pushNamed('/emergency');
+                            } else if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Emergency unlock could not start. Check permissions and try again.'),
+                                ),
+                              );
                             }
                           },
                           child: AnimatedScale(

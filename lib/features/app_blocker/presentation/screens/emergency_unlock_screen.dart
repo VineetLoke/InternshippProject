@@ -14,6 +14,7 @@ class EmergencyUnlockScreen extends StatefulWidget {
 class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
   Timer? _poller;
   bool _dialogShown = false;
+  bool _refreshing = false;
 
   @override
   void initState() {
@@ -31,15 +32,26 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
   }
 
   Future<void> _refreshProgress() async {
-    if (!mounted) return;
-    final lockProvider = context.read<LockStateProvider>();
-    await lockProvider.checkStepChallenge();
+    if (!mounted || _refreshing) return;
+    _refreshing = true;
 
-    if (!_dialogShown &&
-        lockProvider.stepChallengeComplete &&
-        lockProvider.remainingDelay.inSeconds == 0) {
-      _dialogShown = true;
-      await _showPasswordDialog(lockProvider);
+    try {
+      final lockProvider = context.read<LockStateProvider>();
+      await lockProvider.checkStepChallenge();
+
+      if (!mounted) return;
+
+      if (!_dialogShown &&
+          lockProvider.stepChallengeComplete &&
+          lockProvider.remainingDelay.inSeconds == 0) {
+        _dialogShown = true;
+        await _showPasswordDialog(lockProvider);
+        if (mounted) {
+          _dialogShown = false;
+        }
+      }
+    } finally {
+      _refreshing = false;
     }
   }
 

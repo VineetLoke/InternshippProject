@@ -342,7 +342,7 @@ class _UninstallProtectionScreenState extends State<UninstallProtectionScreen> {
             '• Uninstall Protection: Registers as device administrator. '
             'Must be deactivated before uninstall.\n\n'
             '• Challenge: Complete 200 pushups to disable protection. '
-            'Uses proximity sensor or manual tap.\n\n'
+            'Uses proximity sensor detection.\n\n'
             '• Cooldown: After completing the challenge, you have 5 minutes '
             'to uninstall. Protection reactivates after.',
             style: TextStyle(color: Color(0xFF888888), fontSize: 13, height: 1.4),

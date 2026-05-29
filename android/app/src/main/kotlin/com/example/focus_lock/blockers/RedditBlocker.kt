@@ -42,7 +42,9 @@ object RedditBlocker {
     private lateinit var lockPrefs: SharedPreferences
     private lateinit var appContext: Context
     private val handler = Handler(Looper.getMainLooper())
-    private val dbExecutor = Executors.newSingleThreadExecutor()
+    private val dbExecutor = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "RedditBlocker-Db").apply { isDaemon = true }
+    }
 
     private var lastBlockTime = 0L
 

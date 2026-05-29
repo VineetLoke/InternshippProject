@@ -17,7 +17,9 @@ import java.util.concurrent.Executors
  */
 object AttemptLogger {
     private const val TAG = "AttemptLogger"
-    private val dbExecutor = Executors.newSingleThreadExecutor()
+    private val dbExecutor = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "AttemptLogger-Db").apply { isDaemon = true }
+    }
 
     /**
      * Log an app open or block attempt.

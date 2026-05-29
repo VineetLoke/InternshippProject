@@ -30,23 +30,24 @@ class StepChallengeService {
     }
   }
 
-  void startMonitoring(StepCallback onUpdate) {
+  Future<void> startMonitoring(StepCallback onUpdate) async {
     _onStepUpdate = onUpdate;
-    _resetIfNewDay();
+    await _resetIfNewDay();
 
-    Permission.activityRecognition.status.then((status) {
+    try {
+      final status = await Permission.activityRecognition.status;
       if (!status.isGranted) {
         debugPrint('StepChallenge: ACTIVITY_RECOGNITION not granted, skipping');
         return;
       }
-      _subscribeToSteps();
-    }).catchError((e) {
+      await _subscribeToSteps();
+    } catch (e) {
       debugPrint('StepChallenge permission check error: $e');
-    });
+    }
   }
 
-  void _subscribeToSteps() {
-    _stepCountStream?.cancel();
+  Future<void> _subscribeToSteps() async {
+    await _stepCountStream?.cancel();
     try {
       _stepCountStream = _pedometer.stepCountStream().listen(
         (int steps) async {
@@ -69,9 +70,10 @@ class StepChallengeService {
     }
   }
 
-  void stopMonitoring() {
-    _stepCountStream?.cancel();
-    persistSteps();
+  Future<void> stopMonitoring() async {
+    await _stepCountStream?.cancel();
+    _stepCountStream = null;
+    await persistSteps();
   }
 
   Future<bool> isChallengeComplete() async {

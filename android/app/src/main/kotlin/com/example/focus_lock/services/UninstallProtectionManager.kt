@@ -121,7 +121,7 @@ object UninstallProtectionManager {
     fun getStatus(context: Context): Map<String, Any> {
         return mapOf(
             "isDeviceAdminActive" to isDeviceAdminActive(context),
-            "isProtectionEnabled" to isProtectionEnabled(),
+            "isProtectionEnabled" to isProtectionEnabled(context),
             "isUninstallAllowed" to isUninstallAllowed(),
             "cooldownRemainingSeconds" to getCooldownRemainingSeconds(),
             "requiredPushups" to REQUIRED_PUSHUPS,
