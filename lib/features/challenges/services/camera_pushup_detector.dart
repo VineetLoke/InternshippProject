@@ -240,7 +240,7 @@ class CameraPushupDetector {
 
     var format = InputImageFormatValue.fromRawValue(image.format.raw);
     if (defaultTargetPlatform == TargetPlatform.android) {
-      format = InputImageFormat.nv21;
+      format = InputImageFormat.yuv_420_888;
     } else if (format == null) {
       format = InputImageFormat.bgra8888;
     }

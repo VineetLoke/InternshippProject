@@ -29,7 +29,8 @@ class AppBlockService {
         });
       } catch (e) {
         debugPrint('Error calling startBlocking: $e');
-        // Keep the lock active even if accessibility service isn't active/setup yet
+        await _clearLockPrefs(prefs);
+        return false;
       }
 
       return true;

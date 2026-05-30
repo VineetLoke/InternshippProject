@@ -87,7 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text(
           'FOCUSLOCK',
           style: TextStyle(
-            fontWeight: FontWeight.black,
+            fontWeight: FontWeight.w900,
             fontSize: 16,
             letterSpacing: 2.0,
             color: Color(0xFFC6A85A),

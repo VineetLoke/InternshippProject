@@ -270,9 +270,9 @@ class UninstallChallengeOverlay : Service(), SensorEventListener {
             sensorManager?.registerListener(this, proximitySensor, SensorManager.SENSOR_DELAY_UI)
             Log.d(TAG, "Proximity sensor registered")
         } else {
-            Log.w(TAG, "No proximity sensor — manual tap mode only")
+            Log.w(TAG, "No proximity sensor — challenge cannot proceed")
             handler.post {
-                statusText?.text = "No proximity sensor available.\nUse the tap button."
+                statusText?.text = "No proximity sensor detected.\nThis device cannot verify pushups."
             }
         }
     }

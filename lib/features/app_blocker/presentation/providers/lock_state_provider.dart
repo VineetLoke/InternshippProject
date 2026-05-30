@@ -112,34 +112,34 @@ class LockStateProvider extends ChangeNotifier {
     });
 
     final hasPermission = await _permissionService.requestActivityRecognition();
-    if (hasPermission) {
-      final initialized = await _stepChallenge.initialize();
-      if (!initialized) {
-        await _timerService.cancelEmergencyUnlock();
-        _emergencyUnlockRequested = false;
-        _remainingDelay = Duration.zero;
-        _currentSteps = 0;
-        _stepChallengeComplete = false;
-        notifyListeners();
-        return false;
-      }
-      _currentSteps = _stepChallenge.getCurrentSteps();
-      _stepChallengeComplete = await _stepChallenge.isChallengeComplete();
-      _stepChallenge.startMonitoring((steps) {
-        _currentSteps = steps;
-        _stepChallengeComplete = _stepChallenge.getRemainingSteps() == 0;
-        notifyListeners();
-      });
-    } else {
+    if (!hasPermission) {
       await _timerService.cancelEmergencyUnlock();
-      _currentSteps = 0;
-      _stepChallengeComplete = false;
-      debugPrint('ACTIVITY_RECOGNITION not granted - step challenge disabled');
       _emergencyUnlockRequested = false;
       _remainingDelay = Duration.zero;
+      _currentSteps = 0;
+      _stepChallengeComplete = false;
+      notifyListeners();
+      debugPrint('ACTIVITY_RECOGNITION not granted - step challenge disabled');
+      return false;
+    }
+
+    final initialized = await _stepChallenge.initialize();
+    if (!initialized) {
+      await _timerService.cancelEmergencyUnlock();
+      _emergencyUnlockRequested = false;
+      _remainingDelay = Duration.zero;
+      _currentSteps = 0;
+      _stepChallengeComplete = false;
       notifyListeners();
       return false;
     }
+    _currentSteps = _stepChallenge.getCurrentSteps();
+    _stepChallengeComplete = await _stepChallenge.isChallengeComplete();
+    _stepChallenge.startMonitoring((steps) {
+      _currentSteps = steps;
+      _stepChallengeComplete = _stepChallenge.getRemainingSteps() == 0;
+      notifyListeners();
+    });
 
     notifyListeners();
     return true;

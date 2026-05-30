@@ -315,13 +315,8 @@ class AccessibilityMonitor : AccessibilityService() {
             return
         }
 
-        // ── Log app opens: deterministic blockers log their own attempts ──
-        // Instagram, Reddit, Twitter are all handled by their own blocker modules
-        // Only log if the blocker module didn't handle it
-        if (packageName in TRACKED_PACKAGES &&
-            packageName != INSTAGRAM_PACKAGE &&
-            packageName != REDDIT_PACKAGE &&
-            packageName != TWITTER_PACKAGE) {
+        // ── Log app opens for tracked (blocked) packages ──
+        if (packageName in TRACKED_PACKAGES) {
             logAppOpen(packageName)
         }
 
@@ -465,78 +460,62 @@ class AccessibilityMonitor : AccessibilityService() {
         if (UninstallProtectionManager.isUninstallAllowed()) return
 
         // Scan for our app name and Settings button texts in the current window content
-        var focusLockNodes: MutableList<AccessibilityNodeInfo> = mutableListOf()
-        var uninstallNodes: MutableList<AccessibilityNodeInfo> = mutableListOf()
-        var uninstallLowerNodes: MutableList<AccessibilityNodeInfo> = mutableListOf()
-        var useServiceNodes: MutableList<AccessibilityNodeInfo> = mutableListOf()
-        var useServiceShortNodes: MutableList<AccessibilityNodeInfo> = mutableListOf()
-        var useServiceLowerNodes: MutableList<AccessibilityNodeInfo> = mutableListOf()
-        var forceStopNodes: MutableList<AccessibilityNodeInfo> = mutableListOf()
-        var forceStopCapsNodes: MutableList<AccessibilityNodeInfo> = mutableListOf()
-        var forceStopLowerNodes: MutableList<AccessibilityNodeInfo> = mutableListOf()
-        var deactivateNodes: MutableList<AccessibilityNodeInfo> = mutableListOf()
-        var deactivateCapsNodes: MutableList<AccessibilityNodeInfo> = mutableListOf()
-        var deactivateLowerNodes: MutableList<AccessibilityNodeInfo> = mutableListOf()
-        var deactivateAdminNodes: MutableList<AccessibilityNodeInfo> = mutableListOf()
+        var isUninstallDetected = false
+        var isAccessibilityDetected = false
+        var isForceStopDetected = false
+        var isDeactivateDetected = false
 
         try {
             val rootNode = rootInActiveWindow ?: return
             
             // Look for "FocusLock" node on screen
-            focusLockNodes = rootNode.findAccessibilityNodeInfosByText("FocusLock")
-            if (focusLockNodes.isEmpty()) return
+            val focusLockNodes = rootNode.findAccessibilityNodeInfosByText("FocusLock")
+            if (focusLockNodes.isEmpty()) {
+                focusLockNodes.forEach { it.recycle() }
+                return
+            }
+            focusLockNodes.forEach { it.recycle() }
 
-            // 1. Check for uninstall attempt (e.g. Settings app info page with "Uninstall" text)
-            uninstallNodes = rootNode.findAccessibilityNodeInfosByText("Uninstall")
-            uninstallLowerNodes = rootNode.findAccessibilityNodeInfosByText("uninstall")
-            val isUninstallAttempt = uninstallNodes.isNotEmpty() || uninstallLowerNodes.isNotEmpty()
+            // 1. Check for uninstall attempt
+            isUninstallDetected = rootNode.findAccessibilityNodeInfosByText("Uninstall").also {
+                it.forEach { n -> n.recycle() }
+            }.isNotEmpty() || rootNode.findAccessibilityNodeInfosByText("uninstall").also {
+                it.forEach { n -> n.recycle() }
+            }.isNotEmpty()
 
-            // 2. Check for Accessibility service disable attempt (e.g. sub-settings containing "Use FocusLock")
-            useServiceNodes = rootNode.findAccessibilityNodeInfosByText("Use FocusLock")
-            useServiceShortNodes = rootNode.findAccessibilityNodeInfosByText("Use service")
-            useServiceLowerNodes = rootNode.findAccessibilityNodeInfosByText("use service")
-            val isAccessibilityAttempt = useServiceNodes.isNotEmpty() || useServiceShortNodes.isNotEmpty() || useServiceLowerNodes.isNotEmpty()
+            // 2. Check for Accessibility service disable attempt
+            isAccessibilityDetected = rootNode.findAccessibilityNodeInfosByText("Use FocusLock").also {
+                it.forEach { n -> n.recycle() }
+            }.isNotEmpty() || rootNode.findAccessibilityNodeInfosByText("Use service").also {
+                it.forEach { n -> n.recycle() }
+            }.isNotEmpty() || rootNode.findAccessibilityNodeInfosByText("use service").also {
+                it.forEach { n -> n.recycle() }
+            }.isNotEmpty()
 
-            // 3. Check for Force Stop attempt (e.g. Settings app info page with "Force stop" button)
-            forceStopNodes = rootNode.findAccessibilityNodeInfosByText("Force stop")
-            forceStopCapsNodes = rootNode.findAccessibilityNodeInfosByText("Force Stop")
-            forceStopLowerNodes = rootNode.findAccessibilityNodeInfosByText("force stop")
-            val isForceStopAttempt = forceStopNodes.isNotEmpty() || forceStopCapsNodes.isNotEmpty() || forceStopLowerNodes.isNotEmpty()
+            // 3. Check for Force Stop attempt
+            isForceStopDetected = rootNode.findAccessibilityNodeInfosByText("Force stop").also {
+                it.forEach { n -> n.recycle() }
+            }.isNotEmpty() || rootNode.findAccessibilityNodeInfosByText("Force Stop").also {
+                it.forEach { n -> n.recycle() }
+            }.isNotEmpty() || rootNode.findAccessibilityNodeInfosByText("force stop").also {
+                it.forEach { n -> n.recycle() }
+            }.isNotEmpty()
 
-            // 4. Check for Device Admin Deactivate attempt (e.g. Settings page with "Deactivate" button)
-            deactivateNodes = rootNode.findAccessibilityNodeInfosByText("Deactivate")
-            deactivateCapsNodes = rootNode.findAccessibilityNodeInfosByText("DEACTIVATE")
-            deactivateLowerNodes = rootNode.findAccessibilityNodeInfosByText("deactivate")
-            deactivateAdminNodes = rootNode.findAccessibilityNodeInfosByText("Remove active admin")
-            val isDeactivateAttempt = deactivateNodes.isNotEmpty() || deactivateCapsNodes.isNotEmpty() || 
-                                      deactivateLowerNodes.isNotEmpty() || deactivateAdminNodes.isNotEmpty()
+            // 4. Check for Device Admin Deactivate attempt
+            isDeactivateDetected = rootNode.findAccessibilityNodeInfosByText("Deactivate").also {
+                it.forEach { n -> n.recycle() }
+            }.isNotEmpty() || rootNode.findAccessibilityNodeInfosByText("DEACTIVATE").also {
+                it.forEach { n -> n.recycle() }
+            }.isNotEmpty() || rootNode.findAccessibilityNodeInfosByText("deactivate").also {
+                it.forEach { n -> n.recycle() }
+            }.isNotEmpty() || rootNode.findAccessibilityNodeInfosByText("Remove active admin").also {
+                it.forEach { n -> n.recycle() }
+            }.isNotEmpty()
         } catch (e: Exception) {
             Log.e(TAG, "Error checking uninstall attempt: ${e.message}")
-        } finally {
-            // Recycle all checked nodes to avoid memory leaks
-            focusLockNodes.forEach { it.recycle() }
-            uninstallNodes.forEach { it.recycle() }
-            uninstallLowerNodes.forEach { it.recycle() }
-            useServiceNodes.forEach { it.recycle() }
-            useServiceShortNodes.forEach { it.recycle() }
-            useServiceLowerNodes.forEach { it.recycle() }
-            forceStopNodes.forEach { it.recycle() }
-            forceStopCapsNodes.forEach { it.recycle() }
-            forceStopLowerNodes.forEach { it.recycle() }
-            deactivateNodes.forEach { it.recycle() }
-            deactivateCapsNodes.forEach { it.recycle() }
-            deactivateLowerNodes.forEach { it.recycle() }
-            deactivateAdminNodes.forEach { it.recycle() }
         }
 
-        if (focusLockNodes.isNotEmpty()) {
-            val isUninstallAttempt = uninstallNodes.isNotEmpty() || uninstallLowerNodes.isNotEmpty()
-            val isAccessibilityAttempt = useServiceNodes.isNotEmpty() || useServiceShortNodes.isNotEmpty() || useServiceLowerNodes.isNotEmpty()
-            val isForceStopAttempt = forceStopNodes.isNotEmpty() || forceStopCapsNodes.isNotEmpty() || forceStopLowerNodes.isNotEmpty()
-            val isDeactivateAttempt = deactivateNodes.isNotEmpty() || deactivateCapsNodes.isNotEmpty() ||
-                deactivateLowerNodes.isNotEmpty() || deactivateAdminNodes.isNotEmpty()
-
-            if (isUninstallAttempt || isAccessibilityAttempt || isForceStopAttempt || isDeactivateAttempt) {
+        if (isUninstallDetected || isAccessibilityDetected || isForceStopDetected || isDeactivateDetected) {
                 Log.d(TAG, "Security bypass attempt detected (uninstall=$isUninstallAttempt, accessibility=$isAccessibilityAttempt, forceStop=$isForceStopAttempt, deactivate=$isDeactivateAttempt) — launching challenge overlay")
 
                 // Force exit the Settings app immediately to prevent any prompt interaction

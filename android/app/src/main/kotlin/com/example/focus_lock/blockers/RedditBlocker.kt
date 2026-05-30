@@ -160,8 +160,9 @@ object RedditBlocker {
 
     fun grantTempUnlock() {
         val now = System.currentTimeMillis()
-        val newRemaining = getTempUnlockRemainingMs() + TEMP_UNLOCK_DURATION_MS
-        val syntheticStart = now - (TEMP_UNLOCK_DURATION_MS - newRemaining)
+        val existingRemaining = getTempUnlockRemainingMs()
+        val newRemaining = existingRemaining + TEMP_UNLOCK_DURATION_MS
+        val syntheticStart = now - newRemaining
         modulePrefs.edit().putLong(KEY_TEMP_UNLOCK_START, syntheticStart).apply()
         dismissOverlay()
         handler.removeCallbacks(tempUnlockExpiryRunnable)
