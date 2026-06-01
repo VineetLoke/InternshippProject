@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
@@ -17,7 +18,7 @@ import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 class CameraPushupDetector {
   // ── Constants ─────────────────────────────────────────────────────
   static const double _upAngleThreshold = 160.0;
-  static const double _downAngleThreshold = 90.0;
+  static const double _downAngleThreshold = 110.0;
   static const int _minRepMs = 800;
   static const double _minConfidence = 0.5;
 
@@ -106,19 +107,40 @@ class CameraPushupDetector {
         orElse: () => _cameras!.first,
       );
 
-      _cameraController = CameraController(
-        _activeCamera!,
-        ResolutionPreset.medium,
-        enableAudio: false,
-        imageFormatGroup: ImageFormatGroup.yuv420,
-      );
-
-      await _cameraController!.initialize();
+      _cameraController = await _createCameraController();
       return true;
     } catch (e) {
       debugPrint('Camera init error: $e');
       _feedbackController.add('Camera initialization failed');
       return false;
+    }
+  }
+
+  Future<CameraController> _createCameraController() async {
+    final preferredFormat = defaultTargetPlatform == TargetPlatform.android
+        ? ImageFormatGroup.nv21
+        : ImageFormatGroup.bgra8888;
+
+    try {
+      final controller = CameraController(
+        _activeCamera!,
+        ResolutionPreset.medium,
+        enableAudio: false,
+        imageFormatGroup: preferredFormat,
+      );
+      await controller.initialize();
+      return controller;
+    } catch (e) {
+      if (defaultTargetPlatform != TargetPlatform.android) rethrow;
+      debugPrint('NV21 camera init failed, falling back to YUV420: $e');
+      final controller = CameraController(
+        _activeCamera!,
+        ResolutionPreset.medium,
+        enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.yuv420,
+      );
+      await controller.initialize();
+      return controller;
     }
   }
 
@@ -238,29 +260,91 @@ class CameraPushupDetector {
         rotation = InputImageRotation.rotation0deg;
     }
 
-    var format = InputImageFormatValue.fromRawValue(image.format.raw);
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      format = InputImageFormat.yuv_420_888;
-    } else if (format == null) {
-      format = InputImageFormat.bgra8888;
-    }
+    final cameraFormat = InputImageFormatValue.fromRawValue(image.format.raw);
+    if (cameraFormat == null) return null;
 
-    // Concatenate all planes for YUV420/NV21 image format to ensure complete bytes are processed
-    final WriteBuffer allBytes = WriteBuffer();
-    for (final Plane plane in image.planes) {
-      allBytes.putUint8List(plane.bytes);
-    }
-    final bytes = allBytes.done().buffer.asUint8List();
+    final inputFormat = defaultTargetPlatform == TargetPlatform.android
+        ? InputImageFormat.nv21
+        : cameraFormat;
+    final bytes = _bytesFromCameraImage(image, cameraFormat);
+    if (bytes == null) return null;
 
     return InputImage.fromBytes(
       bytes: bytes,
       metadata: InputImageMetadata(
         size: Size(image.width.toDouble(), image.height.toDouble()),
         rotation: rotation,
-        format: format,
+        format: inputFormat,
         bytesPerRow: image.planes[0].bytesPerRow,
       ),
     );
+  }
+
+  Uint8List? _bytesFromCameraImage(
+    CameraImage image,
+    InputImageFormat format,
+  ) {
+    if (defaultTargetPlatform == TargetPlatform.android &&
+        format == InputImageFormat.nv21) {
+      if (image.planes.length != 1) {
+        return _yuv420ToNv21(image);
+      }
+      return image.planes.first.bytes;
+    }
+
+    if (defaultTargetPlatform == TargetPlatform.android &&
+        format == InputImageFormat.yuv_420_888) {
+      return _yuv420ToNv21(image);
+    }
+
+    if (defaultTargetPlatform == TargetPlatform.iOS &&
+        format == InputImageFormat.bgra8888) {
+      return image.planes.first.bytes;
+    }
+
+    return null;
+  }
+
+  Uint8List? _yuv420ToNv21(CameraImage image) {
+    if (image.planes.length < 3) return null;
+
+    final width = image.width;
+    final height = image.height;
+    final yPlane = image.planes[0];
+    final uPlane = image.planes[1];
+    final vPlane = image.planes[2];
+    final output = Uint8List(width * height + (width * height ~/ 2));
+
+    var outputOffset = 0;
+    for (var row = 0; row < height; row++) {
+      final rowStart = row * yPlane.bytesPerRow;
+      output.setRange(
+        outputOffset,
+        outputOffset + width,
+        yPlane.bytes,
+        rowStart,
+      );
+      outputOffset += width;
+    }
+
+    final chromaHeight = height ~/ 2;
+    final chromaWidth = width ~/ 2;
+    final uPixelStride = uPlane.bytesPerPixel ?? 1;
+    final vPixelStride = vPlane.bytesPerPixel ?? 1;
+    var chromaOffset = width * height;
+    for (var row = 0; row < chromaHeight; row++) {
+      for (var col = 0; col < chromaWidth; col++) {
+        final vuIndex = row * vPlane.bytesPerRow + col * vPixelStride;
+        final uIndex = row * uPlane.bytesPerRow + col * uPixelStride;
+        if (vuIndex >= vPlane.bytes.length || uIndex >= uPlane.bytes.length) {
+          return null;
+        }
+        output[chromaOffset++] = vPlane.bytes[vuIndex];
+        output[chromaOffset++] = uPlane.bytes[uIndex];
+      }
+    }
+
+    return output;
   }
 
   // ── Pose analysis ─────────────────────────────────────────────────
@@ -296,11 +380,11 @@ class CameraPushupDetector {
       return;
     }
 
-    // Check body alignment (anti-cheat): shoulder and hip should be
-    // roughly at the same height (horizontal body position)
+    // If body alignment is visible, use it for feedback. Do not reject the
+    // frame outright because camera rotation and wall/floor placement can make
+    // shoulder/hip geometry look different across devices.
     if (!_isBodyHorizontal(pose)) {
-      _feedbackController.add('Get into pushup position');
-      return;
+      _feedbackController.add('Keep your side profile and arms visible');
     }
 
     _updateState(bestAngle);

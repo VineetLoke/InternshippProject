@@ -25,6 +25,8 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import com.example.focus_lock.blockers.InstagramBlocker
+import com.example.focus_lock.blockers.RedditBlocker
 import com.example.focus_lock.services.AccessibilityMonitor
 
 /**
@@ -274,7 +276,10 @@ class LockScreenOverlay : Service() {
                 val earnBtn = createButton("Earn 10 minutes access") {
                     Log.d(TAG, "User tapped Earn Access — starting $source pushup challenge")
                     if (isReddit) {
+                        RedditBlocker.cancelPendingBlockActions()
                         AccessibilityMonitor.instance?.onRedditChallengeStarted()
+                    } else if (isInstagram) {
+                        InstagramBlocker.cancelPendingBlockActions()
                     }
                     hideOverlay()
                     val launchIntent = packageManager.getLaunchIntentForPackage(

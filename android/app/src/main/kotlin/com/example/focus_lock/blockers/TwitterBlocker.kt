@@ -151,11 +151,17 @@ object TwitterBlocker {
     }
 
     fun dismissOverlay() {
+        cancelPendingBlockActions()
         try {
             appContext.stopService(Intent(appContext, LockScreenOverlay::class.java))
         } catch (e: Exception) {
             Log.e(TAG, "Error dismissing overlay: ${e.message}")
         }
+    }
+
+    fun cancelPendingBlockActions() {
+        handler.removeCallbacksAndMessages(null)
+        restoreTempUnlockTimer()
     }
 
     fun grantTempUnlock() {
