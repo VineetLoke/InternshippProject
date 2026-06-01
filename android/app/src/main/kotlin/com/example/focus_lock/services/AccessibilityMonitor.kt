@@ -516,16 +516,15 @@ class AccessibilityMonitor : AccessibilityService() {
         }
 
         if (isUninstallDetected || isAccessibilityDetected || isForceStopDetected || isDeactivateDetected) {
-                Log.d(TAG, "Security bypass attempt detected (uninstall=$isUninstallDetected, accessibility=$isAccessibilityDetected, forceStop=$isForceStopDetected, deactivate=$isDeactivateDetected) — launching challenge overlay")
+            Log.d(TAG, "Security bypass attempt detected (uninstall=$isUninstallDetected, accessibility=$isAccessibilityDetected, forceStop=$isForceStopDetected, deactivate=$isDeactivateDetected) — launching challenge overlay")
 
-                // Force exit the Settings app immediately to prevent any prompt interaction
-                performGlobalAction(GLOBAL_ACTION_BACK)
-                handler.postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 300L)
+            // Force exit the Settings app immediately to prevent any prompt interaction
+            performGlobalAction(GLOBAL_ACTION_BACK)
+            handler.postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 300L)
 
-                val intent = Intent(this, com.example.focus_lock.ui.UninstallChallengeOverlay::class.java)
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                startOverlayService(intent)
-            }
+            val intent = Intent(this, com.example.focus_lock.ui.UninstallChallengeOverlay::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startOverlayService(intent)
         }
     }
 

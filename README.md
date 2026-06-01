@@ -2,6 +2,10 @@
 
 A Flutter + Kotlin Android app that blocks **Instagram, Reddit, and Twitter/X** with a delayed emergency unlock requiring physical effort (pushups or steps). Uses Android Accessibility Service, overlay permissions, device admin, and ML Kit pose detection to prevent bypasses.
 
+## Documentation
+
+- [Codebase documentation](docs/CODEBASE.md) - architecture, runtime flows, method channels, native services, storage, permissions, and CI/CD.
+
 ## Architecture
 
 ```
