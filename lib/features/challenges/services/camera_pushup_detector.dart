@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:math';
+import 'dart:math' as math;
 import 'dart:ui';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
@@ -326,16 +326,20 @@ class CameraPushupDetector {
     }
 
     return _calculateAngle(
-      Point(shoulder.x, shoulder.y),
-      Point(elbow.x, elbow.y),
-      Point(wrist.x, wrist.y),
+      math.Point(shoulder.x, shoulder.y),
+      math.Point(elbow.x, elbow.y),
+      math.Point(wrist.x, wrist.y),
     );
   }
 
-  double _calculateAngle(Point a, Point b, Point c) {
-    final radians = atan2(c.y - b.y, c.x - b.x) -
-        atan2(a.y - b.y, a.x - b.x);
-    var angle = (radians * 180 / pi).abs();
+  double _calculateAngle(
+    math.Point<double> a,
+    math.Point<double> b,
+    math.Point<double> c,
+  ) {
+    final radians = math.atan2(c.y - b.y, c.x - b.x) -
+        math.atan2(a.y - b.y, a.x - b.x);
+    var angle = (radians * 180 / math.pi).abs();
     if (angle > 180) angle = 360 - angle;
     return angle;
   }
@@ -412,11 +416,4 @@ class CameraPushupDetector {
       }
     }
   }
-}
-
-/// Simple point class for angle calculations.
-class Point {
-  final double x;
-  final double y;
-  const Point(this.x, this.y);
 }

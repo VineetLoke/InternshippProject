@@ -516,7 +516,7 @@ class AccessibilityMonitor : AccessibilityService() {
         }
 
         if (isUninstallDetected || isAccessibilityDetected || isForceStopDetected || isDeactivateDetected) {
-                Log.d(TAG, "Security bypass attempt detected (uninstall=$isUninstallAttempt, accessibility=$isAccessibilityAttempt, forceStop=$isForceStopAttempt, deactivate=$isDeactivateAttempt) — launching challenge overlay")
+                Log.d(TAG, "Security bypass attempt detected (uninstall=$isUninstallDetected, accessibility=$isAccessibilityDetected, forceStop=$isForceStopDetected, deactivate=$isDeactivateDetected) — launching challenge overlay")
 
                 // Force exit the Settings app immediately to prevent any prompt interaction
                 performGlobalAction(GLOBAL_ACTION_BACK)
