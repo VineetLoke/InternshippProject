@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">FocusLock</string>
-    <string name="accessibility_service_description">FocusLock monitors app usage, blocks distracting apps, and filters harmful Chrome content to help you stay focused.</string>
-    <string name="device_admin_description">FocusLock uses device administrator to prevent impulsive app deletion. Complete 200 pushups to disable protection.</string>
+    <string name="accessibility_service_description">FocusLock monitors foreground applications to block distracting apps like Instagram. This permission is required for the application blocker to function.</string>
 </resources>
