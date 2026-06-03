@@ -61,6 +61,71 @@ class _PermissionsScreenState extends State<PermissionsScreen>
   bool get _allGranted =>
       _accessibilityEnabled && _overlayEnabled && _cameraEnabled;
 
+  void _showAccessibilityGuide() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A2E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.accessibility_new_rounded, color: Color(0xFF7C4DFF)),
+            SizedBox(width: 10),
+            Text(
+              'Accessibility Permission',
+              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'FocusLock requires this service to run in the background and lock Instagram.',
+                style: TextStyle(color: Color(0xFF8888A0), fontSize: 14),
+              ),
+              SizedBox(height: 16),
+              Text(
+                '⚠️ Android 13+ "Restricted Setting":',
+                style: TextStyle(color: Color(0xFFFF5252), fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'If the switch is disabled or grayed out:\n\n'
+                '1. Go to settings, find Apps > FocusLock.\n'
+                '2. Click the 3-dots in top-right menu.\n'
+                '3. Choose "Allow restricted settings".\n'
+                '4. Return here, click this card, and turn on the FocusLock Accessibility Service.',
+                style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF8888A0))),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final service = Provider.of<PermissionService>(context, listen: false);
+              await service.openAccessibilitySettings();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF7C4DFF),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -100,12 +165,9 @@ class _PermissionsScreenState extends State<PermissionsScreen>
                 subtitle: 'Detects when you open Instagram',
                 icon: Icons.accessibility_new_rounded,
                 isGranted: _accessibilityEnabled,
-                onTap: () async {
-                  final service =
-                      Provider.of<PermissionService>(context, listen: false);
-                  await service.openAccessibilitySettings();
-                },
+                onTap: _showAccessibilityGuide,
               ),
+
               const SizedBox(height: 16),
 
               _buildPermissionCard(

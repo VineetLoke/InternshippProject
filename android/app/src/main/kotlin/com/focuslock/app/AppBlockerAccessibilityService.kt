@@ -19,14 +19,13 @@ import android.widget.LinearLayout
 import android.widget.TextView
 
 class AppBlockerAccessibilityService : AccessibilityService() {
-
     companion object {
-        // Shared state with MainActivity — simple and effective for baby step
         var isBlockingEnabled: Boolean = true
         var tempUnlockUntil: Long = 0L
 
         private val BLOCKED_PACKAGES = setOf(
-            "com.instagram.android"
+            "com.instagram.android",
+            "com.instagram.lite"
         )
     }
 
@@ -35,45 +34,68 @@ class AppBlockerAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        // Load state from SharedPreferences on service start
+        android.util.Log.d("FocusLock", "Accessibility Service Connected!")
         val prefs = getSharedPreferences("focuslock_prefs", Context.MODE_PRIVATE)
         isBlockingEnabled = prefs.getBoolean("instagram_blocked", true)
         tempUnlockUntil = prefs.getLong("temp_unlock_timestamp", 0L)
     }
 
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
+        
+        // Listen to window state changes (e.g. app open)
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
 
         val packageName = event.packageName?.toString() ?: return
+        android.util.Log.d("FocusLock", "Accessibility event package: $packageName")
 
         // Ignore our own app and system UI
         if (packageName == "com.focuslock.app" ||
             packageName == "com.android.systemui" ||
             packageName == "com.android.launcher" ||
-            packageName.startsWith("com.android.launcher")) {
+            packageName.startsWith("com.android.launcher") ||
+            packageName.contains("launcher") ||
+            packageName.contains("trebuchet")) {
             return
         }
 
-        if (!BLOCKED_PACKAGES.contains(packageName)) return
-        if (!isBlockingEnabled) return
-
-        // Check temp unlock
-        if (System.currentTimeMillis() < tempUnlockUntil) {
-            // Temp unlock is active — allow access
+        if (!BLOCKED_PACKAGES.contains(packageName)) {
             return
         }
 
+        // Load latest preferences directly to ensure we are in sync across processes
+        val prefs = getSharedPreferences("focuslock_prefs", Context.MODE_PRIVATE)
+        val isBlocked = prefs.getBoolean("instagram_blocked", true)
+        val unlockUntil = prefs.getLong("temp_unlock_timestamp", 0L)
+        val now = System.currentTimeMillis()
+
+        android.util.Log.d("FocusLock", "Instagram detected! isBlocked: $isBlocked, unlockUntil: $unlockUntil, now: $now")
+
+        if (!isBlocked) {
+            android.util.Log.d("FocusLock", "Instagram block is disabled. Allowing.")
+            return
+        }
+
+        if (now < unlockUntil) {
+            val secondsLeft = (unlockUntil - now) / 1000
+            android.util.Log.d("FocusLock", "Temporary unlock active! $secondsLeft seconds remaining. Allowing.")
+            return
+        }
+
+        android.util.Log.d("FocusLock", "Instagram is blocked! Showing overlay and going BACK.")
         // Block! Show overlay and press BACK
         showLockOverlay()
         performGlobalAction(GLOBAL_ACTION_BACK)
     }
 
     override fun onInterrupt() {
+        android.util.Log.d("FocusLock", "Accessibility service interrupted.")
         removeLockOverlay()
     }
 
     override fun onDestroy() {
+        android.util.Log.d("FocusLock", "Accessibility service destroyed.")
         super.onDestroy()
         removeLockOverlay()
     }
@@ -203,7 +225,13 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         container.addView(content, contentParams)
 
         overlayView = container
-        windowManager?.addView(container, params)
+        try {
+            android.util.Log.d("FocusLock", "Attempting to add overlay view to WindowManager")
+            windowManager?.addView(container, params)
+            android.util.Log.d("FocusLock", "Overlay view added successfully")
+        } catch (e: Exception) {
+            android.util.Log.e("FocusLock", "Error adding overlay view to WindowManager", e)
+        }
     }
 
     private fun removeLockOverlay() {
