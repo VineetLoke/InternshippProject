@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">FocusLock</string>
-    <string name="accessibility_service_description">FocusLock monitors foreground applications to block distracting apps like Instagram. This permission is required for the application blocker to function.</string>
+    <string name="accessibility_service_description">FocusLock monitors which apps you open to help you stay focused. When a blocked app is detected, FocusLock will show a lock screen and redirect you. Your app usage data never leaves your device.</string>
 </resources>

@@ -1,7 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/services/permission_service.dart';
-import '../../../core/services/platform_channel_service.dart';
 
+/// Step-by-step permission granting screen with premium dark UI.
+/// Guides the user through enabling:
+/// 1. Accessibility Service
+/// 2. Draw Over Other Apps
+/// 3. Camera Permission
 class PermissionsScreen extends StatefulWidget {
   const PermissionsScreen({super.key});
 
@@ -9,10 +15,11 @@ class PermissionsScreen extends StatefulWidget {
   State<PermissionsScreen> createState() => _PermissionsScreenState();
 }
 
-class _PermissionsScreenState extends State<PermissionsScreen> with WidgetsBindingObserver {
-  bool _accessibilityGranted = false;
-  bool _overlayGranted = false;
-  bool _cameraGranted = false;
+class _PermissionsScreenState extends State<PermissionsScreen>
+    with WidgetsBindingObserver {
+  bool _accessibilityEnabled = false;
+  bool _overlayEnabled = false;
+  bool _cameraEnabled = false;
   bool _checking = true;
 
   @override
@@ -30,91 +37,149 @@ class _PermissionsScreenState extends State<PermissionsScreen> with WidgetsBindi
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Re-check permissions when user returns from system settings
     if (state == AppLifecycleState.resumed) {
       _checkPermissions();
     }
   }
 
   Future<void> _checkPermissions() async {
-    setState(() => _checking = true);
-    final acc = await PermissionService.instance.isAccessibilityEnabled();
-    final over = await PermissionService.instance.isOverlayEnabled();
-    final cam = await PermissionService.instance.isCameraEnabled();
-    if (mounted) {
-      setState(() {
-        _accessibilityGranted = acc;
-        _overlayGranted = over;
-        _cameraGranted = cam;
-        _checking = false;
-      });
-    }
+    final service = Provider.of<PermissionService>(context, listen: false);
+    final accessibility = await service.isAccessibilityEnabled();
+    final overlay = await service.canDrawOverlays();
+    final camera = await service.isCameraGranted();
+
+    if (!mounted) return;
+    setState(() {
+      _accessibilityEnabled = accessibility;
+      _overlayEnabled = overlay;
+      _cameraEnabled = camera;
+      _checking = false;
+    });
   }
 
-  Widget _buildPermissionCard({
-    required String title,
-    required String description,
-    required IconData icon,
-    required bool isGranted,
-    required VoidCallback onTap,
-  }) {
-    return Card(
-      color: const Color(0xff16213e),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: isGranted ? const Color(0xff00d4aa) : const Color(0xff6c63ff).withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: isGranted ? null : onTap,
+  bool get _allGranted =>
+      _accessibilityEnabled && _overlayEnabled && _cameraEnabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Row(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: (isGranted ? const Color(0xff00d4aa) : const Color(0xff6c63ff)).withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  icon,
-                  color: isGranted ? const Color(0xff00d4aa) : const Color(0xff6c63ff),
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      description,
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.6),
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
+              const SizedBox(height: 32),
+
+              // Header
+              ShaderMask(
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [Color(0xFF7C4DFF), Color(0xFF536DFE)],
+                ).createShader(bounds),
+                child: const Text(
+                  '🛡️ Setup FocusLock',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
                 ),
               ),
-              const SizedBox(width: 12),
-              isGranted
-                  ? const Icon(Icons.check_circle, color: Color(0xff00d4aa), size: 28)
-                  : const Icon(Icons.arrow_forward_ios, color: Colors.white24, size: 18),
+              const SizedBox(height: 8),
+              Text(
+                'Grant these permissions to block Instagram and track your pushups.',
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              const SizedBox(height: 40),
+
+              // Permission cards
+              _buildPermissionCard(
+                step: 1,
+                title: 'Accessibility Service',
+                subtitle: 'Detects when you open Instagram',
+                icon: Icons.accessibility_new_rounded,
+                isGranted: _accessibilityEnabled,
+                onTap: () async {
+                  final service =
+                      Provider.of<PermissionService>(context, listen: false);
+                  await service.openAccessibilitySettings();
+                },
+              ),
+              const SizedBox(height: 16),
+
+              _buildPermissionCard(
+                step: 2,
+                title: 'Draw Over Other Apps',
+                subtitle: 'Shows the lock screen overlay',
+                icon: Icons.layers_rounded,
+                isGranted: _overlayEnabled,
+                onTap: () async {
+                  final service =
+                      Provider.of<PermissionService>(context, listen: false);
+                  await service.requestOverlayPermission();
+                },
+              ),
+              const SizedBox(height: 16),
+
+              _buildPermissionCard(
+                step: 3,
+                title: 'Camera',
+                subtitle: 'Needed for pushup pose detection',
+                icon: Icons.camera_alt_rounded,
+                isGranted: _cameraEnabled,
+                onTap: () async {
+                  final service =
+                      Provider.of<PermissionService>(context, listen: false);
+                  final granted = await service.requestCameraPermission();
+                  if (mounted) {
+                    setState(() => _cameraEnabled = granted);
+                  }
+                },
+              ),
+
+              const Spacer(),
+
+              // Continue button
+              AnimatedOpacity(
+                opacity: _allGranted ? 1.0 : 0.4,
+                duration: const Duration(milliseconds: 300),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _allGranted
+                        ? () {
+                            Navigator.of(context).pushReplacementNamed('/home');
+                          }
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF7C4DFF),
+                      disabledBackgroundColor: const Color(0xFF2A2A40),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _allGranted ? 'Continue' : 'Grant All Permissions',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (_allGranted) ...[
+                          const SizedBox(width: 8),
+                          const Icon(Icons.arrow_forward_rounded),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -122,102 +187,119 @@ class _PermissionsScreenState extends State<PermissionsScreen> with WidgetsBindi
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final allGranted = _accessibilityGranted && _overlayGranted && _cameraGranted;
+  Widget _buildPermissionCard({
+    required int step,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool isGranted,
+    required VoidCallback onTap,
+  }) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeInOut,
+      decoration: BoxDecoration(
+        gradient: isGranted
+            ? const LinearGradient(
+                colors: [Color(0xFF1B3A1B), Color(0xFF0D2B0D)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              )
+            : const LinearGradient(
+                colors: [Color(0xFF1A1A2E), Color(0xFF16213E)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isGranted
+              ? const Color(0xFF4CAF50).withOpacity(0.5)
+              : const Color(0xFF7C4DFF).withOpacity(0.2),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: (isGranted ? const Color(0xFF4CAF50) : const Color(0xFF7C4DFF))
+                .withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isGranted ? null : onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                // Step number / check
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isGranted
+                        ? const Color(0xFF4CAF50).withOpacity(0.2)
+                        : const Color(0xFF7C4DFF).withOpacity(0.2),
+                  ),
+                  child: Center(
+                    child: isGranted
+                        ? const Icon(Icons.check_rounded,
+                            color: Color(0xFF4CAF50), size: 24)
+                        : Text(
+                            '$step',
+                            style: const TextStyle(
+                              color: Color(0xFF7C4DFF),
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 16),
 
-    return Scaffold(
-      backgroundColor: const Color(0xff0a0a1a),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 30),
-              const Text(
-                "Set Up FocusLock",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "Complete these setup steps to activate the app blocker and camera verification.",
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.6),
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 40),
-              Expanded(
-                child: _checking
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xff6c63ff)),
+                // Content
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: isGranted
+                              ? const Color(0xFF4CAF50)
+                              : Colors.white,
                         ),
-                      )
-                    : ListView(
-                        children: [
-                          _buildPermissionCard(
-                            title: "Accessibility Service",
-                            description: "Required to monitor and block distracting apps.",
-                            icon: Icons.accessibility_new,
-                            isGranted: _accessibilityGranted,
-                            onTap: () => PlatformChannelService.instance.openAccessibilitySettings(),
-                          ),
-                          _buildPermissionCard(
-                            title: "Draw Over Other Apps",
-                            description: "Allows FocusLock to display blocking lock screens.",
-                            icon: Icons.layers,
-                            isGranted: _overlayGranted,
-                            onTap: () => PlatformChannelService.instance.requestOverlayPermission(),
-                          ),
-                          _buildPermissionCard(
-                            title: "Camera Access",
-                            description: "Used for real-time pushup pose detection.",
-                            icon: Icons.camera_alt,
-                            isGranted: _cameraGranted,
-                            onTap: () async {
-                              await PermissionService.instance.requestCameraPermission();
-                              _checkPermissions();
-                            },
-                          ),
-                        ],
                       ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: allGranted ? const Color(0xff6c63ff) : Colors.white10,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28),
-                    ),
-                    elevation: allGranted ? 4 : 0,
-                  ),
-                  onPressed: allGranted
-                      ? () {
-                          Navigator.pushReplacementNamed(context, '/home');
-                        }
-                      : null,
-                  child: Text(
-                    "Activate Blocker",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: allGranted ? Colors.white : Colors.white30,
-                    ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isGranted
+                              ? const Color(0xFF4CAF50).withOpacity(0.7)
+                              : const Color(0xFF8888A0),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 10),
-            ],
+
+                // Action icon
+                Icon(
+                  isGranted ? Icons.verified_rounded : Icons.arrow_forward_ios_rounded,
+                  color: isGranted
+                      ? const Color(0xFF4CAF50)
+                      : const Color(0xFF7C4DFF),
+                  size: 20,
+                ),
+              ],
+            ),
           ),
         ),
       ),
