@@ -15,6 +15,10 @@ class CameraPushupDetector {
 
   bool _isProcessing = false;
   bool _isInitialized = false;
+  bool _isPoseVisible = false;
+  int _framesProcessed = 0;
+  int _posesDetected = 0;
+  String? _lastError;
 
   // Callbacks
   Function(int count)? onCountUpdate;
@@ -22,17 +26,27 @@ class CameraPushupDetector {
   Function(String feedback)? onFeedbackUpdate;
   Function(Pose pose)? onPoseDetected;
   Function()? onChallengeComplete;
+  Function(bool visible)? onPoseVisibilityChanged;
+  Function(String error)? onError;
+  Function(int framesProcessed, int posesDetected)? onDebugInfo;
 
   final int targetCount;
+
+  /// Minimum confidence for a landmark to be considered valid.
+  /// Lowered from 0.5 to 0.3 because pushup positions (far, angled)
+  /// often produce lower confidence scores.
+  static const double _minConfidence = 0.3;
 
   CameraPushupDetector({this.targetCount = 10});
 
   CameraController? get cameraController => _cameraController;
   bool get isInitialized => _isInitialized;
+  bool get isPoseVisible => _isPoseVisible;
   int get currentCount => _pushupCounter.count;
   PushupCounter get pushupCounter => _pushupCounter;
 
-  /// Initialize front camera and pose detector.
+  /// Initialize camera and pose detector.
+  /// Tries front camera first, falls back to back camera.
   Future<void> initialize() async {
     // Initialize pose detector
     final options = PoseDetectorOptions(
@@ -41,18 +55,22 @@ class CameraPushupDetector {
     );
     _poseDetector = PoseDetector(options: options);
 
-    // Get available cameras and select the front camera
+    // Get available cameras
     final cameras = await availableCameras();
-    CameraDescription? frontCamera;
+    if (cameras.isEmpty) {
+      throw Exception('No cameras available on this device');
+    }
+
+    // Prefer front camera for pushup selfie view
+    CameraDescription? selectedCamera;
     for (final camera in cameras) {
       if (camera.lensDirection == CameraLensDirection.front) {
-        frontCamera = camera;
+        selectedCamera = camera;
         break;
       }
     }
-
-    // Fall back to the first available camera if no front camera
-    final selectedCamera = frontCamera ?? cameras.first;
+    // Fall back to back camera
+    selectedCamera ??= cameras.first;
 
     _cameraController = CameraController(
       selectedCamera,
@@ -75,8 +93,13 @@ class CameraPushupDetector {
 
     _processFrame(cameraImage).then((_) {
       _isProcessing = false;
-    }).catchError((e) {
+    }).catchError((dynamic e) {
       _isProcessing = false;
+      final errorMsg = 'Frame processing error: $e';
+      if (_lastError != errorMsg) {
+        _lastError = errorMsg;
+        onError?.call(errorMsg);
+      }
     });
   }
 
@@ -84,17 +107,61 @@ class CameraPushupDetector {
     if (_poseDetector == null || _cameraController == null) return;
 
     final inputImage = _convertCameraImage(cameraImage);
-    if (inputImage == null) return;
+    if (inputImage == null) {
+      // Only report this error once
+      if (_framesProcessed == 0) {
+        onError?.call(
+          'Cannot convert camera format: ${cameraImage.format.group}. '
+          'Planes: ${cameraImage.planes.length}, '
+          'Size: ${cameraImage.width}x${cameraImage.height}'
+        );
+      }
+      _framesProcessed++;
+      return;
+    }
 
-    final poses = await _poseDetector!.processImage(inputImage);
-    if (poses.isEmpty) return;
+    _framesProcessed++;
 
+    List<Pose> poses;
+    try {
+      poses = await _poseDetector!.processImage(inputImage);
+    } catch (e) {
+      onError?.call('ML Kit error: $e');
+      return;
+    }
+
+    // Update debug info every 30 frames
+    if (_framesProcessed % 30 == 0) {
+      onDebugInfo?.call(_framesProcessed, _posesDetected);
+    }
+
+    if (poses.isEmpty) {
+      // Signal that no pose is visible
+      if (_isPoseVisible) {
+        _isPoseVisible = false;
+        onPoseVisibilityChanged?.call(false);
+        onFeedbackUpdate?.call('No body detected — show your side profile 📐');
+      }
+      return;
+    }
+
+    _posesDetected++;
     final pose = poses.first;
+
+    // Signal pose is now visible
+    if (!_isPoseVisible) {
+      _isPoseVisible = true;
+      onPoseVisibilityChanged?.call(true);
+    }
+
     onPoseDetected?.call(pose);
 
     // Calculate elbow angle using both arms
     final angle = _calculateBestElbowAngle(pose);
-    if (angle == null) return;
+    if (angle == null) {
+      onFeedbackUpdate?.call('Arms not visible — adjust position 🔄');
+      return;
+    }
 
     onAngleUpdate?.call(angle);
 
@@ -110,7 +177,9 @@ class CameraPushupDetector {
       if (_pushupCounter.count >= targetCount) {
         onChallengeComplete?.call();
         // Stop processing
-        await _cameraController?.stopImageStream();
+        try {
+          await _cameraController?.stopImageStream();
+        } catch (_) {}
       }
     }
   }
@@ -119,7 +188,7 @@ class CameraPushupDetector {
   InputImage? _convertCameraImage(CameraImage cameraImage) {
     final camera = _cameraController!.description;
 
-    // Determine rotation
+    // Determine rotation based on sensor orientation
     final sensorOrientation = camera.sensorOrientation;
     InputImageRotation rotation;
     switch (sensorOrientation) {
@@ -139,11 +208,11 @@ class CameraPushupDetector {
         rotation = InputImageRotation.rotation0deg;
     }
 
-    // For NV21 format (Android)
+    // For NV21 format (Android default)
     if (cameraImage.format.group == ImageFormatGroup.nv21) {
-      final bytes = cameraImage.planes.first.bytes;
+      final plane = cameraImage.planes.first;
       return InputImage.fromBytes(
-        bytes: bytes,
+        bytes: plane.bytes,
         metadata: InputImageMetadata(
           size: ui.Size(
             cameraImage.width.toDouble(),
@@ -151,12 +220,12 @@ class CameraPushupDetector {
           ),
           rotation: rotation,
           format: InputImageFormat.nv21,
-          bytesPerRow: cameraImage.planes.first.bytesPerRow,
+          bytesPerRow: plane.bytesPerRow,
         ),
       );
     }
 
-    // For YUV420 format
+    // For YUV420 format (some Android devices)
     if (cameraImage.format.group == ImageFormatGroup.yuv420) {
       final allBytes = WriteBuffer();
       for (final plane in cameraImage.planes) {
@@ -176,18 +245,34 @@ class CameraPushupDetector {
       );
     }
 
+    // For BGRA8888 format (iOS, shouldn't happen on Android but just in case)
+    if (cameraImage.format.group == ImageFormatGroup.bgra8888) {
+      final plane = cameraImage.planes.first;
+      return InputImage.fromBytes(
+        bytes: plane.bytes,
+        metadata: InputImageMetadata(
+          size: ui.Size(
+            cameraImage.width.toDouble(),
+            cameraImage.height.toDouble(),
+          ),
+          rotation: rotation,
+          format: InputImageFormat.bgra8888,
+          bytesPerRow: plane.bytesPerRow,
+        ),
+      );
+    }
+
     return null;
   }
 
   /// Calculate elbow angle from pose landmarks.
   /// Uses both arms and picks the best (highest confidence) one.
+  /// Returns the average if both are available.
   double? _calculateBestElbowAngle(Pose pose) {
     final landmarks = pose.landmarks;
 
     double? leftAngle;
     double? rightAngle;
-    double leftConfidence = 0;
-    double rightConfidence = 0;
 
     // Left arm: left shoulder → left elbow → left wrist
     final leftShoulder = landmarks[PoseLandmarkType.leftShoulder];
@@ -201,13 +286,12 @@ class CameraPushupDetector {
         leftWrist.likelihood,
       ].reduce((a, b) => a < b ? a : b);
 
-      if (minLikelihood > 0.5) {
+      if (minLikelihood > _minConfidence) {
         leftAngle = PushupCounter.calculateAngle(
           leftShoulder.x, leftShoulder.y,
           leftElbow.x, leftElbow.y,
           leftWrist.x, leftWrist.y,
         );
-        leftConfidence = minLikelihood;
       }
     }
 
@@ -223,23 +307,20 @@ class CameraPushupDetector {
         rightWrist.likelihood,
       ].reduce((a, b) => a < b ? a : b);
 
-      if (minLikelihood > 0.5) {
+      if (minLikelihood > _minConfidence) {
         rightAngle = PushupCounter.calculateAngle(
           rightShoulder.x, rightShoulder.y,
           rightElbow.x, rightElbow.y,
           rightWrist.x, rightWrist.y,
         );
-        rightConfidence = minLikelihood;
       }
     }
 
-    // Average both arms if both are available, else use whichever is available
+    // Average both arms if both are available
     if (leftAngle != null && rightAngle != null) {
       return (leftAngle + rightAngle) / 2.0;
     }
-    if (leftAngle != null) return leftAngle;
-    if (rightAngle != null) return rightAngle;
-    return null;
+    return leftAngle ?? rightAngle;
   }
 
   /// Dispose of camera and pose detector resources.

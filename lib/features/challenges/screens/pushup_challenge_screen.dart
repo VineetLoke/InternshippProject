@@ -13,6 +13,7 @@ import '../services/pushup_counter.dart';
 /// - Large counter display
 /// - Real-time angle + form feedback
 /// - Progress bar
+/// - Positioning guidance
 /// - Celebration animation on completion
 class PushupChallengeScreen extends StatefulWidget {
   const PushupChallengeScreen({super.key});
@@ -32,8 +33,15 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
 
   int _currentCount = 0;
   double _currentAngle = 180.0;
-  String _feedback = 'Get into position...';
+  String _feedback = 'Initializing camera...';
   Pose? _currentPose;
+  bool _isPoseVisible = false;
+  String? _debugError;
+  int _framesProcessed = 0;
+  int _posesDetected = 0;
+
+  // Show positioning guide initially
+  bool _showGuide = true;
 
   // Celebration animation
   late AnimationController _celebrationController;
@@ -66,7 +74,10 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
 
     _detector.onAngleUpdate = (angle) {
       if (!mounted) return;
-      setState(() => _currentAngle = angle);
+      setState(() {
+        _currentAngle = angle;
+        _showGuide = false; // Hide guide once we get angle data
+      });
     };
 
     _detector.onFeedbackUpdate = (feedback) {
@@ -79,6 +90,24 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
       setState(() => _currentPose = pose);
     };
 
+    _detector.onPoseVisibilityChanged = (visible) {
+      if (!mounted) return;
+      setState(() => _isPoseVisible = visible);
+    };
+
+    _detector.onError = (error) {
+      if (!mounted) return;
+      setState(() => _debugError = error);
+    };
+
+    _detector.onDebugInfo = (frames, poses) {
+      if (!mounted) return;
+      setState(() {
+        _framesProcessed = frames;
+        _posesDetected = poses;
+      });
+    };
+
     _detector.onChallengeComplete = () {
       if (!mounted) return;
       _onChallengeComplete();
@@ -87,7 +116,10 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
     try {
       await _detector.initialize();
       if (!mounted) return;
-      setState(() => _isInitialized = true);
+      setState(() {
+        _isInitialized = true;
+        _feedback = 'Position your phone to see your side profile 📐';
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -150,7 +182,10 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
               ),
             ),
 
-          // Top overlay with back button and angle
+          // Positioning guide overlay
+          if (_showGuide && !_isCompleted) _buildPositioningGuide(),
+
+          // Top overlay with back button, angle, and debug info
           _buildTopOverlay(),
 
           // Bottom overlay with counter, progress, and feedback
@@ -187,6 +222,61 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
     );
   }
 
+  /// Overlay guide showing users how to position the camera for pushups.
+  Widget _buildPositioningGuide() {
+    return Container(
+      color: Colors.black.withOpacity(0.7),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('📐', style: TextStyle(fontSize: 64)),
+              const SizedBox(height: 20),
+              const Text(
+                'Camera Position Guide',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                '1. Place phone on the ground, propped up\n'
+                '2. Camera should see your SIDE PROFILE\n'
+                '3. Full upper body visible (head to waist)\n'
+                '4. Arms must be clearly visible\n'
+                '5. Stay ~1-2 meters from camera',
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Color(0xFFB0B0C0),
+                  height: 1.6,
+                ),
+                textAlign: TextAlign.left,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () => setState(() => _showGuide = false),
+                icon: const Icon(Icons.check_rounded),
+                label: const Text('Got it, start detecting!'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF7C4DFF),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildTopOverlay() {
     return Positioned(
       top: 0,
@@ -209,43 +299,112 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
             ],
           ),
         ),
-        child: Row(
+        child: Column(
           children: [
-            // Back button
-            IconButton(
-              onPressed: () => Navigator.of(context).pop(),
-              icon: const Icon(Icons.arrow_back_rounded,
-                  color: Colors.white, size: 28),
-            ),
-            const Spacer(),
-            // Angle display
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: const Color(0xFF7C4DFF).withOpacity(0.5),
+            Row(
+              children: [
+                // Back button
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.arrow_back_rounded,
+                      color: Colors.white, size: 28),
                 ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.straighten_rounded,
-                      color: Color(0xFF7C4DFF), size: 18),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${_currentAngle.toStringAsFixed(0)}°',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      fontFamily: 'monospace',
+                const Spacer(),
+                // Pose detection status indicator
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _isPoseVisible
+                        ? const Color(0xFF4CAF50).withOpacity(0.3)
+                        : const Color(0xFFFF5252).withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: _isPoseVisible
+                          ? const Color(0xFF4CAF50)
+                          : const Color(0xFFFF5252),
+                      width: 1,
                     ),
                   ),
-                ],
-              ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _isPoseVisible
+                            ? Icons.person_rounded
+                            : Icons.person_off_rounded,
+                        color: _isPoseVisible
+                            ? const Color(0xFF4CAF50)
+                            : const Color(0xFFFF5252),
+                        size: 16,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _isPoseVisible ? 'Pose ✓' : 'No Pose',
+                        style: TextStyle(
+                          color: _isPoseVisible
+                              ? const Color(0xFF4CAF50)
+                              : const Color(0xFFFF5252),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Angle display
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: const Color(0xFF7C4DFF).withOpacity(0.5),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.straighten_rounded,
+                          color: Color(0xFF7C4DFF), size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${_currentAngle.toStringAsFixed(0)}°',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
+            // Debug info row (small text)
+            if (_debugError != null || _framesProcessed > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  children: [
+                    const Spacer(),
+                    Text(
+                      _debugError ??
+                          'Frames: $_framesProcessed | Poses: $_posesDetected',
+                      style: TextStyle(
+                        color: _debugError != null
+                            ? const Color(0xFFFF5252)
+                            : const Color(0xFF666666),
+                        fontSize: 10,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -281,7 +440,8 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
           children: [
             // Form feedback
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
                 color: _getFeedbackColor().withOpacity(0.2),
                 borderRadius: BorderRadius.circular(30),
@@ -296,6 +456,7 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
+                textAlign: TextAlign.center,
               ),
             ),
             const SizedBox(height: 20),
@@ -351,6 +512,20 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
                 ),
               ),
             ),
+
+            // Help button
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: () => setState(() => _showGuide = true),
+              child: const Text(
+                '❓ Not detecting? Tap for positioning help',
+                style: TextStyle(
+                  color: Color(0xFF7C4DFF),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -364,6 +539,12 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
     if (_feedback.contains('Keep')) {
       return const Color(0xFFFFA726);
     }
+    if (_feedback.contains('No body') || _feedback.contains('not visible')) {
+      return const Color(0xFFFF5252);
+    }
+    if (_feedback.contains('Arms not')) {
+      return const Color(0xFFFF9800);
+    }
     return const Color(0xFF8888A0);
   }
 
@@ -376,10 +557,7 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                '🎉',
-                style: TextStyle(fontSize: 80),
-              ),
+              const Text('🎉', style: TextStyle(fontSize: 80)),
               const SizedBox(height: 24),
               const Text(
                 'AMAZING!',
@@ -535,7 +713,10 @@ class _PoseSkeletonPainter extends CustomPainter {
     for (final connection in connections) {
       final p1 = pose.landmarks[connection[0]];
       final p2 = pose.landmarks[connection[1]];
-      if (p1 != null && p2 != null && p1.likelihood > 0.5 && p2.likelihood > 0.5) {
+      if (p1 != null &&
+          p2 != null &&
+          p1.likelihood > 0.3 &&
+          p2.likelihood > 0.3) {
         canvas.drawLine(
           _translatePoint(p1.x, p1.y, size),
           _translatePoint(p2.x, p2.y, size),
@@ -556,14 +737,19 @@ class _PoseSkeletonPainter extends CustomPainter {
       PoseLandmarkType.rightHip,
     ];
 
-    final elbowTypes = {PoseLandmarkType.leftElbow, PoseLandmarkType.rightElbow};
+    final elbowTypes = {
+      PoseLandmarkType.leftElbow,
+      PoseLandmarkType.rightElbow
+    };
 
     for (final type in keyLandmarks) {
       final landmark = pose.landmarks[type];
-      if (landmark != null && landmark.likelihood > 0.5) {
+      if (landmark != null && landmark.likelihood > 0.3) {
         final point = _translatePoint(landmark.x, landmark.y, size);
-        final paint = elbowTypes.contains(type) ? highlightPaint : pointPaint;
-        canvas.drawCircle(point, elbowTypes.contains(type) ? 8 : 6, paint);
+        final paint =
+            elbowTypes.contains(type) ? highlightPaint : pointPaint;
+        canvas.drawCircle(
+            point, elbowTypes.contains(type) ? 8 : 6, paint);
       }
     }
   }
