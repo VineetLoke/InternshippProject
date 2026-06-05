@@ -76,7 +76,7 @@ class BlockingOverlayScreen : Service() {
             }
 
             val message = TextView(this).apply {
-                text = "You don\u2019t need this."
+                text = "Your future self is watching. Choose wisely."
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 24f)
                 setTextColor(Color.parseColor(TEXT_COLOR))
                 gravity = Gravity.CENTER
