@@ -169,10 +169,15 @@ class MainActivity : FlutterActivity() {
 
                     // ── Chrome incognito keyword blocker (accessibility-based) ────
                     "getChromeFilterStatus" -> {
+                        val policyStatus = ChromeIncognitoPolicy.getStatus(applicationContext)
+                        // isActive = policy-based blocking is applied, OR accessibility service is running
+                        val isActive = (policyStatus["isActive"] == true) ||
+                                       (AccessibilityMonitor.isRunning)
                         result.success(mapOf(
-                            "isActive" to AccessibilityMonitor.isRunning,
-                            "mode" to "accessibility_keyword_scan",
-                            "policyApplied" to true
+                            "isActive" to isActive,
+                            "isDeviceOwner" to (policyStatus["isDeviceOwner"] == true),
+                            "policyApplied" to (policyStatus["policyApplied"] == true),
+                            "serviceRunning" to AccessibilityMonitor.isRunning
                         ))
                     }
                     "applyChromeIncognitoPolicy" -> {

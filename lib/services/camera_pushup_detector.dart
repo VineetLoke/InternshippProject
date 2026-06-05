@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:typed_data';
 import 'dart:ui' show Size;
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
@@ -17,10 +18,12 @@ class CameraPushupDetector {
   int _count = 0;
   bool _isRunning = false;
   bool _isInitialized = false;
+  bool _isProcessing = false;
 
   RepState _repState = RepState.idle;
   static const double _downThreshold = 80.0;
   static const double _upThreshold = 150.0;
+  static const double _minConfidence = 0.5;
 
   CameraController? get cameraController => _cameraController;
   int get currentCount => _count;
@@ -66,17 +69,26 @@ class CameraPushupDetector {
   }
 
   void _processImage(CameraImage image) {
-    if (_poseDetector == null) return;
+    if (_poseDetector == null || _isProcessing) return;
+    _isProcessing = true;
     try {
       final inputImage = _buildInputImage(image);
-      if (inputImage == null) return;
+      if (inputImage == null) {
+        _isProcessing = false;
+        return;
+      }
 
       _poseDetector!.processImage(inputImage).then((poses) {
         if (poses.isNotEmpty) {
           _processPose(poses.first);
         }
-      }).catchError((_) {});
-    } catch (_) {}
+        _isProcessing = false;
+      }).catchError((_) {
+        _isProcessing = false;
+      });
+    } catch (_) {
+      _isProcessing = false;
+    }
   }
 
   InputImage? _buildInputImage(CameraImage image) {
@@ -89,13 +101,46 @@ class CameraPushupDetector {
       isFrontCamera ? (360 - sensorOrientation) % 360 : sensorOrientation,
     );
 
+    // Concatenate ALL planes into one NV21 byte array.
+    // planes[0] = Y (luminance), planes[1] = VU interleaved (chroma).
+    // Using only planes[0].bytes (Y plane) would make ML Kit fail to detect poses.
+    Uint8List fullBytes;
+    if (image.planes.length >= 2) {
+      final yPlane = image.planes[0];
+      final vuPlane = image.planes[1];
+      if (yPlane.bytesPerRow == image.width &&
+          vuPlane.bytesPerRow == image.width) {
+        fullBytes = Uint8List.fromList([...yPlane.bytes, ...vuPlane.bytes]);
+      } else {
+        // Handle stride mismatch: copy row by row
+        final ySize = image.width * image.height;
+        final uvSize = image.width * image.height ~/ 2;
+        fullBytes = Uint8List(ySize + uvSize);
+        int destIdx = 0;
+        for (int row = 0; row < image.height; row++) {
+          final srcStart = row * yPlane.bytesPerRow;
+          fullBytes.setRange(destIdx, destIdx + image.width,
+              yPlane.bytes.sublist(srcStart, srcStart + image.width));
+          destIdx += image.width;
+        }
+        for (int row = 0; row < image.height ~/ 2; row++) {
+          final srcStart = row * vuPlane.bytesPerRow;
+          fullBytes.setRange(destIdx, destIdx + image.width,
+              vuPlane.bytes.sublist(srcStart, srcStart + image.width));
+          destIdx += image.width;
+        }
+      }
+    } else {
+      fullBytes = image.planes[0].bytes;
+    }
+
     return InputImage.fromBytes(
-      bytes: image.planes[0].bytes,
+      bytes: fullBytes,
       metadata: InputImageMetadata(
         size: Size(image.width.toDouble(), image.height.toDouble()),
         rotation: rotation,
         format: InputImageFormat.nv21,
-        bytesPerRow: image.planes[0].bytesPerRow,
+        bytesPerRow: image.width,
       ),
     );
   }
@@ -126,7 +171,14 @@ class CameraPushupDetector {
     double angle = 0;
     bool detected = false;
 
-    if (leftShoulder != null && leftElbow != null && leftWrist != null) {
+    // Check for arm with highest average confidence
+    if (_hasConfidentLandmarks(leftShoulder, leftElbow, leftWrist)) {
+      angle = _calculateAngle(leftShoulder!, leftElbow!, leftWrist!);
+      detected = true;
+    } else if (_hasConfidentLandmarks(rightShoulder, rightElbow, rightWrist)) {
+      angle = _calculateAngle(rightShoulder!, rightElbow!, rightWrist!);
+      detected = true;
+    } else if (leftShoulder != null && leftElbow != null && leftWrist != null) {
       angle = _calculateAngle(leftShoulder, leftElbow, leftWrist);
       detected = true;
     } else if (rightShoulder != null && rightElbow != null &&
@@ -135,7 +187,17 @@ class CameraPushupDetector {
       detected = true;
     }
 
-    if (detected) _updateRepState(angle);
+    if (detected) {
+      debugPrint('CameraPushup: angle=$angle, state=$_repState, count=$_count');
+      _updateRepState(angle);
+    }
+  }
+
+  bool _hasConfidentLandmarks(PoseLandmark? a, PoseLandmark? b, PoseLandmark? c) {
+    if (a == null || b == null || c == null) return false;
+    return a.likelihood >= _minConfidence &&
+           b.likelihood >= _minConfidence &&
+           c.likelihood >= _minConfidence;
   }
 
   double _calculateAngle(PoseLandmark a, PoseLandmark b, PoseLandmark c) {
@@ -171,6 +233,7 @@ class CameraPushupDetector {
 
   void stopDetection() {
     _isRunning = false;
+    _isProcessing = false;
     try {
       _cameraController?.stopImageStream();
     } catch (_) {}

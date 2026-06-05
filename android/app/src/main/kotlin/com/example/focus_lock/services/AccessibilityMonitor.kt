@@ -250,8 +250,14 @@ class AccessibilityMonitor : AccessibilityService() {
                     // Fast cache evaluation for incognito transitions
                     if (pkg == ChromeIncognitoBlocker.CHROME_PACKAGE) {
                         ChromeIncognitoBlocker.evaluateIncognitoState(rootInActiveWindow)
+                        // Block immediately when incognito tab is detected (e.g. user switches from
+                        // normal tab to incognito tab), not just on typing.
+                        if (ChromeIncognitoBlocker.isIncognitoCached &&
+                            currentState != DisciplineState.CHROME_INCOGNITO_BLOCKED) {
+                            Log.d(TAG, "Chrome content change detected incognito — blocking immediately")
+                            triggerChromeIncognitoBlock()
+                        }
                     }
-                    // Content changes are not monitored for Chrome incognito blocking
                 }
             }
         } catch (e: Exception) {
@@ -314,7 +320,12 @@ class AccessibilityMonitor : AccessibilityService() {
                 if (RedditBlocker.onRedditDetected()) return
             }
             CHROME_PACKAGE -> {
-                // Chrome: incognito blocking is handled by TYPE_VIEW_TEXT_CHANGED only
+                // Chrome: block immediately if incognito detected by evaluateIncognitoState
+                if (ChromeIncognitoBlocker.isIncognitoCached &&
+                    currentState != DisciplineState.CHROME_INCOGNITO_BLOCKED) {
+                    Log.d(TAG, "Chrome window opened in incognito mode — blocking immediately")
+                    triggerChromeIncognitoBlock()
+                }
             }
             FOCUS_LOCK_PACKAGE -> {
                 // Never block ourselves
