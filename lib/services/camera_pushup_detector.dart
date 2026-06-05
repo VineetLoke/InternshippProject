@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:ui' show Size;
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
@@ -9,7 +10,6 @@ enum RepState { idle, goingDown, bottom, goingUp }
 class CameraPushupDetector {
   CameraController? _cameraController;
   PoseDetector? _poseDetector;
-  StreamSubscription? _imageStreamSub;
 
   final _countController = StreamController<int>.broadcast();
   Stream<int> get onCountChanged => _countController.stream;
@@ -61,7 +61,7 @@ class CameraPushupDetector {
     if (_isRunning) return;
     _isRunning = true;
 
-    _imageStreamSub = _cameraController!.startImageStream(_processImage);
+    _cameraController!.startImageStream(_processImage);
     debugPrint('CameraPushupDetector: detection started');
   }
 
@@ -126,15 +126,11 @@ class CameraPushupDetector {
     double angle = 0;
     bool detected = false;
 
-    if (leftShoulder != null && leftElbow != null && leftWrist != null &&
-        leftShoulder.inFrameLikelihood > 0.5 &&
-        leftElbow.inFrameLikelihood > 0.5) {
+    if (leftShoulder != null && leftElbow != null && leftWrist != null) {
       angle = _calculateAngle(leftShoulder, leftElbow, leftWrist);
       detected = true;
     } else if (rightShoulder != null && rightElbow != null &&
-        rightWrist != null &&
-        rightShoulder.inFrameLikelihood > 0.5 &&
-        rightElbow.inFrameLikelihood > 0.5) {
+        rightWrist != null) {
       angle = _calculateAngle(rightShoulder, rightElbow, rightWrist);
       detected = true;
     }
@@ -175,8 +171,9 @@ class CameraPushupDetector {
 
   void stopDetection() {
     _isRunning = false;
-    _imageStreamSub?.cancel();
-    _imageStreamSub = null;
+    try {
+      _cameraController?.stopImageStream();
+    } catch (_) {}
   }
 
   Future<void> dispose() async {

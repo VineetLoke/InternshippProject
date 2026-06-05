@@ -433,7 +433,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         subtitle,
                         style: TextStyle(
                           fontSize: 12,
-                          color: statusColor.shade700,
+                          color: statusColor,
                         ),
                       ),
                     ],
