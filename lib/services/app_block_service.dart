@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'dart:async';
 
 class AppBlockService {
-  static const String _instagramPackage = 'com.instagram.android';
   static const String _lockStartTimeKey = 'lock_start_time';
   static const String _lockDurationDaysKey = 'lock_duration_days';
   static const int _defaultLockDays = 30;

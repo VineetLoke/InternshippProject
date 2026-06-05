@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/lock_state_provider.dart';
+import '../services/instagram_block_service.dart';
+import '../services/reddit_block_service.dart';
+import '../services/twitter_block_service.dart';
 import '../services/reddit_usage_service.dart';
 import '../services/usage_service.dart';
 import '../services/app_log_service.dart';
@@ -14,12 +17,18 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _redditService = RedditUsageService();
+  final _igService = InstagramBlockService();
+  final _redditService = RedditBlockService();
+  final _twitterService = TwitterBlockService();
+  final _redditUsage = RedditUsageService();
   final _usageService = UsageService();
   final _logService = AppLogService();
   final _chromeService = ChromeFilterService();
 
+  Map<String, dynamic> _igStatus = {};
   Map<String, dynamic> _redditStatus = {};
+  Map<String, dynamic> _twitterStatus = {};
+  Map<String, dynamic> _redditUsageStatus = {};
   Map<String, dynamic> _screenTimeData = {};
   Map<String, int> _openCounts = {};
   List<Map<String, dynamic>> _appLogs = [];
@@ -35,16 +44,34 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _refreshAll() async {
     await context.read<LockStateProvider>().updateLockStatus();
     await Future.wait([
+      _refreshInstagramStatus(),
       _refreshRedditStatus(),
+      _refreshTwitterStatus(),
+      _refreshRedditUsageStatus(),
       _refreshScreenTime(),
       _refreshAppLogs(),
       _refreshChromeFilter(),
     ]);
   }
 
+  Future<void> _refreshInstagramStatus() async {
+    final status = await _igService.getStatus();
+    if (mounted) setState(() => _igStatus = status);
+  }
+
   Future<void> _refreshRedditStatus() async {
-    final status = await _redditService.getUsageStatus();
+    final status = await _redditService.getStatus();
     if (mounted) setState(() => _redditStatus = status);
+  }
+
+  Future<void> _refreshTwitterStatus() async {
+    final status = await _twitterService.getStatus();
+    if (mounted) setState(() => _twitterStatus = status);
+  }
+
+  Future<void> _refreshRedditUsageStatus() async {
+    final status = await _redditUsage.getUsageStatus();
+    if (mounted) setState(() => _redditUsageStatus = status);
   }
 
   Future<void> _refreshScreenTime() async {
@@ -122,6 +149,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 20),
                   ],
 
+                  // Per-App Block Status
+                  _buildAppBlockCards(),
+                  const SizedBox(height: 20),
+
                   // Screen Time Dashboard
                   _buildScreenTimeDashboard(),
                   const SizedBox(height: 20),
@@ -150,6 +181,186 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  // ── Per-App Block Status Cards ────────────────────────────────────
+
+  Widget _buildAppBlockCards() {
+    final apps = [
+      {
+        'name': 'Instagram',
+        'status': _igStatus,
+        'pkg': 'com.instagram.android',
+        'icon': Icons.camera_alt,
+        'color': Colors.pink,
+        'pushups': 50,
+        'reward': '15 min access',
+        'method': 'completeInstagramEmergencyChallenge',
+      },
+      {
+        'name': 'Reddit',
+        'status': _redditStatus,
+        'pkg': 'com.reddit.frontpage',
+        'icon': Icons.forum,
+        'color': Colors.deepOrange,
+        'pushups': 100,
+        'reward': '10 min access',
+        'method': 'completeRedditEmergencyChallenge',
+      },
+      {
+        'name': 'Twitter/X',
+        'status': _twitterStatus,
+        'pkg': 'com.twitter.android',
+        'icon': Icons.tag,
+        'color': Colors.blue,
+        'pushups': 50,
+        'reward': '15 min access',
+        'method': 'completeTwitterEmergencyChallenge',
+      },
+    ];
+
+    return Column(
+      children: apps.map((app) {
+        final name = app['name'] as String;
+        final status = app['status'] as Map<String, dynamic>;
+        final color = app['color'] as MaterialColor;
+        final icon = app['icon'] as IconData;
+        final isLocked = status['isLocked'] == true;
+        final isTempUnlock = status['isTempUnlockActive'] == true;
+        final tempRemaining = (status['tempUnlockRemainingSeconds'] ?? 0) as int;
+        final attempts = (status['attemptCount'] ?? 0) as int;
+        final pushups = app['pushups'] as int;
+        final reward = app['reward'] as String;
+        final method = app['method'] as String;
+        final accentColor = color.value;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isTempUnlock
+                  ? Colors.green.shade50
+                  : isLocked
+                      ? color.shade50
+                      : Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isTempUnlock
+                    ? Colors.green.shade200
+                    : isLocked
+                        ? color.shade200
+                        : Colors.grey.shade200,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: color.shade100,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(icon, color: color.shade700, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            isTempUnlock
+                                ? 'Unlocked: ${_formatSeconds(tempRemaining)} remaining'
+                                : isLocked
+                                    ? 'Blocked · $attempts attempts today'
+                                    : 'Not blocked',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isTempUnlock
+                                  ? Colors.green.shade700
+                                  : isLocked
+                                      ? color.shade700
+                                      : Colors.grey.shade500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (isTempUnlock)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade600,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          'ACTIVE',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                if (isLocked && !isTempUnlock) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.fitness_center, size: 18),
+                      label: Text('Do $pushups Pushups for $reward'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: color.shade700,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed: () async {
+                        await Navigator.of(context).pushNamed(
+                          '/pushup_challenge',
+                          arguments: {
+                            'appName': name,
+                            'requiredPushups': pushups,
+                            'rewardText': reward,
+                            'challengeMethod': method,
+                            'accentColor': accentColor,
+                          },
+                        );
+                        _refreshAll();
+                      },
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  String _formatSeconds(int totalSeconds) {
+    if (totalSeconds <= 0) return '0s';
+    final m = totalSeconds ~/ 60;
+    final s = totalSeconds % 60;
+    if (m > 0) return '${m}m ${s}s';
+    return '${s}s';
   }
 
   // ── Screen Time Dashboard ──────────────────────────────────────────
@@ -718,11 +929,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildRedditUsageCard() {
-    final usedSec = (_redditStatus['usedSeconds'] ?? 0) as int;
-    final limitSec = (_redditStatus['limitSeconds'] ?? 3600) as int;
-    final remainSec = (_redditStatus['remainingSeconds'] ?? 3600) as int;
-    final isLimitReached = (_redditStatus['isLimitReached'] ?? false) as bool;
-    final extraMin = (_redditStatus['extraMinutesEarned'] ?? 0) as int;
+    final usedSec = (_redditUsageStatus['usedSeconds'] ?? 0) as int;
+    final limitSec = (_redditUsageStatus['limitSeconds'] ?? 3600) as int;
+    final remainSec = (_redditUsageStatus['remainingSeconds'] ?? 3600) as int;
+    final isLimitReached = (_redditUsageStatus['isLimitReached'] ?? false) as bool;
+    final extraMin = (_redditUsageStatus['extraMinutesEarned'] ?? 0) as int;
     final progress = limitSec > 0 ? (usedSec / limitSec).clamp(0.0, 1.0) : 0.0;
 
     return Container(
@@ -796,22 +1007,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           if (isLimitReached) ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.fitness_center, size: 20),
-                label: const Text('Do 100 Pushups for +10min'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepOrange.shade700,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                ),
-                onPressed: () async {
-                  await Navigator.of(context).pushNamed('/pushup_challenge');
-                  _refreshRedditStatus();
-                },
-              ),
+            const SizedBox(height: 8),
+            Text(
+              'Daily limit reached. Use the Reddit card above to earn more time.',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
           ],
         ],
@@ -835,11 +1034,11 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 10),
           const Text(
             '• Instagram, Reddit & Twitter/X are blocked when launched\n'
-            '• Lock expires after 30 days\n'
-            '• Reddit offers a pushup challenge for 10-min access\n'
+            '• Master 30-day lock with password protection\n'
+            '• Emergency unlock: 1hr wait + 10,000 steps\n'
+            '• Pushup challenges grant temporary app access\n'
             '• Chrome filters harmful content in incognito mode\n'
-            '• Do 100 pushups to earn 10 minutes of Reddit\n'
-            '• Emergency unlock requires physical effort',
+            '• Uninstall protection via device admin',
             style: TextStyle(fontSize: 12),
           ),
         ],

@@ -8,8 +8,6 @@ import 'screens/home_screen.dart';
 import 'screens/lock_screen.dart';
 import 'screens/emergency_unlock_screen.dart';
 import 'screens/pushup_challenge_screen.dart';
-import 'screens/instagram_pushup_challenge_screen.dart';
-import 'screens/app_pushup_challenge_screen.dart';
 import 'screens/uninstall_protection_screen.dart';
 import 'providers/lock_state_provider.dart';
 
@@ -56,10 +54,6 @@ class FocusLockApp extends StatelessWidget {
           '/lock': (context) => const LockScreen(),
           '/emergency': (context) => const EmergencyUnlockScreen(),
           '/pushup_challenge': (context) => const PushupChallengeScreen(),
-          '/instagram_pushup_challenge': (context) =>
-              const InstagramPushupChallengeScreen(),
-          '/app_pushup_challenge': (context) =>
-              const AppPushupChallengeScreen(),
           '/uninstall_protection': (context) =>
               const UninstallProtectionScreen(),
         },
