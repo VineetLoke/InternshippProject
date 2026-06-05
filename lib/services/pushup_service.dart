@@ -1,15 +1,9 @@
 import 'dart:async';
 import 'package:flutter/services.dart';
+import 'camera_pushup_detector.dart';
 
-/// Flutter interface to the native proximity-sensor-based pushup detector.
-///
-/// Usage:
-///   final service = PushupService();
-///   service.onCountChanged.listen((count) => setState(() => _count = count));
-///   await service.start();
-///   // ... user does pushups ...
-///   final redeemed = await service.redeemForRedditTime();
-///   await service.stop();
+enum DetectionMode { proximity, camera }
+
 class PushupService {
   static const _channel = MethodChannel('com.example.focus_lock/app_block');
   static const _eventChannel =
@@ -18,16 +12,60 @@ class PushupService {
   StreamSubscription? _subscription;
   final _controller = StreamController<int>.broadcast();
   int _lastCount = 0;
+  DetectionMode _mode = DetectionMode.proximity;
 
-  /// Live stream of pushup count updates.
+  CameraPushupDetector? _cameraDetector;
+
   Stream<int> get onCountChanged => _controller.stream;
-
-  /// Current pushup count.
   int get currentCount => _lastCount;
+  DetectionMode get mode => _mode;
+  CameraPushupDetector? get cameraDetector => _cameraDetector;
 
-  /// Start the proximity-sensor pushup detector.
-  /// Returns false if the device has no proximity sensor.
-  Future<bool> start() async {
+  /// Check if camera-based detection is available on this device
+  Future<bool> isCameraAvailable() async {
+    try {
+      final detector = CameraPushupDetector();
+      final available = await detector.initialize();
+      await detector.dispose();
+      return available;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Start pushup detection in the given mode
+  Future<bool> start({DetectionMode mode = DetectionMode.proximity}) async {
+    _mode = mode;
+
+    if (mode == DetectionMode.camera) {
+      return _startCameraDetection();
+    }
+    return _startProximityDetection();
+  }
+
+  Future<bool> _startCameraDetection() async {
+    try {
+      _cameraDetector?.dispose();
+      _cameraDetector = CameraPushupDetector();
+
+      final initialized = await _cameraDetector!.initialize();
+      if (!initialized) return false;
+
+      _cameraDetector!.onCountChanged.listen((count) {
+        _lastCount = count;
+        _controller.add(count);
+      });
+
+      _cameraDetector!.startDetection();
+      _lastCount = 0;
+      return true;
+    } catch (e) {
+      print('Error starting camera detection: $e');
+      return false;
+    }
+  }
+
+  Future<bool> _startProximityDetection() async {
     try {
       final result = await _channel.invokeMethod('startPushupDetection');
       if (result == true) {
@@ -49,19 +87,24 @@ class PushupService {
     }
   }
 
-  /// Stop the pushup detector and release sensor resources.
   Future<void> stop() async {
-    try {
+    if (_mode == DetectionMode.camera) {
+      _cameraDetector?.stopDetection();
+    } else {
       await _subscription?.cancel();
       _subscription = null;
-      await _channel.invokeMethod('stopPushupDetection');
-    } catch (e) {
-      print('Error stopping pushup detection: $e');
+      try {
+        await _channel.invokeMethod('stopPushupDetection');
+      } catch (e) {
+        print('Error stopping pushup detection: $e');
+      }
     }
   }
 
-  /// Get the current count from native (in case the stream missed events).
   Future<int> getCount() async {
+    if (_mode == DetectionMode.camera) {
+      return _cameraDetector?.currentCount ?? _lastCount;
+    }
     try {
       final result = await _channel.invokeMethod('getPushupCount');
       _lastCount = (result as int?) ?? 0;
@@ -71,19 +114,20 @@ class PushupService {
     }
   }
 
-  /// Reset the counter to zero.
   Future<void> reset() async {
-    try {
-      await _channel.invokeMethod('resetPushupCount');
-      _lastCount = 0;
-      _controller.add(0);
-    } catch (e) {
-      print('Error resetting pushup count: $e');
+    if (_mode == DetectionMode.camera) {
+      _cameraDetector?.reset();
+    } else {
+      try {
+        await _channel.invokeMethod('resetPushupCount');
+      } catch (e) {
+        print('Error resetting pushup count: $e');
+      }
     }
+    _lastCount = 0;
+    _controller.add(0);
   }
 
-  /// Attempt to redeem 100 pushups for 10 minutes of Reddit time.
-  /// Returns true if successful (count ≥ 100).
   Future<bool> redeemForRedditTime() async {
     try {
       final result = await _channel.invokeMethod('redeemPushups');
@@ -99,9 +143,10 @@ class PushupService {
     }
   }
 
-  /// Clean up resources.
   void dispose() {
     _subscription?.cancel();
+    _cameraDetector?.dispose();
+    _cameraDetector = null;
     _controller.close();
   }
 }

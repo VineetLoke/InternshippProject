@@ -22,6 +22,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
   bool _activityRecognitionGranted = false;
   bool _notificationGranted = false;
   bool _usageAccessGranted = false;
+  bool _cameraGranted = false;
 
   bool get _allRequiredGranted => _overlayGranted && _accessibilityEnabled;
 
@@ -53,6 +54,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
       _checkActivityRecognition(),
       _checkNotification(),
       _checkUsageAccess(),
+      _checkCamera(),
     ]);
   }
 
@@ -92,6 +94,13 @@ class _PermissionsScreenState extends State<PermissionsScreen>
     } catch (_) {
       if (mounted) setState(() => _notificationGranted = true);
     }
+  }
+
+  Future<void> _checkCamera() async {
+    try {
+      final status = await Permission.camera.status;
+      if (mounted) setState(() => _cameraGranted = status.isGranted);
+    } catch (_) {}
   }
 
   Future<void> _checkUsageAccess() async {
@@ -141,6 +150,15 @@ class _PermissionsScreenState extends State<PermissionsScreen>
       await _checkNotification();
     } catch (e) {
       debugPrint('Notification permission error: $e');
+    }
+  }
+
+  Future<void> _requestCamera() async {
+    try {
+      await Permission.camera.request();
+      await _checkCamera();
+    } catch (e) {
+      debugPrint('Camera permission error: $e');
     }
   }
 
@@ -243,6 +261,16 @@ class _PermissionsScreenState extends State<PermissionsScreen>
             onTap: _openUsageAccessSettings,
             buttonLabel: 'Open Settings',
           ),
+          _permTile(
+            icon: Icons.camera_alt,
+            title: 'Camera',
+            subtitle: 'Used for AI-powered pushup detection during emergency unlock.',
+            granted: _cameraGranted,
+            onTap: _requestCamera,
+            buttonLabel: 'Allow',
+          ),
+          const SizedBox(height: 12),
+
           const SizedBox(height: 36),
 
           // Continue button

@@ -165,10 +165,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   _buildRedditUsageCard(),
                   const SizedBox(height: 20),
 
-                  // Chrome Filter Status
-                  _buildChromeFilterCard(),
-                  const SizedBox(height: 20),
-
                   // App Open Logs
                   _buildAppOpenLogsCard(),
                   const SizedBox(height: 20),
@@ -187,6 +183,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildAppBlockCards() {
     final apps = [
+      {
+        'name': 'Chrome Incognito',
+        'status': _chromeFilterStatus,
+        'pkg': 'com.android.chrome',
+        'icon': Icons.security,
+        'color': Colors.green,
+        'pushups': 0,
+        'reward': '',
+        'method': '',
+        'isChrome': true,
+      },
       {
         'name': 'Instagram',
         'status': _igStatus,
@@ -221,6 +228,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Column(
       children: apps.map((app) {
+        final isChrome = app['isChrome'] == true;
+        if (isChrome) return _buildChromeCard(app);
+
         final name = app['name'] as String;
         final status = app['status'] as Map<String, dynamic>;
         final color = app['color'] as MaterialColor;
@@ -352,6 +362,130 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       }).toList(),
+    );
+  }
+
+  Widget _buildChromeCard(Map<Object?, Object?> app) {
+    final status = app['status'] as Map<String, dynamic>;
+    final isActive = (status['isActive'] ?? false) as bool;
+    final isDeviceOwner = (status['isDeviceOwner'] ?? false) as bool;
+
+    String subtitle;
+    Color statusColor;
+    IconData statusIcon;
+
+    if (isActive) {
+      subtitle = 'Incognito mode blocked via accessibility service';
+      statusColor = Colors.green;
+      statusIcon = Icons.check_circle;
+    } else if (!isDeviceOwner) {
+      subtitle = 'Accessibility service not running — incognito blocking inactive';
+      statusColor = Colors.orange;
+      statusIcon = Icons.warning_amber;
+    } else {
+      subtitle = 'Inactive';
+      statusColor = Colors.grey;
+      statusIcon = Icons.remove_circle_outline;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.green.shade50 : Colors.orange.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isActive ? Colors.green.shade200 : Colors.orange.shade200,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: isActive ? Colors.green.shade100 : Colors.orange.shade100,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.security,
+                    color: isActive ? Colors.green.shade700 : Colors.orange.shade700,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Chrome Incognito Blocker',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: statusColor.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isActive ? Colors.green.shade600 : Colors.orange.shade600,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    isActive ? 'ON' : 'OFF',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: Icon(
+                  isActive ? Icons.visibility_off : Icons.visibility,
+                  size: 18,
+                ),
+                label: Text(
+                  isActive ? 'Blocking incognito typing' : 'Enable incognito blocking',
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: isActive ? Colors.green.shade700 : Colors.orange.shade700,
+                  side: BorderSide(
+                    color: isActive ? Colors.green.shade300 : Colors.orange.shade300,
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onPressed: () async {
+                  await _chromeService.applyPolicy();
+                  _refreshChromeFilter();
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -589,86 +723,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── Chrome Filter Status ──────────────────────────────────────────
 
-  Widget _buildChromeFilterCard() {
-    final isActive = (_chromeFilterStatus['isActive'] ?? false) as bool;
-    final isDeviceOwner = (_chromeFilterStatus['isDeviceOwner'] ?? false) as bool;
-
-    String subtitle;
-    if (isActive) {
-      subtitle = 'Active — Incognito mode disabled by policy';
-    } else if (!isDeviceOwner) {
-      subtitle = 'Requires Device Owner setup';
-    } else {
-      subtitle = 'Inactive — Policy not applied';
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isActive ? Colors.green.shade50 : Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isActive ? Colors.green.shade300 : Colors.grey.shade300,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: isActive ? Colors.green.shade100 : Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              Icons.shield,
-              color: isActive ? Colors.green.shade700 : Colors.grey.shade500,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Chrome Incognito Policy',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: isActive ? Colors.green.shade700 : Colors.grey.shade600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isActive ? Colors.green.shade600 : Colors.grey.shade500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: isActive ? Colors.green.shade600 : Colors.grey.shade400,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              isActive ? 'ON' : 'OFF',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   // ── App Open Logs ─────────────────────────────────────────────────
 
