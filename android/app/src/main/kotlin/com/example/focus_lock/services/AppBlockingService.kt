@@ -10,12 +10,13 @@ import java.util.TimerTask
 /**
  * Background monitoring service.
  * The actual Instagram blocking is done by AccessibilityMonitor.
- * This service only keeps a lightweight watchdog alive.
- * It does NOT use startForeground() to avoid notification / permission crashes.
+ * This service keeps a lightweight watchdog alive using a foreground notification.
  */
 class AppBlockingService : Service() {
     companion object {
         const val TAG = "AppBlockingService"
+        private const val CHANNEL_ID = "focus_lock_service"
+        private const val NOTIFICATION_ID = 1001
     }
 
     private var timer: Timer? = null
@@ -23,12 +24,41 @@ class AppBlockingService : Service() {
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "AppBlockingService created")
+        startForegroundNotification()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "AppBlockingService started")
         startMonitoring()
         return START_STICKY
+    }
+
+    private fun startForegroundNotification() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val channel = android.app.NotificationChannel(
+                CHANNEL_ID,
+                "FocusLock Service",
+                android.app.NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Keeps FocusLock protection active"
+            }
+            val manager = getSystemService(android.app.NotificationManager::class.java)
+            manager.createNotificationChannel(channel)
+        }
+        val notification = android.app.Notification.Builder(this, CHANNEL_ID)
+            .setContentTitle("FocusLock")
+            .setContentText("Protection active")
+            .setSmallIcon(com.example.focus_lock.R.mipmap.ic_launcher)
+            .build()
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(
+                NOTIFICATION_ID, 
+                notification, 
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
     }
 
     private fun startMonitoring() {

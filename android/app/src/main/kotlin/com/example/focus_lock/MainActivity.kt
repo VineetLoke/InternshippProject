@@ -45,7 +45,6 @@ class MainActivity : FlutterActivity() {
         private const val REDDIT_USAGE_MS_KEY = "flutter.reddit_usage_ms"
         private const val REDDIT_EXTRA_MS_KEY = "flutter.reddit_extra_ms"
         private const val REDDIT_DAILY_LIMIT_MS = 60L * 60L * 1000L
-        private const val PUSHUP_REWARD_MS = 10L * 60L * 1000L  // 10 minutes
         private const val PUSHUPS_REQUIRED = 100
     }
 
@@ -53,6 +52,26 @@ class MainActivity : FlutterActivity() {
     private var pushupDetector: PushupDetectorService? = null
     private var pushupEventSink: EventChannel.EventSink? = null
     private lateinit var prefs: SharedPreferences
+
+    override fun getInitialRoute(): String? {
+        return routeFromIntent(intent) ?: super.getInitialRoute()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        routeFromIntent(intent)?.let { route ->
+            flutterEngine?.navigationChannel?.pushRoute(route)
+        }
+    }
+
+    private fun routeFromIntent(intent: Intent?): String? {
+        return when (intent?.getStringExtra("navigate_to")) {
+            "pushup_challenge" -> "/pushup_challenge"
+            "instagram_pushup_challenge" -> "/instagram_pushup_challenge"
+            else -> null
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -63,6 +82,31 @@ class MainActivity : FlutterActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     // ── Accessibility ──────────────────────────────────
+                    "isIgnoringBatteryOptimizations" -> {
+                        val powerManager = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                        val ignoring = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            powerManager.isIgnoringBatteryOptimizations(packageName)
+                        } else {
+                            true
+                        }
+                        result.success(ignoring)
+                    }
+                    "requestIgnoreBatteryOptimizations" -> {
+                        try {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                    data = android.net.Uri.parse("package:$packageName")
+                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                }
+                                startActivity(intent)
+                                result.success(true)
+                            } else {
+                                result.success(true)
+                            }
+                        } catch (e: Exception) {
+                            result.error("BATTERY_OPTIMIZATION_FAILED", e.message, null)
+                        }
+                    }
                     "isAccessibilityEnabled" -> {
                         val enabled = isOurAccessibilityServiceEnabled()
                         Log.d(TAG, "isAccessibilityEnabled → $enabled")
@@ -78,26 +122,42 @@ class MainActivity : FlutterActivity() {
                     }
                     "startBlocking" -> {
                         Log.d(TAG, "startBlocking called from Flutter")
+                        val startTimeStr = call.argument<String>("lock_start_time")
+                        val durationDays = call.argument<Int>("lock_duration_days") ?: 30
+
+                        val nativePrefs = getSharedPreferences("focus_lock_native", Context.MODE_PRIVATE)
+                        val editor = nativePrefs.edit()
+                        editor.putString("lock_start_time", startTimeStr)
+                        editor.putInt("lock_duration_days", durationDays)
+                        editor.apply()
+
+                        // Initialize blocker singletons immediately so they load correct lock state
+                        InstagramBlocker.init(applicationContext)
+                        RedditBlocker.init(applicationContext)
+                        TwitterBlocker.init(applicationContext)
+
                         startMonitoringService()
-                        result.success(isOurAccessibilityServiceEnabled())
+                        result.success(true)
+                    }
+                    "unlock" -> {
+                        Log.d(TAG, "unlock called from Flutter")
+                        val nativePrefs = getSharedPreferences("focus_lock_native", Context.MODE_PRIVATE)
+                        nativePrefs.edit().clear().apply()
+                        result.success(true)
                     }
                     "isServiceRunning" -> {
                         result.success(AccessibilityMonitor.isRunning)
                     }
                     "hasOverlayPermission" -> {
-                        val has = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
-                            Settings.canDrawOverlays(this) else true
-                        result.success(has)
+                        result.success(Settings.canDrawOverlays(this))
                     }
                     "openOverlaySettings" -> {
                         try {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                val intent = Intent(
-                                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                    android.net.Uri.parse("package:$packageName")
-                                )
-                                startActivity(intent)
-                            }
+                            val intent = Intent(
+                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                android.net.Uri.parse("package:$packageName")
+                            )
+                            startActivity(intent)
                             result.success(null)
                         } catch (e: Exception) {
                             result.error("OPEN_OVERLAY_FAILED", e.message, null)
@@ -131,6 +191,20 @@ class MainActivity : FlutterActivity() {
                     "redeemPushups" -> {
                         val redeemed = redeemPushupsForRedditTime()
                         result.success(redeemed)
+                    }
+                    "grantRedditCameraPushupReward" -> {
+                        // Camera-based pushup detection runs in Flutter/Dart.
+                        // Grant through the deterministic blocker module used
+                        // by foreground app detection.
+                        RedditBlocker.init(applicationContext)
+                        val svc = AccessibilityMonitor.instance
+                        if (svc != null) {
+                            svc.onRedditChallengeCompleted()
+                        } else {
+                            RedditBlocker.grantTempUnlock()
+                        }
+                        Log.d(TAG, "Camera pushups verified → Reddit temp unlock for 10 min")
+                        result.success(true)
                     }
 
                     // ── Screen time (UsageStatsManager) ──────────
@@ -169,10 +243,13 @@ class MainActivity : FlutterActivity() {
 
                     // ── Chrome incognito keyword blocker (accessibility-based) ────
                     "getChromeFilterStatus" -> {
+                        val isDeviceOwner = ChromeIncognitoPolicy.isDeviceOwnerOrProfileOwner(applicationContext)
+                        val isPolicyActive = ChromeIncognitoPolicy.isIncognitoDisabled(applicationContext)
                         result.success(mapOf(
-                            "isActive" to AccessibilityMonitor.isRunning,
-                            "mode" to "accessibility_keyword_scan",
-                            "policyApplied" to true
+                            "isActive" to isPolicyActive,
+                            "isDeviceOwner" to isDeviceOwner,
+                            "policyApplied" to isPolicyActive,
+                            "mode" to if (isDeviceOwner) "device_policy" else "accessibility_keyword_scan"
                         ))
                     }
                     "applyChromeIncognitoPolicy" -> {
@@ -195,9 +272,8 @@ class MainActivity : FlutterActivity() {
                         result.success(AccessibilityMonitor.currentState.name)
                     }
                     "getRedditTempUnlockRemaining" -> {
-                        val remainingMs = AccessibilityMonitor.instance
-                            ?.getRedditTempUnlockRemainingMs() ?: 0L
-                        result.success(remainingMs / 1000)
+                        RedditBlocker.init(applicationContext)
+                        result.success(RedditBlocker.getTempUnlockRemainingSeconds())
                     }
 
                     // ── Instagram blocker (deterministic module) ──
@@ -216,7 +292,7 @@ class MainActivity : FlutterActivity() {
                     "completeInstagramEmergencyChallenge" -> {
                         InstagramBlocker.init(applicationContext)
                         InstagramBlocker.grantTempUnlock()
-                        Log.d(TAG, "Instagram emergency challenge completed — 15min unlock")
+                        Log.d(TAG, "Instagram emergency challenge completed — 10min unlock")
                         result.success(true)
                     }
 
@@ -236,7 +312,7 @@ class MainActivity : FlutterActivity() {
                     "completeRedditEmergencyChallenge" -> {
                         RedditBlocker.init(applicationContext)
                         RedditBlocker.grantTempUnlock()
-                        Log.d(TAG, "Reddit emergency challenge completed — 15min unlock")
+                        Log.d(TAG, "Reddit emergency challenge completed — 10min unlock")
                         result.success(true)
                     }
 
@@ -333,7 +409,11 @@ class MainActivity : FlutterActivity() {
                     "launchUninstallChallenge" -> {
                         try {
                             val intent = Intent(this, UninstallChallengeOverlay::class.java)
-                            startService(intent)
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                startForegroundService(intent)
+                            } else {
+                                startService(intent)
+                            }
                             result.success(true)
                         } catch (e: Exception) {
                             result.error("CHALLENGE_ERROR", e.message, null)
@@ -411,7 +491,11 @@ class MainActivity : FlutterActivity() {
         serviceStarted = true
         try {
             val intent = Intent(this, AppBlockingService::class.java)
-            startService(intent)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
             Log.d(TAG, "✅ Monitoring service started")
         } catch (e: Exception) {
             Log.e(TAG, "Could not start monitoring service: ${e.message}")
@@ -515,17 +599,14 @@ class MainActivity : FlutterActivity() {
         }
         pushupDetector?.reset()
 
-        // Trigger the accessibility service state machine for 10-min temp unlock
+        RedditBlocker.init(applicationContext)
         val svc = AccessibilityMonitor.instance
         if (svc != null) {
             svc.onRedditChallengeCompleted()
-            Log.d(TAG, "Redeemed $PUSHUPS_REQUIRED pushups → Reddit temp unlock for 10 min")
         } else {
-            Log.w(TAG, "Accessibility service not running — granting extra time via prefs")
-            resetIfNewDay()
-            val currentExtra = prefs.getLong(REDDIT_EXTRA_MS_KEY, 0L)
-            prefs.edit().putLong(REDDIT_EXTRA_MS_KEY, currentExtra + PUSHUP_REWARD_MS).apply()
+            RedditBlocker.grantTempUnlock()
         }
+        Log.d(TAG, "Redeemed $PUSHUPS_REQUIRED pushups → Reddit temp unlock for 10 min")
         return true
     }
 
@@ -534,20 +615,11 @@ class MainActivity : FlutterActivity() {
     private fun hasUsageStatsPermission(): Boolean {
         return try {
             val appOps = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
-            val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                appOps.unsafeCheckOpNoThrow(
+            val mode = appOps.unsafeCheckOpNoThrow(
                     AppOpsManager.OPSTR_GET_USAGE_STATS,
                     android.os.Process.myUid(),
                     packageName
                 )
-            } else {
-                @Suppress("DEPRECATION")
-                appOps.checkOpNoThrow(
-                    AppOpsManager.OPSTR_GET_USAGE_STATS,
-                    android.os.Process.myUid(),
-                    packageName
-                )
-            }
             mode == AppOpsManager.MODE_ALLOWED
         } catch (e: Exception) {
             Log.e(TAG, "Error checking usage stats permission: ${e.message}")

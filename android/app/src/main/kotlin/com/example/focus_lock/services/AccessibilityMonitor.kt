@@ -14,7 +14,7 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.example.focus_lock.blockers.InstagramBlocker
 import com.example.focus_lock.blockers.RedditBlocker
-import com.example.focus_lock.blockers.ChromeIncognitoBlocker
+import com.example.focus_lock.blockers.BrowserIncognitoBlocker
 import com.example.focus_lock.blockers.TwitterBlocker
 import com.example.focus_lock.controllers.DisciplineState
 import com.example.focus_lock.storage.database.AppDatabase
@@ -36,13 +36,24 @@ class AccessibilityMonitor : AccessibilityService() {
         const val REDDIT_PACKAGE = "com.reddit.frontpage"
         const val TWITTER_PACKAGE = "com.twitter.android"
         const val CHROME_PACKAGE = "com.android.chrome"
+        const val FIREFOX_PACKAGE = "org.mozilla.firefox"
+        const val OPERA_PACKAGE = "com.opera.browser"
+        const val SAMSUNG_BROWSER_PACKAGE = "com.sec.android.app.sbrowser"
         const val FOCUS_LOCK_PACKAGE = "com.example.focus_lock"
 
         // Only these packages are blocked outright (immediate block on open)
         val BLOCKED_PACKAGES = setOf(INSTAGRAM_PACKAGE, REDDIT_PACKAGE, TWITTER_PACKAGE)
 
-        // Monitored packages = blocked + Chrome (incognito keyword detection)
-        val MONITORED_PACKAGES = BLOCKED_PACKAGES + CHROME_PACKAGE
+        // Browser packages to monitor for private browsing
+        val BROWSER_PACKAGES = setOf(
+            CHROME_PACKAGE,
+            FIREFOX_PACKAGE,
+            OPERA_PACKAGE,
+            SAMSUNG_BROWSER_PACKAGE
+        )
+
+        // Monitored packages = blocked + browsers
+        val MONITORED_PACKAGES = BLOCKED_PACKAGES + BROWSER_PACKAGES
 
         // Packages tracked for open-count logging
         val TRACKED_PACKAGES = BLOCKED_PACKAGES
@@ -162,8 +173,8 @@ class AccessibilityMonitor : AccessibilityService() {
             performGlobalAction(GLOBAL_ACTION_BACK)
         }
 
-        // Chrome incognito keyword blocker — monitors search text in incognito tabs
-        ChromeIncognitoBlocker.resetDebounce()
+        // Universal browser private blocker
+        BrowserIncognitoBlocker.resetDebounce()
 
         Log.d(TAG, "ServiceInfo applied — listening for events")
     }
@@ -209,7 +220,7 @@ class AccessibilityMonitor : AccessibilityService() {
         blockedPackage = null
         overlayShownAt = 0L
         backPressCount = 0
-        ChromeIncognitoBlocker.resetDebounce()
+        BrowserIncognitoBlocker.resetDebounce()
         stopOverlayService(DisciplineWarningOverlay::class.java)
         stopOverlayService(LockScreenOverlay::class.java)
     }
@@ -225,12 +236,18 @@ class AccessibilityMonitor : AccessibilityService() {
 
             when (event.eventType) {
                 AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
-                    if (pkg == ChromeIncognitoBlocker.CHROME_PACKAGE) {
-                        ChromeIncognitoBlocker.evaluateIncognitoState(rootInActiveWindow)
+                    if (pkg in BrowserIncognitoBlocker.BROWSER_PACKAGES) {
+                        BrowserIncognitoBlocker.evaluateIncognitoState(rootInActiveWindow, pkg)
                     }
                     // Debounce: ignore same-package events within 2 seconds
+                    // BYPASS debounce for Settings and Installer packages to prevent race condition bypasses
                     val now = System.currentTimeMillis()
-                    if (pkg == lastEventPackage && now - lastEventTime < EVENT_DEBOUNCE_MS) {
+                    val lowerPkg = pkg.lowercase()
+                    val isSettingsOrInstaller = lowerPkg.contains("settings") || 
+                                                lowerPkg.contains("installer") || 
+                                                lowerPkg.contains("packageinstaller")
+
+                    if (!isSettingsOrInstaller && pkg == lastEventPackage && now - lastEventTime < EVENT_DEBOUNCE_MS) {
                         // Still update foreground package even when debounced,
                         // so BACK press guards use fresh data
                         currentForegroundPackage = pkg
@@ -241,17 +258,15 @@ class AccessibilityMonitor : AccessibilityService() {
                     handleWindowStateChanged(pkg)
                 }
                 AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED -> {
-                    // Chrome incognito typing detection — any typing in incognito triggers block
-                    if (pkg == ChromeIncognitoBlocker.CHROME_PACKAGE) {
-                        handleChromeTypingEvent()
+                    // Typing detection in private tabs — triggers block
+                    if (pkg in BrowserIncognitoBlocker.BROWSER_PACKAGES) {
+                        handleBrowserTypingEvent(pkg)
                     }
                 }
                 AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
-                    // Fast cache evaluation for incognito transitions
-                    if (pkg == ChromeIncognitoBlocker.CHROME_PACKAGE) {
-                        ChromeIncognitoBlocker.evaluateIncognitoState(rootInActiveWindow)
+                    if (pkg in BrowserIncognitoBlocker.BROWSER_PACKAGES) {
+                        handleBrowserIncognitoSurfaceChanged(pkg)
                     }
-                    // Content changes are not monitored for Chrome incognito blocking
                 }
             }
         } catch (e: Exception) {
@@ -274,14 +289,24 @@ class AccessibilityMonitor : AccessibilityService() {
             redditForegroundSince = System.currentTimeMillis()
         }
 
+        // Reset private cache when user leaves any monitored browser
+        if (currentForegroundPackage in BrowserIncognitoBlocker.BROWSER_PACKAGES && packageName != currentForegroundPackage) {
+            BrowserIncognitoBlocker.resetCache()
+        }
+
         currentForegroundPackage = packageName
 
         // ── STRICT PACKAGE VALIDATION (PART 1) ──────────────────
         // If foreground package is NOT in monitored packages: do nothing
         // except clean up overlays if user navigated away from a blocked app
+        val lowerPkg = packageName.lowercase()
+        val isSettingsOrInstaller = lowerPkg.contains("settings") || 
+                                    lowerPkg.contains("installer") || 
+                                    lowerPkg.contains("packageinstaller")
+
         if (packageName !in MONITORED_PACKAGES && packageName != FOCUS_LOCK_PACKAGE) {
-            // ── Uninstall guard: detect Settings app showing FocusLock info ──
-            if (packageName == "com.android.settings" || packageName == "com.google.android.packageinstaller") {
+            // ── Uninstall guard: detect Settings app or Package Installer showing FocusLock info ──
+            if (isSettingsOrInstaller) {
                 handlePossibleUninstallAttempt()
             }
             handleUserLeftBlockedContext()
@@ -313,8 +338,15 @@ class AccessibilityMonitor : AccessibilityService() {
                 // Delegated to deterministic RedditBlocker module.
                 if (RedditBlocker.onRedditDetected()) return
             }
-            CHROME_PACKAGE -> {
-                // Chrome: incognito blocking is handled by TYPE_VIEW_TEXT_CHANGED only
+            in BROWSER_PACKAGES -> {
+                // Browsers can populate active tab trees slightly after window state event.
+                // Check after that delay to ensure accurate detection.
+                handler.postDelayed({
+                    if (currentForegroundPackage == packageName &&
+                        currentState != DisciplineState.CHROME_INCOGNITO_BLOCKED) {
+                        handleBrowserIncognitoSurfaceChanged(packageName)
+                    }
+                }, 500L)
             }
             FOCUS_LOCK_PACKAGE -> {
                 // Never block ourselves
@@ -339,7 +371,7 @@ class AccessibilityMonitor : AccessibilityService() {
                 handler.removeCallbacks(chromeWarningDismissRunnable)
                 cleanupAllOverlays()
                 transitionTo(DisciplineState.IDLE)
-                ChromeIncognitoBlocker.resetDebounce()
+                BrowserIncognitoBlocker.resetDebounce()
             }
             DisciplineState.REDDIT_CHALLENGE_ACTIVE -> {
                 // User might be in FocusLock doing pushups — don't interfere
@@ -349,48 +381,53 @@ class AccessibilityMonitor : AccessibilityService() {
     }
 
     // ══════════════════════════════════════════════════════════════════
-    // Chrome incognito typing blocker
-    // Activates when: Chrome foreground + incognito mode + any typing
+    // Universal browser private mode blocker
+    // Activates when: browser foreground + private mode + any typing / layout change
     // Normal browsing is NEVER affected.
     // ══════════════════════════════════════════════════════════════════
 
-    /**
-     * Handle any typing event inside Chrome.
-     * If incognito mode is active, block immediately — no keyword check.
-     * Debounce is handled solely by ChromeIncognitoBlocker (5s).
-     */
-    private fun handleChromeTypingEvent() {
+    private fun handleBrowserTypingEvent(packageName: String) {
         if (currentState == DisciplineState.CHROME_INCOGNITO_BLOCKED) return
 
         val rootNode = rootInActiveWindow ?: return
-        try {
-            if (rootNode.packageName?.toString() != ChromeIncognitoBlocker.CHROME_PACKAGE) return
+        if (rootNode.packageName?.toString() != packageName) return
 
-            if (ChromeIncognitoBlocker.shouldBlockTyping(rootNode)) {
-                triggerChromeIncognitoBlock()
-            }
-        } finally {
-            rootNode.recycle()
+        if (BrowserIncognitoBlocker.shouldBlockTyping(rootNode, packageName)) {
+            triggerBrowserIncognitoBlock(packageName)
         }
     }
 
-    private fun triggerChromeIncognitoBlock() {
-        Log.d(TAG, "Chrome incognito typing BLOCKED — showing overlay")
+    private fun handleBrowserIncognitoSurfaceChanged(packageName: String) {
+        if (currentState == DisciplineState.CHROME_INCOGNITO_BLOCKED) return
+
+        val rootNode = rootInActiveWindow ?: return
+        if (rootNode.packageName?.toString() != packageName) return
+
+        BrowserIncognitoBlocker.evaluateIncognitoState(rootNode, packageName)
+        if (BrowserIncognitoBlocker.isIncognitoMode(rootNode, packageName)) {
+            Log.d(TAG, "$packageName active private surface detected — blocking")
+            triggerBrowserIncognitoBlock(packageName)
+        }
+    }
+
+    private fun triggerBrowserIncognitoBlock(packageName: String) {
+        Log.d(TAG, "$packageName private tab BLOCKED — showing overlay")
         transitionTo(DisciplineState.CHROME_INCOGNITO_BLOCKED)
 
-        // Force Chrome out of the typing state immediately
+        // Leave the current incognito interaction
         performGlobalAction(GLOBAL_ACTION_BACK)
-        handler.postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 300L)
 
-        // Show BlockingOverlayScreen ("You don't need this.")
+        // Show DisciplineWarningOverlay
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
                 !android.provider.Settings.canDrawOverlays(this)) {
                 Log.w(TAG, "Overlay permission not granted")
                 return
             }
-            val intent = Intent(applicationContext, com.example.focus_lock.ui.BlockingOverlayScreen::class.java)
-            startService(intent)
+            val intent = Intent(applicationContext, DisciplineWarningOverlay::class.java)
+            startOverlayService(intent)
+            overlayShownAt = System.currentTimeMillis()
+            startOverlayWatchdog()
         } catch (e: Exception) {
             Log.e(TAG, "Error showing blocking overlay: ${e.message}", e)
         }
@@ -401,21 +438,11 @@ class AccessibilityMonitor : AccessibilityService() {
     }
 
     private fun dismissChromeWarning() {
-        Log.d(TAG, "Chrome overlay expired — ensuring tab is closed")
-        stopOverlayService(com.example.focus_lock.ui.BlockingOverlayScreen::class.java)
-
-        // Repeat BACK presses to reliably close the incognito tab
-        performGlobalAction(GLOBAL_ACTION_BACK)
-        for (i in 1..2) {
-            handler.postDelayed({
-                if (currentForegroundPackage == CHROME_PACKAGE) {
-                    performGlobalAction(GLOBAL_ACTION_BACK)
-                    Log.d(TAG, "Chrome incognito BACK press #${i + 1}")
-                }
-            }, BACK_PRESS_INTERVAL_MS * i)
-        }
+        Log.d(TAG, "Browser private warning expired — clearing state")
+        stopOverlayService(DisciplineWarningOverlay::class.java)
 
         transitionTo(DisciplineState.IDLE)
+        BrowserIncognitoBlocker.resetDebounce()
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -425,26 +452,73 @@ class AccessibilityMonitor : AccessibilityService() {
     private var lastUninstallGuardTime = 0L
 
     private fun handlePossibleUninstallAttempt() {
-        // Debounce: only check every 3 seconds
+        // Debounce: check settings events every 300ms for instantaneous reaction
         val now = System.currentTimeMillis()
-        if (now - lastUninstallGuardTime < 3000L) return
+        if (now - lastUninstallGuardTime < 300L) return
         lastUninstallGuardTime = now
 
         UninstallProtectionManager.init(applicationContext)
-        if (!UninstallProtectionManager.isProtectionEnabled()) return
+        if (!UninstallProtectionManager.isProtectionEnabled(applicationContext)) return
         if (UninstallProtectionManager.isUninstallAllowed()) return
 
-        // Scan for our app name in the current window content
+        // Scan for our app name and Settings button texts in the current window content
         try {
             val rootNode = rootInActiveWindow ?: return
+            
+            // Look for "FocusLock" node on screen
             val focusLockNodes = rootNode.findAccessibilityNodeInfosByText("FocusLock")
-            val uninstallNodes = rootNode.findAccessibilityNodeInfosByText("Uninstall")
+            if (focusLockNodes.isEmpty()) return
 
-            if (focusLockNodes.isNotEmpty() && uninstallNodes.isNotEmpty()) {
-                Log.d(TAG, "Uninstall attempt detected — launching challenge overlay")
+            // 1. Check for uninstall attempt (e.g. Settings app info page with "Uninstall" text)
+            val uninstallNodes = rootNode.findAccessibilityNodeInfosByText("Uninstall")
+            val uninstallLowerNodes = rootNode.findAccessibilityNodeInfosByText("uninstall")
+            val isUninstallAttempt = uninstallNodes.isNotEmpty() || uninstallLowerNodes.isNotEmpty()
+
+            // 2. Check for Accessibility service disable attempt (e.g. sub-settings containing "Use FocusLock")
+            val useServiceNodes = rootNode.findAccessibilityNodeInfosByText("Use FocusLock")
+            val useServiceShortNodes = rootNode.findAccessibilityNodeInfosByText("Use service")
+            val useServiceLowerNodes = rootNode.findAccessibilityNodeInfosByText("use service")
+            val isAccessibilityAttempt = useServiceNodes.isNotEmpty() || useServiceShortNodes.isNotEmpty() || useServiceLowerNodes.isNotEmpty()
+
+            // 3. Check for Force Stop attempt (e.g. Settings app info page with "Force stop" button)
+            val forceStopNodes = rootNode.findAccessibilityNodeInfosByText("Force stop")
+            val forceStopCapsNodes = rootNode.findAccessibilityNodeInfosByText("Force Stop")
+            val forceStopLowerNodes = rootNode.findAccessibilityNodeInfosByText("force stop")
+            val isForceStopAttempt = forceStopNodes.isNotEmpty() || forceStopCapsNodes.isNotEmpty() || forceStopLowerNodes.isNotEmpty()
+
+            // 4. Check for Device Admin Deactivate attempt (e.g. Settings page with "Deactivate" button)
+            val deactivateNodes = rootNode.findAccessibilityNodeInfosByText("Deactivate")
+            val deactivateCapsNodes = rootNode.findAccessibilityNodeInfosByText("DEACTIVATE")
+            val deactivateLowerNodes = rootNode.findAccessibilityNodeInfosByText("deactivate")
+            val deactivateAdminNodes = rootNode.findAccessibilityNodeInfosByText("Remove active admin")
+            val isDeactivateAttempt = deactivateNodes.isNotEmpty() || deactivateCapsNodes.isNotEmpty() || 
+                                      deactivateLowerNodes.isNotEmpty() || deactivateAdminNodes.isNotEmpty()
+
+            // Recycle all checked nodes to avoid memory leaks
+            focusLockNodes.forEach { it.recycle() }
+            uninstallNodes.forEach { it.recycle() }
+            uninstallLowerNodes.forEach { it.recycle() }
+            useServiceNodes.forEach { it.recycle() }
+            useServiceShortNodes.forEach { it.recycle() }
+            useServiceLowerNodes.forEach { it.recycle() }
+            forceStopNodes.forEach { it.recycle() }
+            forceStopCapsNodes.forEach { it.recycle() }
+            forceStopLowerNodes.forEach { it.recycle() }
+            deactivateNodes.forEach { it.recycle() }
+            deactivateCapsNodes.forEach { it.recycle() }
+            deactivateLowerNodes.forEach { it.recycle() }
+            deactivateAdminNodes.forEach { it.recycle() }
+
+            if (isUninstallAttempt || isAccessibilityAttempt || isForceStopAttempt || isDeactivateAttempt) {
+                Log.d(TAG, "Security bypass attempt detected (uninstall=$isUninstallAttempt, accessibility=$isAccessibilityAttempt, forceStop=$isForceStopAttempt, deactivate=$isDeactivateAttempt) — launching challenge overlay")
+                
+                // Force exit the Settings app immediately to prevent any prompt interaction
+                performGlobalAction(GLOBAL_ACTION_BACK)
+                handler.postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 300L)
+
                 val intent = Intent(this, com.example.focus_lock.ui.UninstallChallengeOverlay::class.java)
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                startService(intent)
+                startOverlayService(intent)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error checking uninstall attempt: ${e.message}")
@@ -555,7 +629,7 @@ class AccessibilityMonitor : AccessibilityService() {
             }
             val intent = Intent(applicationContext, LockScreenOverlay::class.java)
             intent.putExtra("source", source)
-            startService(intent)
+            startOverlayService(intent)
             overlayShownAt = System.currentTimeMillis()
             startOverlayWatchdog()
             Log.d(TAG, "Lock overlay shown (source=$source)")
@@ -581,6 +655,7 @@ class AccessibilityMonitor : AccessibilityService() {
      * Grants exactly 10 minutes of Reddit access. (PART 4)
      */
     fun onRedditChallengeCompleted() {
+        RedditBlocker.grantTempUnlock()
         transitionTo(DisciplineState.REDDIT_TEMP_UNLOCK)
         val now = System.currentTimeMillis()
         prefs.edit().putLong(REDDIT_TEMP_UNLOCK_START_KEY, now).apply()
@@ -699,6 +774,18 @@ class AccessibilityMonitor : AccessibilityService() {
                     handler.postDelayed(redditLockRunnable, remaining)
                 }
             }
+        }
+    }
+
+    private fun startOverlayService(intent: Intent) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting overlay service: ${e.message}", e)
         }
     }
 

@@ -1,0 +1,133 @@
+import 'package:flutter/foundation.dart';
+import 'package:pedometer_2/pedometer_2.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
+
+typedef StepCallback = void Function(int);
+
+class StepChallengeService {
+  static const String _challengeStartDayKey = 'challenge_start_day';
+  static const String _stepsCompletedKey = 'steps_completed_today';
+  static const String _stepsBaselineKey = 'steps_baseline';
+  static const int _stepTarget = 10000;
+
+  final Pedometer _pedometer = Pedometer();
+  StreamSubscription<int>? _stepCountStream;
+  int _currentSteps = 0;
+  int _baselineSteps = 0;
+  StepCallback? _onStepUpdate;
+
+  Future<bool> initialize() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _baselineSteps = prefs.getInt(_stepsBaselineKey) ?? 0;
+      _currentSteps = prefs.getInt(_stepsCompletedKey) ?? 0;
+      return true;
+    } catch (e) {
+      debugPrint('Error initializing step counter: $e');
+      return false;
+    }
+  }
+
+  void startMonitoring(StepCallback onUpdate) {
+    _onStepUpdate = onUpdate;
+    _resetIfNewDay();
+
+    Permission.activityRecognition.status.then((status) {
+      if (!status.isGranted) {
+        debugPrint('StepChallenge: ACTIVITY_RECOGNITION not granted, skipping');
+        return;
+      }
+      _subscribeToSteps();
+    }).catchError((e) {
+      debugPrint('StepChallenge permission check error: $e');
+    });
+  }
+
+  void _subscribeToSteps() {
+    _stepCountStream?.cancel();
+    try {
+      _stepCountStream = _pedometer.stepCountStream().listen(
+        (int steps) async {
+          if (_baselineSteps == 0) {
+            _baselineSteps = steps;
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setInt(_stepsBaselineKey, _baselineSteps);
+          }
+          _currentSteps = steps - _baselineSteps;
+          if (_currentSteps < 0) _currentSteps = 0;
+          await persistSteps();
+          _onStepUpdate?.call(_currentSteps);
+        },
+        onError: (error) {
+          debugPrint('Step count error: $error');
+        },
+      );
+    } catch (e) {
+      debugPrint('StepChallenge stream error: $e');
+    }
+  }
+
+  void stopMonitoring() {
+    _stepCountStream?.cancel();
+    persistSteps();
+  }
+
+  Future<bool> isChallengeComplete() async {
+    await _resetIfNewDay();
+    return _currentSteps >= _stepTarget;
+  }
+
+  int getCurrentSteps() {
+    return _currentSteps;
+  }
+
+  int getRemainingSteps() {
+    final remaining = _stepTarget - _currentSteps;
+    return remaining > 0 ? remaining : 0;
+  }
+
+  double getProgress() {
+    return (_currentSteps / _stepTarget).clamp(0.0, 1.0);
+  }
+
+  Future<void> resetProgress() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_stepsCompletedKey, 0);
+      await prefs.remove(_stepsBaselineKey);
+      _baselineSteps = 0;
+      _currentSteps = 0;
+    } catch (e) {
+      debugPrint('Error resetting challenge progress: $e');
+    }
+  }
+
+  Future<void> _resetIfNewDay() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final today = DateTime.now().toString().split(' ')[0];
+      final lastDay = prefs.getString(_challengeStartDayKey);
+
+      if (lastDay != today) {
+        await prefs.setString(_challengeStartDayKey, today);
+        await prefs.setInt(_stepsCompletedKey, 0);
+        await prefs.remove(_stepsBaselineKey);
+        _baselineSteps = 0;
+        _currentSteps = 0;
+      }
+    } catch (e) {
+      debugPrint('Error resetting step counter: $e');
+    }
+  }
+
+  Future<void> persistSteps() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_stepsCompletedKey, _currentSteps);
+    } catch (e) {
+      debugPrint('Error persisting steps: $e');
+    }
+  }
+}

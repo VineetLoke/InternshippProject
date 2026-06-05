@@ -12,7 +12,10 @@
     <uses-permission android:name="android.permission.BODY_SENSORS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.BIND_DEVICE_ADMIN" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <!-- Android 11+: enumerate app packages for PackageManager queries -->
     <queries>
@@ -68,19 +71,34 @@
         <service
             android:name=".ui.LockScreenOverlay"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="watchdog" />
+        </service>
 
         <!-- Background App Blocking Service -->
         <service
             android:name=".services.AppBlockingService"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="watchdog" />
+        </service>
 
         <!-- Discipline Warning Overlay (3-second Chrome keyword warning) -->
         <service
             android:name=".ui.DisciplineWarningOverlay"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="watchdog" />
+        </service>
 
         <!-- Shared Block Overlay for deterministic blockers (Instagram, Reddit, Twitter) -->
         <service
@@ -126,7 +144,12 @@
         <service
             android:name=".ui.UninstallChallengeOverlay"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="watchdog" />
+        </service>
 
     </application>
 </manifest>

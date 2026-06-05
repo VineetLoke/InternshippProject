@@ -9,40 +9,37 @@ import android.os.Looper
 import android.util.Log
 import com.example.focus_lock.storage.database.AppDatabase
 import com.example.focus_lock.storage.database.AppOpenLog
-import com.example.focus_lock.ui.BlockingOverlayScreen
+import com.example.focus_lock.ui.LockScreenOverlay
 import java.text.SimpleDateFormat
+import java.time.Instant
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.Executors
 
 /**
- * Deterministic Reddit blocker — completely isolated module.
- *
- * Architecture mirrors [InstagramBlocker] exactly:
- *  • Own SharedPreferences file ("reddit_blocker_prefs")
- *  • Flutter "Reset Focus" has ZERO effect
- *  • Only [grantTempUnlock] allows temporary access (15 minutes)
- *  • Lock period: 17 days from first activation
+ * Reddit blocker backed by the shared Flutter lock state.
  */
 object RedditBlocker {
     private const val TAG = "RedditBlocker"
     const val REDDIT_PACKAGE = "com.reddit.frontpage"
 
-    private const val PREFS_NAME = "reddit_blocker_prefs"
-    private const val KEY_LOCK_START = "rd_lock_start_epoch"
+    private const val MODULE_PREFS_NAME = "reddit_blocker_prefs"
+    private const val LOCK_PREFS_NAME = "focus_lock_native"
     private const val KEY_TEMP_UNLOCK_START = "rd_temp_unlock_start"
     private const val KEY_ATTEMPT_COUNT = "rd_attempt_count"
+    private const val LOCK_START_KEY = "lock_start_time"
+    private const val LOCK_DURATION_KEY = "lock_duration_days"
 
-    private const val LOCK_DURATION_DAYS = 17
-    private const val LOCK_DURATION_MS = LOCK_DURATION_DAYS.toLong() * 24 * 60 * 60 * 1000
-    private const val TEMP_UNLOCK_DURATION_MS = 15L * 60 * 1000  // 15 minutes
-    private const val OVERLAY_DISPLAY_MS = 5000L                 // 5 seconds before force close
+    private const val DEFAULT_LOCK_DURATION_DAYS = 30
+    private const val TEMP_UNLOCK_DURATION_MS = 10L * 60 * 1000
+    private const val OVERLAY_DISPLAY_MS = 5000L
     private const val BACK_PRESS_COUNT = 6
     private const val BACK_PRESS_INTERVAL_MS = 250L
     private const val BLOCK_DEBOUNCE_MS = 3000L
 
     @Volatile private var initialized = false
-    private lateinit var prefs: SharedPreferences
+    private lateinit var modulePrefs: SharedPreferences
+    private lateinit var lockPrefs: SharedPreferences
     private lateinit var appContext: Context
     private val handler = Handler(Looper.getMainLooper())
     private val dbExecutor = Executors.newSingleThreadExecutor()
@@ -56,53 +53,52 @@ object RedditBlocker {
     fun init(context: Context) {
         if (initialized) return
         appContext = context.applicationContext
-        prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        ensureLockStarted()
+        modulePrefs = appContext.getSharedPreferences(MODULE_PREFS_NAME, Context.MODE_PRIVATE)
+        lockPrefs = appContext.getSharedPreferences(LOCK_PREFS_NAME, Context.MODE_PRIVATE)
         restoreTempUnlockTimer()
         initialized = true
         Log.d(TAG, "Initialized. locked=${isLocked()}, tempUnlock=${isTempUnlockActive()}")
     }
 
-    private fun ensureLockStarted() {
-        if (prefs.getLong(KEY_LOCK_START, 0L) == 0L) {
-            prefs.edit().putLong(KEY_LOCK_START, System.currentTimeMillis()).apply()
-            Log.d(TAG, "Lock period started: $LOCK_DURATION_DAYS days from now")
-        }
-    }
-
     fun isLocked(): Boolean {
-        val start = prefs.getLong(KEY_LOCK_START, 0L)
-        if (start == 0L) return false
-        return System.currentTimeMillis() - start < LOCK_DURATION_MS
+        val start = parseLockStartMillis()
+        if (start <= 0L) return false
+        val durationMs = getLockDurationDays().toLong() * 24L * 60L * 60L * 1000L
+        return System.currentTimeMillis() - start < durationMs
     }
 
     fun isTempUnlockActive(): Boolean {
-        val start = prefs.getLong(KEY_TEMP_UNLOCK_START, 0L)
+        val start = modulePrefs.getLong(KEY_TEMP_UNLOCK_START, 0L)
         if (start == 0L) return false
         return System.currentTimeMillis() - start < TEMP_UNLOCK_DURATION_MS
     }
 
     fun getTempUnlockRemainingSeconds(): Long {
-        val start = prefs.getLong(KEY_TEMP_UNLOCK_START, 0L)
+        return getTempUnlockRemainingMs() / 1000
+    }
+
+    private fun getTempUnlockRemainingMs(): Long {
+        val start = modulePrefs.getLong(KEY_TEMP_UNLOCK_START, 0L)
         if (start == 0L) return 0L
         val remaining = TEMP_UNLOCK_DURATION_MS - (System.currentTimeMillis() - start)
-        return if (remaining > 0) remaining / 1000 else 0L
+        return if (remaining > 0) remaining else 0L
     }
 
     fun getRemainingDays(): Int {
-        val start = prefs.getLong(KEY_LOCK_START, 0L)
-        if (start == 0L) return 0
-        val remaining = LOCK_DURATION_MS - (System.currentTimeMillis() - start)
-        return if (remaining > 0) (remaining / (24 * 60 * 60 * 1000)).toInt() + 1 else 0
+        val start = parseLockStartMillis()
+        if (start <= 0L) return 0
+        val durationMs = getLockDurationDays().toLong() * 24L * 60L * 60L * 1000L
+        val remaining = durationMs - (System.currentTimeMillis() - start)
+        return if (remaining > 0) (remaining / (24L * 60L * 60L * 1000L)).toInt() + 1 else 0
     }
 
-    fun getAttemptCount(): Int = prefs.getInt(KEY_ATTEMPT_COUNT, 0)
+    fun getAttemptCount(): Int = modulePrefs.getInt(KEY_ATTEMPT_COUNT, 0)
 
     fun onRedditDetected(): Boolean {
         if (!initialized) return false
         if (!isLocked()) return false
         if (isTempUnlockActive()) {
-            Log.d(TAG, "Temp unlock active (${getTempUnlockRemainingSeconds()}s left) — allowing")
+            Log.d(TAG, "Temp unlock active (${getTempUnlockRemainingSeconds()}s left) - allowing")
             return false
         }
 
@@ -110,12 +106,12 @@ object RedditBlocker {
         if (now - lastBlockTime < BLOCK_DEBOUNCE_MS) return true
         lastBlockTime = now
 
-        val count = prefs.getInt(KEY_ATTEMPT_COUNT, 0) + 1
-        prefs.edit().putInt(KEY_ATTEMPT_COUNT, count).apply()
+        val count = modulePrefs.getInt(KEY_ATTEMPT_COUNT, 0) + 1
+        modulePrefs.edit().putInt(KEY_ATTEMPT_COUNT, count).apply()
         logAttempt(count)
         showBlockingOverlay()
 
-        Log.d(TAG, "Reddit BLOCKED — attempt #$count")
+        Log.d(TAG, "Reddit BLOCKED - attempt #$count")
         return true
     }
 
@@ -127,8 +123,13 @@ object RedditBlocker {
                 scheduleForceClose()
                 return
             }
-            val intent = Intent(appContext, BlockingOverlayScreen::class.java)
-            appContext.startService(intent)
+            val intent = Intent(appContext, LockScreenOverlay::class.java)
+            intent.putExtra("source", "reddit")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                appContext.startForegroundService(intent)
+            } else {
+                appContext.startService(intent)
+            }
             handler.postDelayed({ scheduleForceClose() }, OVERLAY_DISPLAY_MS)
         } catch (e: Exception) {
             Log.e(TAG, "Error showing overlay: ${e.message}")
@@ -149,7 +150,7 @@ object RedditBlocker {
 
     fun dismissOverlay() {
         try {
-            appContext.stopService(Intent(appContext, BlockingOverlayScreen::class.java))
+            appContext.stopService(Intent(appContext, LockScreenOverlay::class.java))
         } catch (e: Exception) {
             Log.e(TAG, "Error dismissing overlay: ${e.message}")
         }
@@ -157,29 +158,45 @@ object RedditBlocker {
 
     fun grantTempUnlock() {
         val now = System.currentTimeMillis()
-        prefs.edit().putLong(KEY_TEMP_UNLOCK_START, now).apply()
+        val newRemaining = getTempUnlockRemainingMs() + TEMP_UNLOCK_DURATION_MS
+        val syntheticStart = now - (TEMP_UNLOCK_DURATION_MS - newRemaining)
+        modulePrefs.edit().putLong(KEY_TEMP_UNLOCK_START, syntheticStart).apply()
         dismissOverlay()
         handler.removeCallbacks(tempUnlockExpiryRunnable)
-        handler.postDelayed(tempUnlockExpiryRunnable, TEMP_UNLOCK_DURATION_MS)
-        Log.d(TAG, "Temp unlock GRANTED — 15 minutes starting now")
+        handler.postDelayed(tempUnlockExpiryRunnable, newRemaining)
+        Log.d(TAG, "Temp unlock GRANTED - ${newRemaining / 60000} minutes remaining")
     }
 
     private fun onTempUnlockExpired() {
-        prefs.edit().remove(KEY_TEMP_UNLOCK_START).apply()
-        Log.d(TAG, "Temp unlock EXPIRED — Reddit re-locked")
+        modulePrefs.edit().remove(KEY_TEMP_UNLOCK_START).apply()
+        Log.d(TAG, "Temp unlock EXPIRED - Reddit re-locked")
     }
 
     private fun restoreTempUnlockTimer() {
-        val start = prefs.getLong(KEY_TEMP_UNLOCK_START, 0L)
+        val start = modulePrefs.getLong(KEY_TEMP_UNLOCK_START, 0L)
         if (start > 0L) {
             val remaining = TEMP_UNLOCK_DURATION_MS - (System.currentTimeMillis() - start)
             if (remaining > 0) {
                 handler.postDelayed(tempUnlockExpiryRunnable, remaining)
                 Log.d(TAG, "Restored temp unlock timer: ${remaining / 1000}s remaining")
             } else {
-                prefs.edit().remove(KEY_TEMP_UNLOCK_START).apply()
+                modulePrefs.edit().remove(KEY_TEMP_UNLOCK_START).apply()
             }
         }
+    }
+
+    private fun parseLockStartMillis(): Long {
+        val raw = lockPrefs.getString(LOCK_START_KEY, null) ?: return 0L
+        return try {
+            Instant.parse(raw).toEpochMilli()
+        } catch (e: Exception) {
+            Log.e(TAG, "Invalid lock start value: $raw")
+            0L
+        }
+    }
+
+    private fun getLockDurationDays(): Int {
+        return lockPrefs.getInt(LOCK_DURATION_KEY, DEFAULT_LOCK_DURATION_DAYS)
     }
 
     private fun logAttempt(attemptCount: Int) {
@@ -212,6 +229,6 @@ object RedditBlocker {
         "tempUnlockRemainingSeconds" to getTempUnlockRemainingSeconds(),
         "remainingDays" to getRemainingDays(),
         "attemptCount" to getAttemptCount(),
-        "lockDurationDays" to LOCK_DURATION_DAYS
+        "lockDurationDays" to getLockDurationDays()
     )
 }
