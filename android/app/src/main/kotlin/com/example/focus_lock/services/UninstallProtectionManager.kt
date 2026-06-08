@@ -13,10 +13,10 @@ import android.util.Log
 object UninstallProtectionManager {
     private const val TAG = "UninstallProtection"
     private const val PREFS_NAME = "uninstall_protection_prefs"
-    private const val KEY_CHALLENGE_COMPLETED_AT = "challenge_completed_at"
+    private const val KEY_FIRST_ATTEMPT_AT = "first_uninstall_attempt_at"
     private const val KEY_PROTECTION_ENABLED = "protection_enabled"
-    private const val COOLDOWN_WINDOW_MS = 5L * 60L * 1000L  // 5 minutes
-    const val REQUIRED_PUSHUPS = 200
+    private const val COOLDOWN_WINDOW_MS = 24L * 60L * 60L * 1000L  // 24 hours
+    const val REQUIRED_PUSHUPS = 100
 
     private lateinit var prefs: SharedPreferences
 
@@ -36,21 +36,21 @@ object UninstallProtectionManager {
     }
 
     /**
-     * Record that the pushup challenge has been completed.
-     * Opens a 5-minute cooldown window where uninstall is allowed.
+     * Record the first uninstall attempt timestamp.
+     * Opens a 24-hour cooldown window where uninstall is allowed.
      */
     fun onChallengeCompleted() {
         prefs.edit()
-            .putLong(KEY_CHALLENGE_COMPLETED_AT, System.currentTimeMillis())
+            .putLong(KEY_FIRST_ATTEMPT_AT, System.currentTimeMillis())
             .apply()
-        Log.d(TAG, "Challenge completed — 5-minute cooldown window started")
+        Log.d(TAG, "Challenge completed — 24-hour cooldown window started")
     }
 
     /**
-     * Check if uninstall is currently allowed (within cooldown window).
+     * Check if uninstall is currently allowed (within 24-hour cooldown window).
      */
     fun isUninstallAllowed(): Boolean {
-        val completedAt = prefs.getLong(KEY_CHALLENGE_COMPLETED_AT, 0L)
+        val completedAt = prefs.getLong(KEY_FIRST_ATTEMPT_AT, 0L)
         if (completedAt == 0L) return false
         val elapsed = System.currentTimeMillis() - completedAt
         val allowed = elapsed < COOLDOWN_WINDOW_MS
@@ -59,10 +59,10 @@ object UninstallProtectionManager {
     }
 
     /**
-     * Get remaining seconds in the cooldown window.
+     * Get remaining seconds in the 24-hour cooldown window.
      */
     fun getCooldownRemainingSeconds(): Long {
-        val completedAt = prefs.getLong(KEY_CHALLENGE_COMPLETED_AT, 0L)
+        val completedAt = prefs.getLong(KEY_FIRST_ATTEMPT_AT, 0L)
         if (completedAt == 0L) return 0L
         val elapsed = System.currentTimeMillis() - completedAt
         val remaining = COOLDOWN_WINDOW_MS - elapsed
@@ -70,10 +70,10 @@ object UninstallProtectionManager {
     }
 
     /**
-     * Reset the challenge completion (protection reactivates).
+     * Reset the first attempt (protection reactivates immediately).
      */
     fun resetChallenge() {
-        prefs.edit().remove(KEY_CHALLENGE_COMPLETED_AT).apply()
+        prefs.edit().remove(KEY_FIRST_ATTEMPT_AT).apply()
         Log.d(TAG, "Challenge reset — protection reactivated")
     }
 

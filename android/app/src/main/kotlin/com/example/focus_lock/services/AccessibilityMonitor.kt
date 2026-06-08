@@ -393,22 +393,19 @@ class AccessibilityMonitor : AccessibilityService() {
         performGlobalAction(GLOBAL_ACTION_BACK)
         handler.postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 300L)
 
-        // Show BlockingOverlayScreen ("You don't need this.")
+        // Show LockScreenOverlay (replaces old BlockingOverlayScreen)
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
                 !android.provider.Settings.canDrawOverlays(this)) {
                 Log.w(TAG, "Overlay permission not granted")
                 return
             }
-            val intent = Intent(applicationContext, com.example.focus_lock.ui.BlockingOverlayScreen::class.java)
+            val intent = Intent(applicationContext, LockScreenOverlay::class.java)
+            intent.putExtra("source", "chrome_incognito")
             startService(intent)
         } catch (e: Exception) {
-            Log.e(TAG, "Error showing blocking overlay: ${e.message}", e)
+            Log.e(TAG, "Error showing lock overlay: ${e.message}", e)
         }
-
-        // After 5 seconds: dismiss overlay and ensure tab is closed
-        handler.removeCallbacks(chromeWarningDismissRunnable)
-        handler.postDelayed(chromeWarningDismissRunnable, 5000L)
     }
 
     private fun dismissChromeWarning() {

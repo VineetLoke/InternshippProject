@@ -3,6 +3,7 @@
     android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewTextChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:description="@string/accessibility_service_description"
+    android:packageNames="com.android.chrome;com.chrome.beta;com.chrome.dev;com.chrome.canary;com.instagram.android;com.reddit.frontpage;com.twitter.android"
     android:notificationTimeout="100"
     android:canRetrieveWindowContent="true"
     android:canRequestFilterKeyEvents="true"

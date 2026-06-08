@@ -15,6 +15,7 @@ import android.text.TextUtils
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.example.focus_lock.controllers.DisciplineState
 import com.example.focus_lock.services.ChromeIncognitoPolicy
 import com.example.focus_lock.blockers.InstagramBlocker
 import com.example.focus_lock.blockers.RedditBlocker
@@ -26,6 +27,8 @@ import com.example.focus_lock.services.FocusLockDeviceAdminReceiver
 import com.example.focus_lock.services.PushupDetectorService
 import com.example.focus_lock.services.UninstallProtectionManager
 import com.example.focus_lock.storage.database.AppDatabase
+import com.example.focus_lock.ui.BlockingOverlayScreen
+import com.example.focus_lock.ui.LockScreenOverlay
 import com.example.focus_lock.ui.UninstallChallengeOverlay
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -349,6 +352,37 @@ class MainActivity : FlutterActivity() {
                         result.success(UninstallProtectionManager.removeDeviceAdmin(applicationContext))
                     }
 
+                    "showQuoteOverlay" -> {
+                        try {
+                            val source = call.argument<String>("source") ?: "quote_overlay"
+                            val quote = call.argument<String>("quote") ?: ""
+                            val author = call.argument<String>("author") ?: ""
+                            val category = call.argument<String>("category") ?: ""
+
+                            val intent = Intent(applicationContext, LockScreenOverlay::class.java)
+                            intent.putExtra("source", source)
+                            intent.putExtra("quote", quote)
+                            intent.putExtra("author", author)
+                            intent.putExtra("category", category)
+                            startService(intent)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.error("OVERLAY_ERROR", e.message, null)
+                        }
+                    }
+                    "hideQuoteOverlay" -> {
+                        try {
+                            stopService(Intent(applicationContext, LockScreenOverlay::class.java))
+                            stopService(Intent(applicationContext, BlockingOverlayScreen::class.java))
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.error("HIDE_ERROR", e.message, null)
+                        }
+                    }
+                    "isChromeIncognito" -> {
+                        val isIncognito = AccessibilityMonitor.currentState == DisciplineState.CHROME_INCOGNITO_BLOCKED
+                        result.success(isIncognito)
+                    }
                     else -> result.notImplemented()
                 }
             }

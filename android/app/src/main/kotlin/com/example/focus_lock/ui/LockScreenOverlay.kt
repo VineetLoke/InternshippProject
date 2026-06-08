@@ -60,12 +60,15 @@ class LockScreenOverlay : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val source = intent?.getStringExtra("source") ?: "instagram"
-        Log.d(TAG, "LockScreenOverlay started (source=$source)")
-        showOverlay(source)
+        val quoteText = intent?.getStringExtra("quote") ?: ""
+        val author = intent?.getStringExtra("author") ?: ""
+        val category = intent?.getStringExtra("category") ?: ""
+        Log.d(TAG, "LockScreenOverlay started (source=$source, hasQuote=${quoteText.isNotEmpty()})")
+        showOverlay(source, quoteText, author, category)
         return START_NOT_STICKY
     }
 
-    private fun showOverlay(source: String) {
+    private fun showOverlay(source: String, quoteText: String = "", author: String = "", category: String = "") {
         if (overlayView != null) {
             Log.d(TAG, "Overlay already visible — skipping")
             return
@@ -81,7 +84,9 @@ class LockScreenOverlay : Service() {
             }
 
             windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            val isChrome = source.contains("chrome", ignoreCase = true)
             val isReddit = source == "reddit"
+            val isSocial = source in setOf("instagram", "twitter", "reddit")
 
             // ── Root container ───────────────────────────────────────
             overlayView = FrameLayout(this).apply {
@@ -115,6 +120,7 @@ class LockScreenOverlay : Service() {
 
             // Title — calm, authoritative
             val titleText = when {
+                isChrome -> "Chrome Incognito Blocked"
                 isReddit -> "Reddit Locked"
                 source == "twitter" -> "Twitter/X Locked"
                 else -> "Instagram Locked"
@@ -141,9 +147,20 @@ class LockScreenOverlay : Service() {
             }
             content.addView(divider)
 
-            // Main quote (PART 6)
-            val quote = TextView(this).apply {
-                text = "\u201CKill the boy and let the man be born.\u201D"
+            // Main quote (PART 6) \u2014 use real quote data when available
+            // Read quote from SharedPreferences as fallback (set by QuotesLoader in Dart)
+            var effectiveQuote = quoteText
+            var effectiveAuthor = author
+            if (effectiveQuote.isEmpty()) {
+                val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+                effectiveQuote = prefs.getString("overlay_quote_text", "") ?: ""
+                effectiveAuthor = prefs.getString("overlay_quote_author", "") ?: ""
+            }
+
+            // Main quote (PART 6) \u2014 use real quote data when available
+            val displayQuote = if (effectiveQuote.isNotEmpty()) effectiveQuote else "\u201CKill the boy and let the man be born.\u201D"
+            val quoteView = TextView(this).apply {
+                text = displayQuote
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
                 setTextColor(Color.parseColor(TEXT_QUOTE))
                 gravity = Gravity.CENTER
@@ -152,7 +169,21 @@ class LockScreenOverlay : Service() {
                 setLineSpacing(6f, 1.2f)
                 setPadding(0, 0, 0, dp(20))
             }
-            content.addView(quote)
+            content.addView(quoteView)
+
+            // Author display below quote
+            if (effectiveAuthor.isNotEmpty()) {
+                val authorView = TextView(this).apply {
+                    text = "\u2014 $effectiveAuthor"
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                    setTextColor(Color.parseColor(ACCENT_COLOR))
+                    gravity = Gravity.CENTER
+                    typeface = Typeface.create("sans-serif-light", Typeface.NORMAL)
+                    letterSpacing = 0.04f
+                    setPadding(0, 0, 0, dp(8))
+                }
+                content.addView(authorView)
+            }
 
             // Subtitle (PART 6)
             val subtitle = TextView(this).apply {
@@ -205,7 +236,7 @@ class LockScreenOverlay : Service() {
                 alpha = 0f
             }
 
-            if (isReddit) {
+            if (isSocial) {
                 // "Earn access" button for Reddit (PART 4 & 7)
                 val earnBtn = createButton("Earn 10 minutes access") {
                     Log.d(TAG, "User tapped Earn Access — starting pushup challenge")

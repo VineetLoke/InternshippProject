@@ -35,7 +35,7 @@ object RedditBlocker {
 
     private const val LOCK_DURATION_DAYS = 17
     private const val LOCK_DURATION_MS = LOCK_DURATION_DAYS.toLong() * 24 * 60 * 60 * 1000
-    private const val TEMP_UNLOCK_DURATION_MS = 15L * 60 * 1000  // 15 minutes
+    private const val TEMP_UNLOCK_DURATION_MS = 10L * 60 * 1000  // 10 minutes
     private const val OVERLAY_DISPLAY_MS = 5000L                 // 5 seconds before force close
     private const val BACK_PRESS_COUNT = 6
     private const val BACK_PRESS_INTERVAL_MS = 250L
@@ -161,7 +161,7 @@ object RedditBlocker {
         dismissOverlay()
         handler.removeCallbacks(tempUnlockExpiryRunnable)
         handler.postDelayed(tempUnlockExpiryRunnable, TEMP_UNLOCK_DURATION_MS)
-        Log.d(TAG, "Temp unlock GRANTED — 15 minutes starting now")
+        Log.d(TAG, "Temp unlock GRANTED — 10 minutes starting now")
     }
 
     private fun onTempUnlockExpired() {

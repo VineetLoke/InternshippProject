@@ -200,8 +200,8 @@ class _HomeScreenState extends State<HomeScreen> {
         'pkg': 'com.instagram.android',
         'icon': Icons.camera_alt,
         'color': Colors.pink,
-        'pushups': 50,
-        'reward': '15 min access',
+        'pushups': 100,
+        'reward': '10 min access',
         'method': 'completeInstagramEmergencyChallenge',
       },
       {
@@ -220,8 +220,8 @@ class _HomeScreenState extends State<HomeScreen> {
         'pkg': 'com.twitter.android',
         'icon': Icons.tag,
         'color': Colors.blue,
-        'pushups': 50,
-        'reward': '15 min access',
+        'pushups': 100,
+        'reward': '10 min access',
         'method': 'completeTwitterEmergencyChallenge',
       },
     ];
