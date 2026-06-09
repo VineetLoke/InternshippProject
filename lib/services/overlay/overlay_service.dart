@@ -30,7 +30,8 @@ class OverlayService {
   /// Requests overlay permission from the user.
   Future<bool> requestPermission() async {
     try {
-      return await FlutterOverlayWindow.requestPermission();
+      final result = await FlutterOverlayWindow.requestPermission();
+      return result ?? false;
     } catch (e) {
       developer.log('OverlayService: permission request error: $e');
       return false;
@@ -70,7 +71,6 @@ class OverlayService {
           overlayContent: shortQuote,
           flag: OverlayFlag.defaultFlag,
           alignment: OverlayAlignment.center,
-          visibility: OverlayVisibility.unknown,
           positionGravity: PositionGravity.none,
         );
       } catch (e) {

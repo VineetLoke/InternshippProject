@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 /// Centralized user-facing strings for FocusGuard.
 /// All widget text should reference these constants.
 @immutable
@@ -103,9 +105,7 @@ class AppStrings {
   static const String pushupStop = 'Stop';
   static const String pushupCompleteTitle = 'Challenge Complete';
   static const String pushupCompleteBody =
-      '{appName} {reward}.
-
-Use the time wisely.';
+      '{appName} {reward}. Use the time wisely.';
   static const String pushupMilestone25 = 'Quarter way there!';
   static const String pushupMilestone50 = 'Halfway! Keep pushing!';
   static const String pushupMilestone75 = 'Almost there!';

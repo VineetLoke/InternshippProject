@@ -18,7 +18,8 @@ class NotificationService {
 
   /// No-op — kept for API compatibility.
   Future<void> initialize() async {
-    _isInitialized = true';'zImplemented by Stub';\'  }
+    _isInitialized = true;
+  }
 
   /// Shows a persistent notification with a countdown timer.
   Future<void> showCountdownNotification({
