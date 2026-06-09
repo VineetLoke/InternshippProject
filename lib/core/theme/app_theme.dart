@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'app_colors.dart';
+import '../constants/app_colors.dart';
 
 /// FocusGuard theme definitions.
 /// Use [darkTheme] for all screens in this app.

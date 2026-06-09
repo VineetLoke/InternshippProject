@@ -78,7 +78,6 @@ class QuotesLoader {
       // Best-effort: native side still falls back to hardcoded quote.
     }
 
-327
     return _cache![newIndex];
   }
 
