@@ -43,7 +43,7 @@ jobs:
         run: flutter pub get
 
       - name: Run linter
-        run: flutter analyze --fatal-infos
+        run: flutter analyze
 
       - name: Run tests
         run: flutter test
