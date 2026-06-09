@@ -5,7 +5,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.1.0'
+        classpath 'com.android.tools.build:gradle:7.4.2'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
@@ -21,21 +21,6 @@ rootProject.buildDir = '../build'
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
     project.evaluationDependsOn(':app')
-}
-
-// AGP 8.x workaround: inject namespace into subprojects that lack it.
-// flutter_overlay_window and other older packages may not define a namespace.
-subprojects {
-    afterEvaluate { project ->
-        if (project.hasProperty("android")) {
-            if (project.android.namespace == null || project.android.namespace.isEmpty()) {
-                def manifestFile = new File(project.projectDir, "/src/main/AndroidManifest.xml")
-                def fallbackPackage = "com.example." + project.name
-                project.android.namespace = fallbackPackage
-                println("Injected namespace '${fallbackPackage}' into subproject '${project.name}'")
-            }
-        }
-    }
 }
 
 tasks.register("clean", Delete) {
