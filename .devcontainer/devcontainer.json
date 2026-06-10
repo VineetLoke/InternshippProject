@@ -1,0 +1,19 @@
+{
+  "name": "FocusGuard Flutter",
+  "image": "ghcr.io/cirruslabs/flutter:stable",
+  "features": {
+    "ghcr.io/devcontainers/features/java:1": {
+      "version": "17",
+      "installGradle": "false"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "Dart-Code.flutter",
+        "Dart-Code.dart-code"
+      ]
+    }
+  },
+  "postCreateCommand": "flutter pub get && flutter config --no-enable-web && flutter config --no-enable-linux-desktop && flutter config --no-enable-macos-desktop && flutter config --no-enable-windows-desktop && flutter config --no-enable-android-validation"
+}
