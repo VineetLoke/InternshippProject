@@ -54,7 +54,7 @@ void main() async {
 }
 
 class FocusGuardApp extends StatelessWidget {
-  const FocusGuardApp({Key? key}) : super(key: key);
+  const FocusGuardApp({super.key});
 
   @override
   Widget build(BuildContext context) {

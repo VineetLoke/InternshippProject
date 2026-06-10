@@ -5,7 +5,7 @@ import '../services/uninstall_protection_service.dart';
 /// Settings screen for managing FocusLock uninstall protection.
 /// Controls: hide icon, device admin, protection status, cooldown display.
 class UninstallProtectionScreen extends StatefulWidget {
-  const UninstallProtectionScreen({Key? key}) : super(key: key);
+  const UninstallProtectionScreen({super.key});
 
   @override
   State<UninstallProtectionScreen> createState() =>

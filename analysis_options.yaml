@@ -1,1 +1,7 @@
 include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # Too noisy for app code; we prefer readable getters where
+    # the member could be final but isn't for a reason.
+    unnecessary_getters_setters: false

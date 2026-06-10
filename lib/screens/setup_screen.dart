@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/lock_state_provider.dart';
 
 class SetupScreen extends StatefulWidget {
-  const SetupScreen({Key? key}) : super(key: key);
+  const SetupScreen({super.key});
 
   @override
   State<SetupScreen> createState() => _SetupScreenState();

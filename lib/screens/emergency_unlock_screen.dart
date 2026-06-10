@@ -4,7 +4,7 @@ import '../providers/lock_state_provider.dart';
 import '../services/timer_service.dart';
 
 class EmergencyUnlockScreen extends StatefulWidget {
-  const EmergencyUnlockScreen({Key? key}) : super(key: key);
+  const EmergencyUnlockScreen({super.key});
 
   @override
   State<EmergencyUnlockScreen> createState() => _EmergencyUnlockScreenState();

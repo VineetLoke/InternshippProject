@@ -6,7 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../services/pushup_service.dart';
 
 class PushupChallengeScreen extends StatefulWidget {
-  const PushupChallengeScreen({Key? key}) : super(key: key);
+  const PushupChallengeScreen({super.key});
 
   @override
   State<PushupChallengeScreen> createState() => _PushupChallengeScreenState();

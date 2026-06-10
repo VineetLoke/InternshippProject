@@ -10,7 +10,7 @@ import '../services/app_log_service.dart';
 import '../services/chrome_filter_service.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();

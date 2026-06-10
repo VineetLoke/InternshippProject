@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 /// Walks users through every permission the app needs before setup begins.
 /// Must be completed before the 30-day lock is activated.
 class PermissionsScreen extends StatefulWidget {
-  const PermissionsScreen({Key? key}) : super(key: key);
+  const PermissionsScreen({super.key});
 
   @override
   State<PermissionsScreen> createState() => _PermissionsScreenState();
