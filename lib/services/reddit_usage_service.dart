@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 /// Manages Reddit daily usage limit (1 hour) and pushup-based extra time.

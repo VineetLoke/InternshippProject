@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 /// Provides screen time data from Android UsageStatsManager for tracked apps.
