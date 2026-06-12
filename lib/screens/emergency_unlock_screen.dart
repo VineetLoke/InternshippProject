@@ -70,10 +70,11 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
           actions: [
             TextButton(
               onPressed: () async {
+                final navigator = Navigator.of(context);
                 await lockProvider.unlockApp();
                 if (mounted) {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).pushReplacementNamed('/home');
+                  navigator.pop();
+                  navigator.pushReplacementNamed('/home');
                 }
               },
               child: const Text('Unlock Instagram'),
@@ -86,8 +87,8 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async => false,
+    return PopScope(
+      canPop: false,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Emergency Unlock Challenge'),
@@ -299,9 +300,10 @@ class _EmergencyUnlockScreenState extends State<EmergencyUnlockScreen> {
                   // Cancel button
                   OutlinedButton(
                     onPressed: () async {
+                      final navigator = Navigator.of(context);
                       await context.read<LockStateProvider>().cancelEmergencyUnlock();
                       if (mounted) {
-                        Navigator.of(context).pop();
+                        navigator.pop();
                       }
                     },
                     style: OutlinedButton.styleFrom(

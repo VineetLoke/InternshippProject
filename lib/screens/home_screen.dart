@@ -242,7 +242,7 @@ class _HomeScreenState extends State<HomeScreen> {
         final pushups = app['pushups'] as int;
         final reward = app['reward'] as String;
         final method = app['method'] as String;
-        final accentColor = color.value;
+        final accentColor = color.toARGB32();
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
@@ -1076,13 +1076,13 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.blue.shade200),
       ),
-      child: Column(
+      child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('How It Works',
+          Text('How It Works',
               style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-          const Text(
+          SizedBox(height: 10),
+          Text(
             '• Instagram, Reddit & Twitter/X are blocked when launched\n'
             '• Master 30-day lock with password protection\n'
             '• Emergency unlock: 1hr wait + 10,000 steps\n'
