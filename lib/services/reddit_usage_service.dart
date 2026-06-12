@@ -14,7 +14,7 @@ class RedditUsageService {
       final result = await _channel.invokeMethod('getRedditUsageStatus');
       return Map<String, dynamic>.from(result);
     } catch (e) {
-      print('Error getting Reddit usage status: $e');
+      debugPrint('Error getting Reddit usage status: $e');
       return {
         'usedSeconds': 0,
         'limitSeconds': 3600,

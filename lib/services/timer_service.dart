@@ -23,7 +23,7 @@ class TimerService {
       );
       return true;
     } catch (e) {
-      print('Error requesting emergency unlock: $e');
+      debugPrint('Error requesting emergency unlock: $e');
       return false;
     }
   }

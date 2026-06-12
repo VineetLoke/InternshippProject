@@ -61,7 +61,7 @@ class PushupService {
       _lastCount = 0;
       return true;
     } catch (e) {
-      print('Error starting camera detection: $e');
+      debugPrint('Error starting camera detection: $e');
       return false;
     }
   }

@@ -29,14 +29,14 @@ class AppBlockService {
       // Tell native side to start the blocking service
       try {
         final result = await _channel.invokeMethod('startBlocking');
-        print('Native startBlocking result: $result');
+        debugPrint('Native startBlocking result: $result');
       } catch (e) {
-        print('Error calling startBlocking: $e');
+        debugPrint('Error calling startBlocking: $e');
       }
 
       return true;
     } catch (e) {
-      print('Error initializing lock: $e');
+      debugPrint('Error initializing lock: $e');
       return false;
     }
   }

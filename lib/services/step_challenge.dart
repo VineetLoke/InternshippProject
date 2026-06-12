@@ -26,7 +26,7 @@ class StepChallengeService {
       _currentSteps = prefs.getInt(_stepsCompletedKey) ?? 0;
       return true;
     } catch (e) {
-      print('Error initializing step counter: $e');
+      debugPrint('Error initializing step counter: $e');
       return false;
     }
   }

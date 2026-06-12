@@ -18,7 +18,7 @@ class UninstallProtectionService {
       final result = await _channel.invokeMethod('getProtectionStatus');
       return Map<String, dynamic>.from(result as Map);
     } catch (e) {
-      print('Error getting protection status: $e');
+      debugPrint('Error getting protection status: $e');
       return {};
     }
   }

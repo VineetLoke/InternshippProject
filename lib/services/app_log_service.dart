@@ -16,7 +16,7 @@ class AppLogService {
           .map((e) => Map<String, dynamic>.from(e as Map))
           .toList();
     } catch (e) {
-      print('Error getting app open logs: $e');
+      debugPrint('Error getting app open logs: $e');
       return [];
     }
   }

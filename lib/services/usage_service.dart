@@ -17,7 +17,7 @@ class UsageService {
       if (result == null) return {};
       return Map<String, dynamic>.from(result as Map);
     } catch (e) {
-      print('Error getting screen time data: $e');
+      debugPrint('Error getting screen time data: $e');
       return {};
     }
   }

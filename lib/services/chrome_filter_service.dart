@@ -20,7 +20,7 @@ class ChromeFilterService {
       }
       return Map<String, dynamic>.from(result as Map);
     } catch (e) {
-      print('Error getting Chrome filter status: $e');
+      debugPrint('Error getting Chrome filter status: $e');
       return {
         'isActive': false,
         'isDeviceOwner': false,
