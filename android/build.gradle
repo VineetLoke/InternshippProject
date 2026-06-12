@@ -5,6 +5,27 @@ allprojects {
     }
 }
 
+// Workaround for old Flutter plugins (e.g. flutter_overlay_window) that do not
+// declare an Android namespace, which AGP 8+ requires. Reads the legacy
+// `package` attribute from the plugin's AndroidManifest.xml and uses it.
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            def androidExt = project.extensions.findByName('android')
+            if (androidExt != null && androidExt.namespace == null) {
+                def manifestFile = project.file('src/main/AndroidManifest.xml')
+                if (manifestFile.exists()) {
+                    def parsedManifest = new groovy.xml.XmlSlurper().parse(manifestFile)
+                    def packageName = parsedManifest.@package.text()
+                    if (packageName) {
+                        androidExt.namespace = packageName
+                    }
+                }
+            }
+        }
+    }
+}
+
 rootProject.buildDir = '../build'
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
