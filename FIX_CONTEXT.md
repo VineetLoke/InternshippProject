@@ -12,14 +12,14 @@ read this file to know what was found, what is fixed, and what is left.
 
 | # | File(s) | Problem | Severity | Status |
 |---|---------|---------|----------|--------|
-| 1 | `android/app/src/main/AndroidManifest.xml` | File is corrupted: all `<` and `>` were replaced with HTML codes (`&lt;` / `&gt;`). Android cannot parse it. Also uses the old `package=` attribute (removed in AGP 8) and declares the `tools` namespace in the wrong place. | CRITICAL | [ ] |
-| 2 | `android/app/src/debug/AndroidManifest.xml` | Same HTML-escaping corruption. | CRITICAL | [ ] |
-| 3 | `android/app/src/profile/AndroidManifest.xml` | Same HTML-escaping corruption (identical file to debug). | CRITICAL | [ ] |
-| 4 | `android/build.gradle` + `android/build.gradle.kts`, `android/app/build.gradle` + `android/app/build.gradle.kts`, `android/settings.gradle` + `android/settings.gradle.kts` | Duplicate Groovy AND Kotlin-DSL build scripts exist side by side. They disagree with each other (AGP 7.4.2 vs 9.0.1, Kotlin 1.9.10 vs 2.3.20, Java 8 vs 17). The `.kts` versions are also missing the `kotlin-android` and `kotlin-kapt` plugins that the Room database code requires. Gradle cannot work like this. | CRITICAL | [ ] |
-| 5 | Version matrix | Gradle wrapper is 8.3 but AGP is 7.4.2 (incompatible pairing). `compileSdk 33` is too low for the plugins in pubspec (camera 0.11, permission_handler 11, ML Kit pose detection). | HIGH | [ ] |
-| 6 | `android/build.gradle` (root) | Old-style `buildscript { classpath ... }` block conflicts with the plugin versions declared in `settings.gradle` `pluginManagement`. Plugins must be declared in only one place. | HIGH | [ ] |
-| 7 | `evaluate_test.kt` (repo root) | Stray Kotlin file sitting outside any source set. Not compiled, just confusing clutter. | LOW | [ ] |
-| 8 | `lib/services/step_challenge.dart` | `_resetIfNewDay()` is async but called without `await` in `startMonitoring()` and `isChallengeComplete()` - possible race condition. | MEDIUM | [ ] |
+| 1 | `android/app/src/main/AndroidManifest.xml` | File is corrupted: all `<` and `>` were replaced with HTML codes (`&lt;` / `&gt;`). Android cannot parse it. Also uses the old `package=` attribute (removed in AGP 8) and declares the `tools` namespace in the wrong place. | CRITICAL | [x] fixed |
+| 2 | `android/app/src/debug/AndroidManifest.xml` | Same HTML-escaping corruption. | CRITICAL | [x] fixed |
+| 3 | `android/app/src/profile/AndroidManifest.xml` | Same HTML-escaping corruption (identical file to debug). | CRITICAL | [x] fixed |
+| 4 | `android/build.gradle` + `android/build.gradle.kts`, `android/app/build.gradle` + `android/app/build.gradle.kts`, `android/settings.gradle` + `android/settings.gradle.kts` | Duplicate Groovy AND Kotlin-DSL build scripts exist side by side. They disagree with each other (AGP 7.4.2 vs 9.0.1, Kotlin 1.9.10 vs 2.3.20, Java 8 vs 17). The `.kts` versions are also missing the `kotlin-android` and `kotlin-kapt` plugins that the Room database code requires. Gradle cannot work like this. | CRITICAL | [x] fixed (.kts files deleted, Groovy kept) |
+| 5 | Version matrix | Gradle wrapper is 8.3 but AGP is 7.4.2 (incompatible pairing). `compileSdk 33` is too low for the plugins in pubspec (camera 0.11, permission_handler 11, ML Kit pose detection). | HIGH | [x] fixed (Gradle 8.10.2 / AGP 8.7.3 / Kotlin 1.9.25 / Java 17 / compileSdk 35) |
+| 6 | `android/build.gradle` (root) | Old-style `buildscript { classpath ... }` block conflicts with the plugin versions declared in `settings.gradle` `pluginManagement`. Plugins must be declared in only one place. | HIGH | [x] fixed |
+| 7 | `evaluate_test.kt` (repo root) | Stray Kotlin file sitting outside any source set. Not compiled, just confusing clutter. | LOW | [x] removed |
+| 8 | `lib/services/step_challenge.dart` | `_resetIfNewDay()` is async but called without `await` in `startMonitoring()` and `isChallengeComplete()` - possible race condition. | MEDIUM | [x] fixed |
 | 9 | Whole `lib/` (~40 files) and `android/.../focus_lock/` (~20 Kotlin files) | Not yet fully audited. Must run `flutter analyze` locally to catch every remaining error (cannot be run from chat). | UNKNOWN | [ ] |
 
 ---

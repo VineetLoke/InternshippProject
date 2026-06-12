@@ -32,9 +32,9 @@ class StepChallengeService {
   }
 
   /// Start monitoring steps – silently skips if permission not granted.
-  void startMonitoring(StepCallback onUpdate) {
+  Future<void> startMonitoring(StepCallback onUpdate) async {
     _onStepUpdate = onUpdate;
-    _resetIfNewDay();
+    await _resetIfNewDay();
 
     // Check permission synchronously via cached status before subscribing
     // to avoid a crash when ACTIVITY_RECOGNITION is not granted.
@@ -79,7 +79,7 @@ class StepChallengeService {
 
   /// Check if challenge is completed
   Future<bool> isChallengeComplete() async {
-    _resetIfNewDay();
+    await _resetIfNewDay();
     return _currentSteps >= _stepTarget;
   }
 
