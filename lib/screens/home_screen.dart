@@ -242,7 +242,10 @@ class _HomeScreenState extends State<HomeScreen> {
         final pushups = app['pushups'] as int;
         final reward = app['reward'] as String;
         final method = app['method'] as String;
-        final accentColor = color.toARGB32();
+        // Color.value is deprecated, but its replacement toARGB32() only
+        // exists from Flutter 3.29. Safe to use until the SDK is upgraded.
+        // ignore: deprecated_member_use
+        final accentColor = color.value;
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
