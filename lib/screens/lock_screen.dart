@@ -31,19 +31,18 @@ class _LockScreenState extends State<LockScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        // Prevent back button from dismissing
-        return false;
-      },
+    return PopScope(
+      // Prevent back button from dismissing
+      canPop: false,
       child: Scaffold(
         body: Consumer<LockStateProvider>(
           builder: (context, lockProvider, _) {
             // Check if still locked
             if (!lockProvider.isLocked) {
               // Auto-navigate to home if unlocked
+              final navigator = Navigator.of(context);
               Future.microtask(() {
-                Navigator.of(context).pushReplacementNamed('/home');
+                navigator.pushReplacementNamed('/home');
               });
             }
 
@@ -62,7 +61,7 @@ class _LockScreenState extends State<LockScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Lock Icon
-                  Icon(
+                  const Icon(
                     Icons.lock_outline,
                     size: 80,
                     color: Colors.white,
@@ -106,9 +105,10 @@ class _LockScreenState extends State<LockScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: ElevatedButton(
                         onPressed: () async {
+                          final navigator = Navigator.of(context);
                           await lockProvider.requestEmergencyUnlock();
                           if (mounted) {
-                            Navigator.of(context).pushNamed('/emergency');
+                            navigator.pushNamed('/emergency');
                           }
                         },
                         style: ElevatedButton.styleFrom(
@@ -141,7 +141,7 @@ class _LockScreenState extends State<LockScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: Colors.white.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white30),
       ),

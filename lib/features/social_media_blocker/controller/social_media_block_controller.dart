@@ -75,7 +75,14 @@ class SocialMediaBlockController {
 
 /// Convenience factory for all three apps.
 class SocialMediaBlockers {
-  static InstagramBlocker() => SocialMediaBlockController(BlockedApp.instagram);
-  static RedditBlocker() => SocialMediaBlockController(BlockedApp.reddit);
-  static TwitterBlocker() => SocialMediaBlockController(BlockedApp.twitter);
+  // Names intentionally match the native blocker classes.
+  // ignore: non_constant_identifier_names
+  static SocialMediaBlockController InstagramBlocker() =>
+      SocialMediaBlockController(BlockedApp.instagram);
+  // ignore: non_constant_identifier_names
+  static SocialMediaBlockController RedditBlocker() =>
+      SocialMediaBlockController(BlockedApp.reddit);
+  // ignore: non_constant_identifier_names
+  static SocialMediaBlockController TwitterBlocker() =>
+      SocialMediaBlockController(BlockedApp.twitter);
 }
