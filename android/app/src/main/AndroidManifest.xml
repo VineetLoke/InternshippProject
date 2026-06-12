@@ -1,23 +1,18 @@
-<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.focus_lock">
+    xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Required permissions -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
-        tools:ignore="ProtectedPermissions"
-        xmlns:tools="http://schemas.android.com/tools" />
+        tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.BODY_SENSORS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.BIND_DEVICE_ADMIN" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.front" android:required="false" />
 
-    <!-- Android 11+: enumerate app packages for PackageManager queries -->
     <queries>
         <package android:name="com.instagram.android" />
         <package android:name="com.reddit.frontpage" />
@@ -31,7 +26,6 @@
         android:icon="@mipmap/ic_launcher"
         android:extractNativeLibs="true">
 
-        <!-- Main Activity -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -49,12 +43,10 @@
             </intent-filter>
         </activity>
 
-        <!-- Don't delete the meta-data below -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
 
-        <!-- Accessibility Service for Instagram detection -->
         <service
             android:name=".services.AccessibilityMonitor"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
@@ -67,33 +59,26 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
-        <!-- Lock Screen Overlay Service -->
         <service
             android:name=".ui.LockScreenOverlay"
             android:enabled="true"
             android:exported="false" />
 
-        <!-- Background App Blocking Service -->
         <service
             android:name=".services.AppBlockingService"
             android:enabled="true"
             android:exported="false" />
 
-        <!-- Discipline Warning Overlay (3-second Chrome keyword warning) -->
         <service
             android:name=".ui.DisciplineWarningOverlay"
             android:enabled="true"
             android:exported="false" />
 
-        <!-- Shared Block Overlay for deterministic blockers (Instagram, Reddit, Twitter) -->
         <service
             android:name=".ui.BlockingOverlayScreen"
             android:enabled="true"
             android:exported="false" />
 
-
-
-        <!-- Boot Receiver to restart blocking after reboot -->
         <receiver
             android:name=".BootReceiver"
             android:exported="true">
@@ -102,7 +87,6 @@
             </intent-filter>
         </receiver>
 
-        <!-- Device Administrator Receiver for uninstall protection -->
         <receiver
             android:name=".services.FocusLockDeviceAdminReceiver"
             android:permission="android.permission.BIND_DEVICE_ADMIN"
@@ -115,7 +99,6 @@
             </intent-filter>
         </receiver>
 
-        <!-- Secret code receiver: dial *#*#1717#*#* to restore app access -->
         <receiver
             android:name=".SecretCodeReceiver"
             android:exported="true">
@@ -125,7 +108,6 @@
             </intent-filter>
         </receiver>
 
-        <!-- Uninstall Challenge Overlay Service -->
         <service
             android:name=".ui.UninstallChallengeOverlay"
             android:enabled="true"
