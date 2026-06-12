@@ -26,15 +26,15 @@ class StepChallengeService {
       _currentSteps = prefs.getInt(_stepsCompletedKey) ?? 0;
       return true;
     } catch (e) {
-      print('Error initializing step counter: $e');
+      debugPrint('Error initializing step counter: $e');
       return false;
     }
   }
 
   /// Start monitoring steps – silently skips if permission not granted.
-  void startMonitoring(StepCallback onUpdate) {
+  Future<void> startMonitoring(StepCallback onUpdate) async {
     _onStepUpdate = onUpdate;
-    _resetIfNewDay();
+    await _resetIfNewDay();
 
     // Check permission synchronously via cached status before subscribing
     // to avoid a crash when ACTIVITY_RECOGNITION is not granted.
@@ -79,7 +79,7 @@ class StepChallengeService {
 
   /// Check if challenge is completed
   Future<bool> isChallengeComplete() async {
-    _resetIfNewDay();
+    await _resetIfNewDay();
     return _currentSteps >= _stepTarget;
   }
 
@@ -113,7 +113,7 @@ class StepChallengeService {
         _currentSteps = 0;
       }
     } catch (e) {
-      print('Error resetting step counter: $e');
+      debugPrint('Error resetting step counter: $e');
     }
   }
 
@@ -123,7 +123,7 @@ class StepChallengeService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_stepsCompletedKey, _currentSteps);
     } catch (e) {
-      print('Error persisting steps: $e');
+      debugPrint('Error persisting steps: $e');
     }
   }
 }

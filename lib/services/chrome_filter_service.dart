@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 /// Service for Chrome incognito mode policy control.
@@ -19,7 +20,7 @@ class ChromeFilterService {
       }
       return Map<String, dynamic>.from(result as Map);
     } catch (e) {
-      print('Error getting Chrome filter status: $e');
+      debugPrint('Error getting Chrome filter status: $e');
       return {
         'isActive': false,
         'isDeviceOwner': false,
@@ -34,7 +35,7 @@ class ChromeFilterService {
       final result = await _channel.invokeMethod('applyChromeIncognitoPolicy');
       return result == true;
     } catch (e) {
-      print('Error applying Chrome policy: $e');
+      debugPrint('Error applying Chrome policy: $e');
       return false;
     }
   }
@@ -45,7 +46,7 @@ class ChromeFilterService {
       final result = await _channel.invokeMethod('removeChromeIncognitoPolicy');
       return result == true;
     } catch (e) {
-      print('Error removing Chrome policy: $e');
+      debugPrint('Error removing Chrome policy: $e');
       return false;
     }
   }
@@ -56,7 +57,7 @@ class ChromeFilterService {
       final result = await _channel.invokeMethod('isDeviceOwnerOrProfileOwner');
       return result == true;
     } catch (e) {
-      print('Error checking device owner status: $e');
+      debugPrint('Error checking device owner status: $e');
       return false;
     }
   }

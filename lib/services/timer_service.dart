@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 
@@ -22,7 +23,7 @@ class TimerService {
       );
       return true;
     } catch (e) {
-      print('Error requesting emergency unlock: $e');
+      debugPrint('Error requesting emergency unlock: $e');
       return false;
     }
   }
@@ -41,7 +42,7 @@ class TimerService {
       
       return elapsed >= _delayPeriod;
     } catch (e) {
-      print('Error checking delay status: $e');
+      debugPrint('Error checking delay status: $e');
       return false;
     }
   }
@@ -63,7 +64,7 @@ class TimerService {
       
       return remaining.isNegative ? Duration.zero : remaining;
     } catch (e) {
-      print('Error getting remaining time: $e');
+      debugPrint('Error getting remaining time: $e');
       return Duration.zero;
     }
   }
@@ -73,7 +74,7 @@ class TimerService {
     _onTick = onTick;
     _countdownTimer?.cancel();
     
-    _countdownTimer = Timer.periodic(Duration(seconds: 1), (timer) async {
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
       _remainingTime = await getRemainingTime();
       _onTick?.call(_remainingTime);
       
@@ -95,7 +96,7 @@ class TimerService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_emergencyUnlockRequestKey);
     } catch (e) {
-      print('Error cancelling emergency unlock: $e');
+      debugPrint('Error cancelling emergency unlock: $e');
     }
   }
 

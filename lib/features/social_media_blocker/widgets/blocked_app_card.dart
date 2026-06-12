@@ -12,12 +12,12 @@ class BlockedAppCard extends StatefulWidget {
   final VoidCallback? onRequestAccess;
 
   const BlockedAppCard({
-    Key? key,
+    super.key,
     required this.app,
     required this.icon,
     required this.color,
     this.onRequestAccess,
-  }) : super(key: key);
+  });
 
   @override
   State<BlockedAppCard> createState() => _BlockedAppCardState();

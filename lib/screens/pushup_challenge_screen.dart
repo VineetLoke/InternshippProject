@@ -205,8 +205,9 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () async {
+            final navigator = Navigator.of(context);
             await _stopDetection();
-            if (mounted) Navigator.of(context).pop();
+            if (mounted) navigator.pop();
           },
         ),
       ),
@@ -227,7 +228,7 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
                     padding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: _accentColor.withOpacity(0.3),
+                      color: _accentColor.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -255,7 +256,7 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
+                  color: Colors.white.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
@@ -353,7 +354,7 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -445,7 +446,7 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
                   style: TextStyle(
                     fontSize: 72,
                     fontWeight: FontWeight.bold,
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                       shadows: const [
                         Shadow(
                           blurRadius: 10,
@@ -458,7 +459,7 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
                     '/ $_requiredPushups',
                     style: TextStyle(
                       fontSize: 20,
-                      color: Colors.white.withOpacity(0.6),
+                      color: Colors.white.withValues(alpha: 0.6),
                   ),
                 ),
               ],

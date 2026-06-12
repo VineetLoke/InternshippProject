@@ -39,9 +39,9 @@ class QuoteOverlayScreen extends StatelessWidget {
               // App icon / header
               const Icon(Icons.lock_outline, size: 56, color: AppColors.accent),
               const SizedBox(height: 16),
-              Text(
+              const Text(
                 AppStrings.quoteOverlayTitle,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                   color: AppColors.accent,
@@ -49,10 +49,10 @@ class QuoteOverlayScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
+              const Text(
                 AppStrings.quoteOverlaySubtitle,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   color: AppColors.textSecondary,
                 ),
@@ -62,10 +62,10 @@ class QuoteOverlayScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: AppColors.surface.withOpacity(0.5),
+                  color: AppColors.surface.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: AppColors.accent.withOpacity(0.2),
+                    color: AppColors.accent.withValues(alpha: 0.2),
                     width: 1,
                   ),
                 ),
@@ -91,7 +91,7 @@ class QuoteOverlayScreen extends StatelessWidget {
                     Container(
                       width: 40,
                       height: 2,
-                      color: AppColors.accent.withOpacity(0.3),
+                      color: AppColors.accent.withValues(alpha: 0.3),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -105,7 +105,7 @@ class QuoteOverlayScreen extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       quote.category.toUpperCase(),
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 10,
                         letterSpacing: 2,
                         color: AppColors.textMuted,
@@ -128,9 +128,9 @@ class QuoteOverlayScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
               ] else if (appName.contains('Chrome')) ...[
-                Text(
+                const Text(
                   AppStrings.quoteCloseChrome,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     color: AppColors.textSecondary,
                   ),

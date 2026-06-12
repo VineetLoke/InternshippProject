@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 /// Flutter interface to the native uninstall protection system.
@@ -17,7 +18,7 @@ class UninstallProtectionService {
       final result = await _channel.invokeMethod('getProtectionStatus');
       return Map<String, dynamic>.from(result as Map);
     } catch (e) {
-      print('Error getting protection status: $e');
+      debugPrint('Error getting protection status: $e');
       return {};
     }
   }
@@ -28,7 +29,7 @@ class UninstallProtectionService {
       final result = await _channel.invokeMethod('hideAppIcon');
       return result == true;
     } catch (e) {
-      print('Error hiding app icon: $e');
+      debugPrint('Error hiding app icon: $e');
       return false;
     }
   }
@@ -39,7 +40,7 @@ class UninstallProtectionService {
       final result = await _channel.invokeMethod('showAppIcon');
       return result == true;
     } catch (e) {
-      print('Error showing app icon: $e');
+      debugPrint('Error showing app icon: $e');
       return false;
     }
   }
@@ -59,7 +60,7 @@ class UninstallProtectionService {
     try {
       await _channel.invokeMethod('requestDeviceAdmin');
     } catch (e) {
-      print('Error requesting device admin: $e');
+      debugPrint('Error requesting device admin: $e');
     }
   }
 
@@ -78,7 +79,7 @@ class UninstallProtectionService {
     try {
       await _channel.invokeMethod('enableProtection');
     } catch (e) {
-      print('Error enabling protection: $e');
+      debugPrint('Error enabling protection: $e');
     }
   }
 
@@ -107,7 +108,7 @@ class UninstallProtectionService {
     try {
       await _channel.invokeMethod('launchUninstallChallenge');
     } catch (e) {
-      print('Error launching challenge: $e');
+      debugPrint('Error launching challenge: $e');
     }
   }
 
@@ -117,7 +118,7 @@ class UninstallProtectionService {
       final result = await _channel.invokeMethod('removeDeviceAdmin');
       return result == true;
     } catch (e) {
-      print('Error removing device admin: $e');
+      debugPrint('Error removing device admin: $e');
       return false;
     }
   }

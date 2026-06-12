@@ -242,6 +242,9 @@ class _HomeScreenState extends State<HomeScreen> {
         final pushups = app['pushups'] as int;
         final reward = app['reward'] as String;
         final method = app['method'] as String;
+        // Color.value is deprecated, but its replacement toARGB32() only
+        // exists from Flutter 3.29. Safe to use until the SDK is upgraded.
+        // ignore: deprecated_member_use
         final accentColor = color.value;
 
         return Padding(
@@ -372,20 +375,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
     String subtitle;
     Color statusColor;
-    IconData statusIcon;
 
     if (isActive) {
       subtitle = 'Incognito mode blocked via accessibility service';
       statusColor = Colors.green;
-      statusIcon = Icons.check_circle;
     } else if (!isDeviceOwner) {
       subtitle = 'Accessibility service not running — incognito blocking inactive';
       statusColor = Colors.orange;
-      statusIcon = Icons.warning_amber;
     } else {
       subtitle = 'Inactive';
       statusColor = Colors.grey;
-      statusIcon = Icons.remove_circle_outline;
     }
 
     return Padding(
@@ -1080,13 +1079,13 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.blue.shade200),
       ),
-      child: Column(
+      child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('How It Works',
+          Text('How It Works',
               style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-          const Text(
+          SizedBox(height: 10),
+          Text(
             '• Instagram, Reddit & Twitter/X are blocked when launched\n'
             '• Master 30-day lock with password protection\n'
             '• Emergency unlock: 1hr wait + 10,000 steps\n'

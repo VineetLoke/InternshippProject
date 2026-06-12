@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'camera_pushup_detector.dart';
 
@@ -60,7 +61,7 @@ class PushupService {
       _lastCount = 0;
       return true;
     } catch (e) {
-      print('Error starting camera detection: $e');
+      debugPrint('Error starting camera detection: $e');
       return false;
     }
   }
@@ -76,13 +77,13 @@ class PushupService {
           _lastCount = count;
           _controller.add(count);
         }, onError: (dynamic error) {
-          print('Pushup event error: $error');
+          debugPrint('Pushup event error: $error');
         });
         return true;
       }
       return false;
     } catch (e) {
-      print('Error starting pushup detection: $e');
+      debugPrint('Error starting pushup detection: $e');
       return false;
     }
   }
@@ -96,7 +97,7 @@ class PushupService {
       try {
         await _channel.invokeMethod('stopPushupDetection');
       } catch (e) {
-        print('Error stopping pushup detection: $e');
+        debugPrint('Error stopping pushup detection: $e');
       }
     }
   }
@@ -121,7 +122,7 @@ class PushupService {
       try {
         await _channel.invokeMethod('resetPushupCount');
       } catch (e) {
-        print('Error resetting pushup count: $e');
+        debugPrint('Error resetting pushup count: $e');
       }
     }
     _lastCount = 0;
@@ -138,7 +139,7 @@ class PushupService {
       }
       return false;
     } catch (e) {
-      print('Error redeeming pushups: $e');
+      debugPrint('Error redeeming pushups: $e');
       return false;
     }
   }
