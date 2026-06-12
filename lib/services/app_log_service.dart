@@ -29,7 +29,7 @@ class AppLogService {
       });
       return (result as int?) ?? 0;
     } catch (e) {
-      print('Error getting open count: $e');
+      debugPrint('Error getting open count: $e');
       return 0;
     }
   }
@@ -43,7 +43,7 @@ class AppLogService {
       if (result == null) return {};
       return Map<String, int>.from(result as Map);
     } catch (e) {
-      print('Error getting all open counts: $e');
+      debugPrint('Error getting all open counts: $e');
       return {};
     }
   }

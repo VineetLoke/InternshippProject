@@ -55,7 +55,7 @@ class AppBlockService {
       
       return DateTime.now().isBefore(lockEnd);
     } catch (e) {
-      print('Error checking lock status: $e');
+      debugPrint('Error checking lock status: $e');
       return false;
     }
   }
@@ -75,7 +75,7 @@ class AppBlockService {
       final remaining = lockEnd.difference(DateTime.now()).inDays;
       return remaining > 0 ? remaining : 0;
     } catch (e) {
-      print('Error getting remaining days: $e');
+      debugPrint('Error getting remaining days: $e');
       return 0;
     }
   }
@@ -93,7 +93,7 @@ class AppBlockService {
       
       return lockStart.add(Duration(days: lockDays));
     } catch (e) {
-      print('Error getting lock end date: $e');
+      debugPrint('Error getting lock end date: $e');
       return null;
     }
   }
@@ -105,7 +105,7 @@ class AppBlockService {
       await prefs.remove(_lockStartTimeKey);
       await prefs.remove(_lockDurationDaysKey);
     } catch (e) {
-      print('Error unlocking: $e');
+      debugPrint('Error unlocking: $e');
     }
   }
 
