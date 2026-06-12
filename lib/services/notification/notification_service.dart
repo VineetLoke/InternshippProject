@@ -14,12 +14,8 @@ class NotificationService {
   static final NotificationService _instance = NotificationService._();
   static NotificationService get instance => _instance;
 
-  bool _isInitialized = false;
-
   /// No-op — kept for API compatibility.
-  Future<void> initialize() async {
-    _isInitialized = true;
-  }
+  Future<void> initialize() async {}
 
   /// Shows a persistent notification with a countdown timer.
   Future<void> showCountdownNotification({

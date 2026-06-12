@@ -1,9 +1,3 @@
-import 'dart:convert';
-import 'dart:math';
-import 'dart:developer' as developer;
-import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 /// Data model for a single quote.
 class QuoteModel {
   final String text;

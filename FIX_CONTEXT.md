@@ -20,7 +20,9 @@ read this file to know what was found, what is fixed, and what is left.
 | 6 | `android/build.gradle` (root) | Old-style `buildscript { classpath ... }` block conflicts with the plugin versions declared in `settings.gradle` `pluginManagement`. Plugins must be declared in only one place. | HIGH | [x] fixed |
 | 7 | `evaluate_test.kt` (repo root) | Stray Kotlin file sitting outside any source set. Not compiled, just confusing clutter. | LOW | [x] removed |
 | 8 | `lib/services/step_challenge.dart` | `_resetIfNewDay()` is async but called without `await` in `startMonitoring()` and `isChallengeComplete()` - possible race condition. | MEDIUM | [x] fixed |
-| 9 | Whole `lib/` (~40 files) and `android/.../focus_lock/` (~20 Kotlin files) | Not yet fully audited. Must run `flutter analyze` locally to catch every remaining error (cannot be run from chat). | UNKNOWN | [ ] |
+| 9 | Whole `lib/` (~40 files) and `android/.../focus_lock/` (~20 Kotlin files) | Audited via GitHub Actions `flutter analyze`: **0 compile errors**, 9 warnings, 79 style infos. | DONE | [x] |
+| 10 | 6 files (quote_model, emergency_unlock_screen, permissions_screen, home_screen, notification_service, widget_test) | 9 analyzer warnings: unused imports, unused local variable `statusIcon`, unused field `_isInitialized`. These made CI fail (warnings are fatal). | HIGH | [x] fixed |
+| 11 | Various `lib/` files | 79 style infos (`avoid_print`, deprecated `withOpacity`/`WillPopScope`, `prefer_const`). Not fatal to CI - optional cleanup later. | LOW | [ ] optional |
 
 ---
 

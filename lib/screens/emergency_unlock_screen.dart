@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/lock_state_provider.dart';
-import '../services/timer_service.dart';
 
 class EmergencyUnlockScreen extends StatefulWidget {
   const EmergencyUnlockScreen({super.key});

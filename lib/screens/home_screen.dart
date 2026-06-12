@@ -372,20 +372,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
     String subtitle;
     Color statusColor;
-    IconData statusIcon;
 
     if (isActive) {
       subtitle = 'Incognito mode blocked via accessibility service';
       statusColor = Colors.green;
-      statusIcon = Icons.check_circle;
     } else if (!isDeviceOwner) {
       subtitle = 'Accessibility service not running — incognito blocking inactive';
       statusColor = Colors.orange;
-      statusIcon = Icons.warning_amber;
     } else {
       subtitle = 'Inactive';
       statusColor = Colors.grey;
-      statusIcon = Icons.remove_circle_outline;
     }
 
     return Padding(
