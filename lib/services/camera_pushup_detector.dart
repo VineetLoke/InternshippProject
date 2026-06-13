@@ -185,7 +185,7 @@ class CameraPushupDetector {
 
     if (detected) {
       debugPrint(
-          'CameraPushup: angle=${angle!.toStringAsFixed(1)}, '
+          'CameraPushup: angle=${angle.toStringAsFixed(1)}, '
           'state=$_repState, count=$_count');
       _updateRepState(angle);
     }
