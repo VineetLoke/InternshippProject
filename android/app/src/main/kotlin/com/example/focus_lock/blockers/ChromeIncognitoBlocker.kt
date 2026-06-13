@@ -58,6 +58,7 @@ object ChromeIncognitoBlocker {
     fun evaluateIncognitoState(node: AccessibilityNodeInfo?) {
         if (node == null) return
         try {
+            loggedThisScan = 0
             val detected = scanTreeForIncognito(node, 0, logScan = true)
             if (detected != isIncognitoCached) {
                 Log.d(TAG, "Incognito cache: $isIncognitoCached -> $detected")
