@@ -3,7 +3,9 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import '../services/pushup_service.dart';
+import '../services/pose_painter.dart';
 
 class PushupChallengeScreen extends StatefulWidget {
   const PushupChallengeScreen({super.key});
@@ -90,6 +92,30 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
 
   Future<void> _startDetection() async {
     final mode = _useCamera ? DetectionMode.camera : DetectionMode.proximity;
+
+    if (mode == DetectionMode.camera) {
+      // Camera permission must be granted before starting detection.
+      var status = await Permission.camera.status;
+      if (!status.isGranted) {
+        status = await Permission.camera.request();
+      }
+      if (!status.isGranted) {
+        setState(() {
+          _cameraPermissionGranted = false;
+          _sensorError = true;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Camera permission is required for pushup detection.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+      setState(() => _cameraPermissionGranted = true);
+    }
 
     if (mode == DetectionMode.proximity) {
       final started = await _pushupService.start(mode: mode);
@@ -428,12 +454,79 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
           (_count / _requiredPushups).clamp(0.0, 1.0));
     }
 
+    final detector = _pushupService.cameraDetector!;
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: Stack(
         alignment: Alignment.center,
         children: [
           CameraPreview(controller),
+
+          // Green-skeleton overlay drawn on top of the live preview.
+          Positioned.fill(
+            child: ValueListenableBuilder<Pose?>(
+              valueListenable: detector.poseNotifier,
+              builder: (context, pose, _) {
+                return CustomPaint(
+                  painter: PosePainter(
+                    pose: pose,
+                    imageSize: detector.imageSize.value,
+                    rotation: InputImageRotation.rotation90deg,
+                    mirror: detector.isFrontCamera,
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // Debug HUD: pose detected + live elbow angle.
+          Positioned(
+            top: 12,
+            left: 12,
+            child: ValueListenableBuilder<bool>(
+              valueListenable: detector.poseDetected,
+              builder: (context, detected, _) {
+                return ValueListenableBuilder<double?>(
+                  valueListenable: detector.elbowAngle,
+                  builder: (context, angle, __) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Pose detected: ${detected ? 'yes' : 'no'}',
+                            style: TextStyle(
+                              color: detected
+                                  ? Colors.greenAccent
+                                  : Colors.redAccent,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Elbow angle: '
+                            '${angle == null ? '--' : angle.toStringAsFixed(0)}°',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
           // Overlay rep count on top of camera
           Container(
             padding: const EdgeInsets.all(20),
