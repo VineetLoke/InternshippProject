@@ -5,7 +5,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 
-enum RepState { idle, goingDown, bottom, goingUp }
+enum RepState { up, down }
 
 class CameraPushupDetector {
   CameraController? _cameraController;
@@ -14,19 +14,35 @@ class CameraPushupDetector {
   final _countController = StreamController<int>.broadcast();
   Stream<int> get onCountChanged => _countController.stream;
 
+  /// Latest detected pose (null when none). Drives the green-skeleton overlay.
+  final ValueNotifier<Pose?> poseNotifier = ValueNotifier<Pose?>(null);
+
+  /// Whether a usable pose was detected in the most recent frame (debug HUD).
+  final ValueNotifier<bool> poseDetected = ValueNotifier<bool>(false);
+
+  /// Most recent elbow angle in degrees, or null (debug HUD).
+  final ValueNotifier<double?> elbowAngle = ValueNotifier<double?>(null);
+
+  /// Size of the analysed camera image, for the painter's coordinate mapping.
+  final ValueNotifier<Size?> imageSize = ValueNotifier<Size?>(null);
+
   int _count = 0;
   bool _isRunning = false;
   bool _isInitialized = false;
   bool _isProcessing = false;
 
-  RepState _repState = RepState.idle;
-  static const double _downThreshold = 80.0;
-  static const double _upThreshold = 150.0;
+  RepState _repState = RepState.up;
+  // Down position: elbow strongly bent. Up position: arm extended.
+  static const double _downThreshold = 90.0;
+  static const double _upThreshold = 160.0;
   static const double _minConfidence = 0.5;
 
   CameraController? get cameraController => _cameraController;
   int get currentCount => _count;
   bool get isInitialized => _isInitialized;
+  bool get isFrontCamera =>
+      _cameraController?.description.lensDirection ==
+      CameraLensDirection.front;
 
   Future<bool> initialize() async {
     if (_isInitialized) return true;
@@ -41,6 +57,8 @@ class CameraPushupDetector {
         camera,
         ResolutionPreset.medium,
         enableAudio: false,
+        // Request NV21 so ML Kit receives a valid single-plane buffer.
+        imageFormatGroup: ImageFormatGroup.nv21,
       );
 
       await _cameraController!.initialize();
@@ -50,7 +68,7 @@ class CameraPushupDetector {
         ),
       );
       _isInitialized = true;
-      debugPrint('CameraPushupDetector: initialized');
+      debugPrint('CameraPushupDetector: initialized (nv21)');
       return true;
     } catch (e) {
       debugPrint('CameraPushupDetector: init error — $e');
@@ -76,70 +94,49 @@ class CameraPushupDetector {
         _isProcessing = false;
         return;
       }
+      imageSize.value = Size(image.width.toDouble(), image.height.toDouble());
 
       _poseDetector!.processImage(inputImage).then((poses) {
         if (poses.isNotEmpty) {
+          poseNotifier.value = poses.first;
           _processPose(poses.first);
+        } else {
+          poseNotifier.value = null;
+          poseDetected.value = false;
         }
         _isProcessing = false;
-      }).catchError((_) {
+      }).catchError((Object e) {
+        debugPrint('CameraPushupDetector: processImage error — $e');
         _isProcessing = false;
       });
-    } catch (_) {
+    } catch (e) {
+      debugPrint('CameraPushupDetector: _processImage error — $e');
       _isProcessing = false;
     }
   }
 
+  /// Build an [InputImage] from a real NV21 stream. With
+  /// imageFormatGroup: ImageFormatGroup.nv21 the plugin delivers a single
+  /// plane already in NV21 layout, so we pass its bytes and stride directly.
   InputImage? _buildInputImage(CameraImage image) {
     final camera = _cameraController?.description;
     if (camera == null) return null;
 
     final sensorOrientation = camera.sensorOrientation;
-    final isFrontCamera = camera.lensDirection == CameraLensDirection.front;
+    final isFront = camera.lensDirection == CameraLensDirection.front;
     final rotation = _rotation(
-      isFrontCamera ? (360 - sensorOrientation) % 360 : sensorOrientation,
+      isFront ? (360 - sensorOrientation) % 360 : sensorOrientation,
     );
 
-    // Concatenate ALL planes into one NV21 byte array.
-    // planes[0] = Y (luminance), planes[1] = VU interleaved (chroma).
-    // Using only planes[0].bytes (Y plane) would make ML Kit fail to detect poses.
-    Uint8List fullBytes;
-    if (image.planes.length >= 2) {
-      final yPlane = image.planes[0];
-      final vuPlane = image.planes[1];
-      if (yPlane.bytesPerRow == image.width &&
-          vuPlane.bytesPerRow == image.width) {
-        fullBytes = Uint8List.fromList([...yPlane.bytes, ...vuPlane.bytes]);
-      } else {
-        // Handle stride mismatch: copy row by row
-        final ySize = image.width * image.height;
-        final uvSize = image.width * image.height ~/ 2;
-        fullBytes = Uint8List(ySize + uvSize);
-        int destIdx = 0;
-        for (int row = 0; row < image.height; row++) {
-          final srcStart = row * yPlane.bytesPerRow;
-          fullBytes.setRange(destIdx, destIdx + image.width,
-              yPlane.bytes.sublist(srcStart, srcStart + image.width));
-          destIdx += image.width;
-        }
-        for (int row = 0; row < image.height ~/ 2; row++) {
-          final srcStart = row * vuPlane.bytesPerRow;
-          fullBytes.setRange(destIdx, destIdx + image.width,
-              vuPlane.bytes.sublist(srcStart, srcStart + image.width));
-          destIdx += image.width;
-        }
-      }
-    } else {
-      fullBytes = image.planes[0].bytes;
-    }
+    final plane = image.planes.first;
 
     return InputImage.fromBytes(
-      bytes: fullBytes,
+      bytes: plane.bytes,
       metadata: InputImageMetadata(
         size: Size(image.width.toDouble(), image.height.toDouble()),
         rotation: rotation,
         format: InputImageFormat.nv21,
-        bytesPerRow: image.width,
+        bytesPerRow: plane.bytesPerRow,
       ),
     );
   }
@@ -167,66 +164,79 @@ class CameraPushupDetector {
     final rightElbow = pose.landmarks[PoseLandmarkType.rightElbow];
     final rightWrist = pose.landmarks[PoseLandmarkType.rightWrist];
 
-    double angle = 0;
-    bool detected = false;
+    double? angle;
 
-    // Check for arm with highest average confidence
+    // Prefer the arm whose three joints are all confidently detected.
     if (_hasConfidentLandmarks(leftShoulder, leftElbow, leftWrist)) {
-      angle = _calculateAngle(leftShoulder!, leftElbow!, leftWrist!);
-      detected = true;
+      angle = _elbowAngle(leftShoulder!, leftElbow!, leftWrist!);
     } else if (_hasConfidentLandmarks(rightShoulder, rightElbow, rightWrist)) {
-      angle = _calculateAngle(rightShoulder!, rightElbow!, rightWrist!);
-      detected = true;
+      angle = _elbowAngle(rightShoulder!, rightElbow!, rightWrist!);
     } else if (leftShoulder != null && leftElbow != null && leftWrist != null) {
-      angle = _calculateAngle(leftShoulder, leftElbow, leftWrist);
-      detected = true;
-    } else if (rightShoulder != null && rightElbow != null &&
+      angle = _elbowAngle(leftShoulder, leftElbow, leftWrist);
+    } else if (rightShoulder != null &&
+        rightElbow != null &&
         rightWrist != null) {
-      angle = _calculateAngle(rightShoulder, rightElbow, rightWrist);
-      detected = true;
+      angle = _elbowAngle(rightShoulder, rightElbow, rightWrist);
     }
 
+    final detected = angle != null;
+    poseDetected.value = detected;
+    elbowAngle.value = angle;
+
     if (detected) {
-      debugPrint('CameraPushup: angle=$angle, state=$_repState, count=$_count');
+      debugPrint(
+          'CameraPushup: angle=${angle.toStringAsFixed(1)}, '
+          'state=$_repState, count=$_count');
       _updateRepState(angle);
     }
   }
 
-  bool _hasConfidentLandmarks(PoseLandmark? a, PoseLandmark? b, PoseLandmark? c) {
+  bool _hasConfidentLandmarks(
+      PoseLandmark? a, PoseLandmark? b, PoseLandmark? c) {
     if (a == null || b == null || c == null) return false;
     return a.likelihood >= _minConfidence &&
-           b.likelihood >= _minConfidence &&
-           c.likelihood >= _minConfidence;
+        b.likelihood >= _minConfidence &&
+        c.likelihood >= _minConfidence;
   }
 
-  double _calculateAngle(PoseLandmark a, PoseLandmark b, PoseLandmark c) {
-    final angle = atan2(c.y - b.y, c.x - b.x) -
-        atan2(a.y - b.y, a.x - b.x);
-    var result = (angle * 180 / pi).abs();
-    if (result > 180) result = 360 - result;
-    return result;
+  /// Interior angle at vertex [elbow] formed by shoulder-elbow-wrist, degrees.
+  /// Uses the dot product of the two limb vectors (ES and EW).
+  double _elbowAngle(
+      PoseLandmark shoulder, PoseLandmark elbow, PoseLandmark wrist) {
+    final esx = shoulder.x - elbow.x;
+    final esy = shoulder.y - elbow.y;
+    final ewx = wrist.x - elbow.x;
+    final ewy = wrist.y - elbow.y;
+
+    final dot = esx * ewx + esy * ewy;
+    final magEs = sqrt(esx * esx + esy * esy);
+    final magEw = sqrt(ewx * ewx + ewy * ewy);
+    if (magEs == 0 || magEw == 0) return 180.0;
+
+    var cosA = dot / (magEs * magEw);
+    cosA = cosA.clamp(-1.0, 1.0);
+    return acos(cosA) * 180 / pi;
   }
 
+  /// Simple UP -> DOWN -> UP state machine. One full transition = one rep.
   void _updateRepState(double angle) {
     switch (_repState) {
-      case RepState.idle:
-        if (angle > _upThreshold) _repState = RepState.goingDown;
-      case RepState.goingDown:
-        if (angle < _downThreshold) _repState = RepState.bottom;
-      case RepState.bottom:
-        if (angle > _downThreshold) _repState = RepState.goingUp;
-      case RepState.goingUp:
+      case RepState.up:
+        if (angle < _downThreshold) {
+          _repState = RepState.down;
+        }
+      case RepState.down:
         if (angle > _upThreshold) {
+          _repState = RepState.up;
           _count++;
           _countController.add(_count);
-          _repState = RepState.goingDown;
         }
     }
   }
 
   void reset() {
     _count = 0;
-    _repState = RepState.idle;
+    _repState = RepState.up;
     _countController.add(0);
   }
 
@@ -245,6 +255,10 @@ class CameraPushupDetector {
     await _cameraController?.dispose();
     _cameraController = null;
     _isInitialized = false;
+    poseNotifier.value = null;
+    poseDetected.value = false;
+    elbowAngle.value = null;
+    imageSize.value = null;
     await _countController.close();
   }
 }
