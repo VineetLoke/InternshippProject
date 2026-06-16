@@ -86,13 +86,14 @@ object ChromeIncognitoBlocker {
     }
 
     /**
-     * Returns true only if a strict incognito indicator (view id or content
-     * description containing "incognito") exists in the tree AND the element
-     * is selected/active. Page body *text* is intentionally NOT used as proof
-     * to avoid false positives from menus and tooltips like "Open incognito tab".
+     * Returns true only if a strict incognito indicator exists AND we're not in
+     * the tab switcher. Tab switcher shows incognito tab previews even when you're
+     * viewing normal tabs, causing false positives.
      *
-     * Key insight: We need to detect ACTIVE incognito tabs, not just the presence
-     * of incognito-related UI elements (menus, buttons, etc).
+     * Detection rules:
+     * 1. First check if tab switcher / overview is open - if so, return false
+     * 2. Look for active incognito indicators (toolbar, focused EditText context)
+     * 3. Exclude menu items and buttons
      */
     private fun scanTreeForIncognito(
         node: AccessibilityNodeInfo,
@@ -101,52 +102,82 @@ object ChromeIncognitoBlocker {
     ): Boolean {
         if (depth > MAX_TREE_DEPTH) return false
 
+        // CRITICAL: Check if tab switcher is open - abort immediately if so
+        if (depth == 0 && isTabSwitcherOpen(node)) {
+            Log.d(TAG, "Tab switcher is open - ignoring incognito indicators")
+            return false
+        }
+
         if (logScan) logCandidate(node)
 
         val viewId = node.viewIdResourceName
         val desc = node.contentDescription?.toString()
         val descLower = desc?.lowercase()
 
-        // Check for ACTIVE incognito indicators:
-        // 1. View IDs that only appear when IN incognito mode (not menu items)
+        // Check for ACTIVE incognito indicators ONLY in browsing context
         if (viewId != null) {
             val viewIdLower = viewId.lowercase()
-            // Specific incognito-active indicators (these only appear when actively in incognito)
-            if (viewIdLower.contains("incognito_icon") ||
-                viewIdLower.contains("incognito_badge") ||
-                viewIdLower.contains("incognito_ntp") ||  // New Tab Page in incognito
-                (viewIdLower.contains("incognito") && viewIdLower.contains("toolbar"))) {
-                Log.d(TAG, "Incognito indicator via viewId='$viewId'")
-                return true
+
+            // Exclude tab switcher / overview UI elements entirely
+            if (viewIdLower.contains("tab_switcher") ||
+                viewIdLower.contains("tab_list") ||
+                viewIdLower.contains("overview") ||
+                viewIdLower.contains("stack")) {
+                // Skip tab management UI
+                return false
             }
 
             // Exclude menu items and buttons that just offer to OPEN incognito
             if (viewIdLower.contains("menu") ||
                 viewIdLower.contains("button") ||
                 viewIdLower.contains("overflow")) {
-                // Skip this - it's just a menu option, not proof we're IN incognito
-            } else if (viewIdLower.contains("incognito") && node.isSelected) {
-                // Selected incognito element (e.g., active tab)
-                Log.d(TAG, "Incognito indicator via selected viewId='$viewId'")
-                return true
+                // Skip this - it's just a menu option
+            } else {
+                // Look for incognito indicators in the active browsing context
+                // Check for toolbar-level indicators (most reliable)
+                if (viewIdLower.contains("toolbar") && viewIdLower.contains("incognito")) {
+                    Log.d(TAG, "MATCH: Incognito toolbar viewId='$viewId'")
+                    return true
+                }
+
+                // Check for URL bar in incognito mode
+                if (viewIdLower.contains("url_bar") && viewIdLower.contains("incognito")) {
+                    Log.d(TAG, "MATCH: Incognito URL bar viewId='$viewId'")
+                    return true
+                }
+
+                // Check for new tab page in incognito
+                if (viewIdLower.contains("incognito_ntp") ||
+                    (viewIdLower.contains("ntp") && viewIdLower.contains("incognito"))) {
+                    Log.d(TAG, "MATCH: Incognito NTP viewId='$viewId'")
+                    return true
+                }
+
+                // Selected incognito element in browsing context
+                if (viewIdLower.contains("incognito") && node.isSelected &&
+                    !viewIdLower.contains("tab_")) {
+                    Log.d(TAG, "MATCH: Selected incognito viewId='$viewId'")
+                    return true
+                }
             }
         }
 
-        // 2. Content descriptions that indicate ACTIVE incognito state
+        // Content descriptions in active browsing context
         if (descLower != null && descLower.contains("incognito")) {
             // Exclude menu items and options
             if (descLower.contains("new incognito") ||
                 descLower.contains("open incognito") ||
                 descLower.contains("menu") ||
-                descLower.contains("button")) {
-                // This is just an option to open incognito, not proof we're IN it
+                descLower.contains("button") ||
+                descLower.contains("tab list")) {
+                // This is just an option or tab switcher UI
             } else if (node.isSelected || node.isFocused || node.isAccessibilityFocused) {
-                // Active/selected incognito element
-                Log.d(TAG, "Incognito indicator via active contentDescription='$desc'")
+                // Active element in browsing context
+                Log.d(TAG, "MATCH: Active incognito contentDescription='$desc'")
                 return true
-            } else if (descLower.contains("incognito tab") && !descLower.contains("new")) {
-                // References an existing incognito tab (not "new incognito tab")
-                Log.d(TAG, "Incognito indicator via contentDescription='$desc'")
+            } else if (descLower.contains("incognito mode") || descLower.contains("incognito tab,")) {
+                // Active incognito state indicator
+                Log.d(TAG, "MATCH: Incognito state contentDescription='$desc'")
                 return true
             }
         }
@@ -158,6 +189,45 @@ object ChromeIncognitoBlocker {
             if (found) return true
         }
         return false
+    }
+
+    /**
+     * Check if Chrome's tab switcher / overview is currently open.
+     * Tab switcher shows incognito tabs alongside normal tabs, so we must
+     * ignore all incognito indicators when it's active.
+     */
+    private fun isTabSwitcherOpen(rootNode: AccessibilityNodeInfo): Boolean {
+        return findNodeByViewIdSubstring(rootNode, "tab_switcher", 0) != null ||
+               findNodeByViewIdSubstring(rootNode, "tab_list_view", 0) != null ||
+               findNodeByViewIdSubstring(rootNode, "overview_mode", 0) != null
+    }
+
+    /**
+     * Search for a node with a viewId containing the given substring.
+     * Returns the first match or null.
+     */
+    private fun findNodeByViewIdSubstring(
+        node: AccessibilityNodeInfo,
+        substring: String,
+        depth: Int
+    ): AccessibilityNodeInfo? {
+        if (depth > 15) return null  // Limit search depth
+
+        val viewId = node.viewIdResourceName?.lowercase()
+        if (viewId != null && viewId.contains(substring)) {
+            return node
+        }
+
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            val found = findNodeByViewIdSubstring(child, substring, depth + 1)
+            if (found != null) {
+                child.recycle()
+                return found
+            }
+            child.recycle()
+        }
+        return null
     }
 
     // Logs view ids / content descriptions that look toolbar/tab related so
