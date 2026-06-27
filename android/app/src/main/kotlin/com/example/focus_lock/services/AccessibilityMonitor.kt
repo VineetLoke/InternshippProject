@@ -1,7 +1,7 @@
 package com.example.focus_lock.services
 
 import android.accessibilityservice.AccessibilityService
-import android.accessibilityservice.AccessibilityServiceInfo
+import android.accessibilityservice.AccessibilityServiceInfo    
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences

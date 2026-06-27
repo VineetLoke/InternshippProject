@@ -62,6 +62,7 @@ object ChromeIncognitoBlocker {
         } catch (e: Exception) {
             Log.e(TAG, "Error evaluating incognito state: ${e.message}")
         }
+        isIncognitoCached = false
     }
 
     /**
