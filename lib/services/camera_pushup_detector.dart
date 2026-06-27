@@ -12,7 +12,10 @@ class CameraPushupDetector {
   PoseDetector? _poseDetector;
 
   final _countController = StreamController<int>.broadcast();
+  final _poseController = StreamController<Pose?>.broadcast();
+
   Stream<int> get onCountChanged => _countController.stream;
+  Stream<Pose?> get onPoseChanged => _poseController.stream;
 
   int _count = 0;
   bool _isRunning = false;
@@ -23,6 +26,9 @@ class CameraPushupDetector {
   static const double _downThreshold = 80.0;
   static const double _upThreshold = 150.0;
   static const double _minConfidence = 0.5;
+
+  Size _imageSize = Size.zero;
+  Size get imageSize => _imageSize;
 
   CameraController? get cameraController => _cameraController;
   int get currentCount => _count;
@@ -45,9 +51,7 @@ class CameraPushupDetector {
 
       await _cameraController!.initialize();
       _poseDetector = PoseDetector(
-        options: PoseDetectorOptions(
-          mode: PoseDetectionMode.stream,
-        ),
+        options: PoseDetectorOptions(mode: PoseDetectionMode.stream),
       );
       _isInitialized = true;
       debugPrint('CameraPushupDetector: initialized');
@@ -62,7 +66,6 @@ class CameraPushupDetector {
     if (!_isInitialized || _cameraController == null) return;
     if (_isRunning) return;
     _isRunning = true;
-
     _cameraController!.startImageStream(_processImage);
     debugPrint('CameraPushupDetector: detection started');
   }
@@ -70,16 +73,17 @@ class CameraPushupDetector {
   void _processImage(CameraImage image) {
     if (_poseDetector == null || _isProcessing) return;
     _isProcessing = true;
+    _imageSize = Size(image.width.toDouble(), image.height.toDouble());
     try {
       final inputImage = _buildInputImage(image);
-      if (inputImage == null) {
-        _isProcessing = false;
-        return;
-      }
+      if (inputImage == null) { _isProcessing = false; return; }
 
       _poseDetector!.processImage(inputImage).then((poses) {
         if (poses.isNotEmpty) {
+          _poseController.add(poses.first);
           _processPose(poses.first);
+        } else {
+          _poseController.add(null);
         }
         _isProcessing = false;
       }).catchError((_) {
@@ -93,25 +97,19 @@ class CameraPushupDetector {
   InputImage? _buildInputImage(CameraImage image) {
     final camera = _cameraController?.description;
     if (camera == null) return null;
-
     final sensorOrientation = camera.sensorOrientation;
     final isFrontCamera = camera.lensDirection == CameraLensDirection.front;
     final rotation = _rotation(
       isFrontCamera ? (360 - sensorOrientation) % 360 : sensorOrientation,
     );
 
-    // Concatenate ALL planes into one NV21 byte array.
-    // planes[0] = Y (luminance), planes[1] = VU interleaved (chroma).
-    // Using only planes[0].bytes (Y plane) would make ML Kit fail to detect poses.
     Uint8List fullBytes;
     if (image.planes.length >= 2) {
       final yPlane = image.planes[0];
       final vuPlane = image.planes[1];
-      if (yPlane.bytesPerRow == image.width &&
-          vuPlane.bytesPerRow == image.width) {
+      if (yPlane.bytesPerRow == image.width && vuPlane.bytesPerRow == image.width) {
         fullBytes = Uint8List.fromList([...yPlane.bytes, ...vuPlane.bytes]);
       } else {
-        // Handle stride mismatch: copy row by row
         final ySize = image.width * image.height;
         final uvSize = image.width * image.height ~/ 2;
         fullBytes = Uint8List(ySize + uvSize);
@@ -146,16 +144,11 @@ class CameraPushupDetector {
 
   InputImageRotation _rotation(int degrees) {
     switch (degrees) {
-      case 0:
-        return InputImageRotation.rotation0deg;
-      case 90:
-        return InputImageRotation.rotation90deg;
-      case 180:
-        return InputImageRotation.rotation180deg;
-      case 270:
-        return InputImageRotation.rotation270deg;
-      default:
-        return InputImageRotation.rotation0deg;
+      case 0: return InputImageRotation.rotation0deg;
+      case 90: return InputImageRotation.rotation90deg;
+      case 180: return InputImageRotation.rotation180deg;
+      case 270: return InputImageRotation.rotation270deg;
+      default: return InputImageRotation.rotation0deg;
     }
   }
 
@@ -170,7 +163,6 @@ class CameraPushupDetector {
     double angle = 0;
     bool detected = false;
 
-    // Check for arm with highest average confidence
     if (_hasConfidentLandmarks(leftShoulder, leftElbow, leftWrist)) {
       angle = _calculateAngle(leftShoulder!, leftElbow!, leftWrist!);
       detected = true;
@@ -180,16 +172,12 @@ class CameraPushupDetector {
     } else if (leftShoulder != null && leftElbow != null && leftWrist != null) {
       angle = _calculateAngle(leftShoulder, leftElbow, leftWrist);
       detected = true;
-    } else if (rightShoulder != null && rightElbow != null &&
-        rightWrist != null) {
+    } else if (rightShoulder != null && rightElbow != null && rightWrist != null) {
       angle = _calculateAngle(rightShoulder, rightElbow, rightWrist);
       detected = true;
     }
 
-    if (detected) {
-      debugPrint('CameraPushup: angle=$angle, state=$_repState, count=$_count');
-      _updateRepState(angle);
-    }
+    if (detected) _updateRepState(angle);
   }
 
   bool _hasConfidentLandmarks(PoseLandmark? a, PoseLandmark? b, PoseLandmark? c) {
@@ -200,8 +188,7 @@ class CameraPushupDetector {
   }
 
   double _calculateAngle(PoseLandmark a, PoseLandmark b, PoseLandmark c) {
-    final angle = atan2(c.y - b.y, c.x - b.x) -
-        atan2(a.y - b.y, a.x - b.x);
+    final angle = atan2(c.y - b.y, c.x - b.x) - atan2(a.y - b.y, a.x - b.x);
     var result = (angle * 180 / pi).abs();
     if (result > 180) result = 360 - result;
     return result;
@@ -233,9 +220,7 @@ class CameraPushupDetector {
   void stopDetection() {
     _isRunning = false;
     _isProcessing = false;
-    try {
-      _cameraController?.stopImageStream();
-    } catch (_) {}
+    try { _cameraController?.stopImageStream(); } catch (_) {}
   }
 
   Future<void> dispose() async {
@@ -246,5 +231,6 @@ class CameraPushupDetector {
     _cameraController = null;
     _isInitialized = false;
     await _countController.close();
+    await _poseController.close();
   }
 }

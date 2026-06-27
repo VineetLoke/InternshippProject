@@ -3,7 +3,77 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import '../services/pushup_service.dart';
+
+class _SkeletonPainter extends CustomPainter {
+  final Pose? pose;
+  final Size imageSize;
+  final bool isFrontCamera;
+
+  _SkeletonPainter({required this.pose, required this.imageSize, this.isFrontCamera = true});
+
+  static const _bones = [
+    [PoseLandmarkType.leftShoulder, PoseLandmarkType.rightShoulder],
+    [PoseLandmarkType.leftShoulder, PoseLandmarkType.leftHip],
+    [PoseLandmarkType.rightShoulder, PoseLandmarkType.rightHip],
+    [PoseLandmarkType.leftHip, PoseLandmarkType.rightHip],
+    [PoseLandmarkType.leftShoulder, PoseLandmarkType.leftElbow],
+    [PoseLandmarkType.leftElbow, PoseLandmarkType.leftWrist],
+    [PoseLandmarkType.rightShoulder, PoseLandmarkType.rightElbow],
+    [PoseLandmarkType.rightElbow, PoseLandmarkType.rightWrist],
+    [PoseLandmarkType.leftHip, PoseLandmarkType.leftKnee],
+    [PoseLandmarkType.leftKnee, PoseLandmarkType.leftAnkle],
+    [PoseLandmarkType.rightHip, PoseLandmarkType.rightKnee],
+    [PoseLandmarkType.rightKnee, PoseLandmarkType.rightAnkle],
+  ];
+
+  Offset _toCanvas(PoseLandmark lm, Size canvasSize) {
+    double x = lm.x / imageSize.width * canvasSize.width;
+    double y = lm.y / imageSize.height * canvasSize.height;
+    if (isFrontCamera) x = canvasSize.width - x;
+    return Offset(x, y);
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (pose == null || imageSize == Size.zero) return;
+
+    final bonePaint = Paint()
+      ..color = const Color(0xFFC6A85A)
+      ..strokeWidth = 3.5
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    final jointFill = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    final jointBorder = Paint()
+      ..color = const Color(0xFFC6A85A)
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+
+    for (final bone in _bones) {
+      final a = pose!.landmarks[bone[0]];
+      final b = pose!.landmarks[bone[1]];
+      if (a != null && b != null && a.likelihood > 0.4 && b.likelihood > 0.4) {
+        canvas.drawLine(_toCanvas(a, size), _toCanvas(b, size), bonePaint);
+      }
+    }
+
+    for (final lm in pose!.landmarks.values) {
+      if (lm.likelihood > 0.4) {
+        final pt = _toCanvas(lm, size);
+        canvas.drawCircle(pt, 6, jointFill);
+        canvas.drawCircle(pt, 6, jointBorder);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_SkeletonPainter old) => old.pose != pose;
+}
 
 class PushupChallengeScreen extends StatefulWidget {
   const PushupChallengeScreen({super.key});
@@ -12,141 +82,90 @@ class PushupChallengeScreen extends StatefulWidget {
   State<PushupChallengeScreen> createState() => _PushupChallengeScreenState();
 }
 
-class _PushupChallengeScreenState extends State<PushupChallengeScreen>
-    with SingleTickerProviderStateMixin {
+class _PushupChallengeScreenState extends State<PushupChallengeScreen> {
   static const _channel = MethodChannel('com.example.focus_lock/app_block');
 
   final _pushupService = PushupService();
   StreamSubscription<int>? _countSub;
+  StreamSubscription<Pose?>? _poseSub;
 
   int _count = 0;
   bool _isDetecting = false;
   bool _redeemed = false;
-  bool _sensorError = false;
+  bool _cameraPermissionGranted = false;
+  bool _showHint = true;
+  Pose? _currentPose;
+  Size _imageSize = Size.zero;
 
   String _appName = '';
   int _requiredPushups = 50;
   String _rewardText = '';
   String _challengeMethod = '';
-  Color _accentColor = Colors.teal;
-  Color _accentColorShade = Colors.tealAccent;
-
-  bool _cameraAvailable = false;
-  bool _useCamera = false;
-  bool _cameraPermissionGranted = false;
-
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
+  Color _accentColor = const Color(0xFFC6A85A);
 
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    )..repeat(reverse: true);
-    _pulseAnimation =
-        Tween<double>(begin: 1.0, end: 1.15).animate(_pulseController);
-    _checkCameraAvailability();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    _initCamera();
   }
 
-  Future<void> _checkCameraAvailability() async {
-    final perm = await Permission.camera.status;
-    final granted = perm.isGranted;
-    final available = await _pushupService.isCameraAvailable();
-    if (mounted) {
+  Future<void> _initCamera() async {
+    final perm = await Permission.camera.request();
+    if (!perm.isGranted) return;
+    setState(() => _cameraPermissionGranted = true);
+
+    final started = await _pushupService.start(mode: DetectionMode.camera);
+    if (!started) return;
+
+    final detector = _pushupService.cameraDetector;
+    if (detector == null) return;
+
+    _countSub = detector.onCountChanged.listen((count) {
+      if (!mounted) return;
+      setState(() => _count = count);
+      if (count >= _requiredPushups && !_redeemed) _onChallengeComplete();
+    });
+
+    _poseSub = detector.onPoseChanged.listen((pose) {
+      if (!mounted) return;
       setState(() {
-        _cameraPermissionGranted = granted;
-        _cameraAvailable = available;
-        _useCamera = granted && available;
+        _currentPose = pose;
+        _imageSize = detector.imageSize;
       });
-    }
+    });
+
+    setState(() => _isDetecting = true);
+
+    Future.delayed(const Duration(seconds: 4), () {
+      if (mounted) setState(() => _showHint = false);
+    });
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final args =
-        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     if (args != null) {
       _appName = args['appName'] ?? 'App';
       _requiredPushups = args['requiredPushups'] ?? 50;
       _rewardText = args['rewardText'] ?? '15 min access';
       _challengeMethod = args['challengeMethod'] ?? '';
-      _accentColor = Color(args['accentColor'] ?? 0xFF009688);
-      _accentColorShade = _accentColor;
+      _accentColor = Color(args['accentColor'] ?? 0xFFC6A85A);
     }
-  }
-
-  Future<void> _toggleMode() async {
-    if (_isDetecting) return;
-    if (!_cameraPermissionGranted) {
-      final status = await Permission.camera.request();
-      if (!status.isGranted) return;
-      setState(() => _cameraPermissionGranted = true);
-    }
-    setState(() => _useCamera = !_useCamera);
-  }
-
-  Future<void> _startDetection() async {
-    final mode = _useCamera ? DetectionMode.camera : DetectionMode.proximity;
-
-    if (mode == DetectionMode.proximity) {
-      final started = await _pushupService.start(mode: mode);
-      if (!started) {
-        setState(() => _sensorError = true);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Proximity sensor not available on this device.'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-        return;
-      }
-    } else {
-      await _pushupService.reset();
-      final started = await _pushupService.start(mode: mode);
-      if (!started) {
-        setState(() => _sensorError = true);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Camera not available. Try proximity mode.'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-        return;
-      }
-    }
-
-    _countSub = _pushupService.onCountChanged.listen((count) {
-      if (mounted) {
-        setState(() => _count = count);
-        if (count >= _requiredPushups && !_redeemed) {
-          _onChallengeComplete();
-        }
-      }
-    });
-
-    setState(() {
-      _isDetecting = true;
-      _count = 0;
-    });
   }
 
   Future<void> _stopDetection() async {
     await _countSub?.cancel();
+    await _poseSub?.cancel();
     _countSub = null;
+    _poseSub = null;
     await _pushupService.stop();
     setState(() => _isDetecting = false);
   }
 
   Future<void> _onChallengeComplete() async {
     await _stopDetection();
-
     bool success = false;
     if (_challengeMethod.isNotEmpty) {
       try {
@@ -157,24 +176,22 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
       }
     }
     setState(() => _redeemed = success);
-
     if (success && mounted) {
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (_) => AlertDialog(
-          title: const Text('Challenge Complete'),
-          content: Text(
-            '$_appName $_rewardText.\n\n'
-            'Use the time wisely.',
-          ),
+          backgroundColor: const Color(0xFF1A1A2E),
+          title: const Text('Challenge Complete', style: TextStyle(color: Colors.white)),
+          content: Text('$_appName $_rewardText.\n\nUse the time wisely.',
+              style: const TextStyle(color: Colors.white70)),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
                 Navigator.of(context).pop();
               },
-              child: const Text('OK'),
+              child: Text('OK', style: TextStyle(color: _accentColor)),
             ),
           ],
         ),
@@ -184,331 +201,214 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen>
 
   @override
   void dispose() {
-    _countSub?.cancel();
-    _pushupService.stop();
+    _stopDetection();
     _pushupService.dispose();
-    _pulseController.dispose();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final controller = _pushupService.cameraDetector?.cameraController;
+    final cameraReady = controller != null && controller.value.isInitialized;
     final progress = (_count / _requiredPushups).clamp(0.0, 1.0);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1A1A2E),
-      appBar: AppBar(
-        title: Text('$_appName Emergency Unlock'),
-        backgroundColor: const Color(0xFF16213E),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () async {
-            final navigator = Navigator.of(context);
-            await _stopDetection();
-            if (mounted) navigator.pop();
-          },
-        ),
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
+      backgroundColor: Colors.black,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Full screen camera
+          if (cameraReady) CameraPreview(controller),
 
-              // Mode badge
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+          // Skeleton overlay
+          if (cameraReady)
+            CustomPaint(
+              painter: _SkeletonPainter(
+                pose: _currentPose,
+                imageSize: _imageSize,
+                isFrontCamera: true,
+              ),
+            ),
+
+          // Top + bottom gradient for readability
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xCC000000),
+                    Colors.transparent,
+                    Colors.transparent,
+                    Color(0xCC000000),
+                  ],
+                  stops: [0.0, 0.2, 0.75, 1.0],
+                ),
+              ),
+            ),
+          ),
+
+          // Top bar
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Row(
                 children: [
-                  _buildModeBadge(),
-                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () async {
+                      await _stopDetection();
+                      if (mounted) Navigator.of(context).pop();
+                    },
+                  ),
+                  Expanded(
+                    child: Text(
+                      '$_appName Emergency Unlock',
+                      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: _accentColor.withValues(alpha: 0.3),
+                      color: _accentColor.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: _accentColor.withOpacity(0.4)),
                     ),
                     child: Text(
-                      '$_requiredPushups pushups = $_rewardText',
-                      style: TextStyle(
-                          color: _accentColorShade, fontSize: 14),
+                      '$_requiredPushups = $_rewardText',
+                      style: TextStyle(color: _accentColor, fontSize: 11),
                     ),
                   ),
                 ],
               ),
+            ),
+          ),
 
-              const SizedBox(height: 8),
-
-              // Camera preview takes most of the space in camera mode
-              Expanded(
-                flex: 3,
-                child: _useCamera && _cameraAvailable
-                    ? _buildCameraPreview()
-                    : _buildProgressCircle(progress),
-              ),
-
-              const Spacer(flex: 1),
-
-              // Instructions
-              Container(
-                padding: const EdgeInsets.all(16),
+          // Hint card — fades after 4s
+          if (_showHint)
+            Positioned(
+              top: 90,
+              left: 24,
+              right: 24,
+              child: Container(
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.05),
+                  color: Colors.black.withOpacity(0.72),
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _accentColor.withOpacity(0.35)),
                 ),
-                child: Column(
+                child: const Column(
                   children: [
-                    const Text(
-                      'Emergency Unlock',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _instructionRow(
-                        '1', 'Place phone face-up on the floor'),
-                    _instructionRow(
-                        '2', 'Tap "Start" then get into position'),
-                    _instructionRow('3',
-                        'Do pushups over the phone — chest near screen'),
-                    _instructionRow(
-                        '4', 'Complete $_requiredPushups pushups to unlock'),
+                    Text('Place phone face-up on the floor',
+                        style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                        textAlign: TextAlign.center),
+                    SizedBox(height: 4),
+                    Text('Get into pushup position — chest near screen',
+                        style: TextStyle(color: Colors.white60, fontSize: 12),
+                        textAlign: TextAlign.center),
                   ],
                 ),
               ),
+            ),
 
-              const SizedBox(height: 16),
-
-              // Start / Stop button
-              if (!_redeemed)
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton.icon(
-                    icon: Icon(
-                      _isDetecting ? Icons.stop : Icons.play_arrow,
-                      size: 28,
-                    ),
-                    label: Text(
-                      _isDetecting ? 'Stop' : 'Start Pushup Detection',
-                      style: const TextStyle(fontSize: 18),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _isDetecting
-                          ? Colors.red.shade700
-                          : _accentColor,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed:
-                        _isDetecting ? _stopDetection : _startDetection,
-                  ),
-                ),
-
-              // Mode toggle
-              if (!_isDetecting && _cameraAvailable)
-                TextButton.icon(
-                  icon: Icon(
-                    _useCamera ? Icons.sensors : Icons.camera_alt,
-                    size: 18,
-                    color: Colors.grey.shade400,
-                  ),
-                  label: Text(
-                    _useCamera
-                        ? 'Switch to proximity sensor'
-                        : 'Switch to camera detection',
-                    style: TextStyle(
-                        color: Colors.grey.shade400, fontSize: 13),
-                  ),
-                  onPressed: _toggleMode,
-                ),
-
-              if (_sensorError)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    'Detection not available. Check camera permissions or use proximity mode.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.red.shade300, fontSize: 12),
-                  ),
-                ),
-
-              const SizedBox(height: 16),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildModeBadge() {
-    final icon = _useCamera ? Icons.camera_alt : Icons.sensors;
-    final label = _useCamera ? 'Camera' : 'Proximity';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: Colors.white70),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: const TextStyle(color: Colors.white70, fontSize: 11),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProgressCircle(double progress) {
-    return Center(
-      child: ScaleTransition(
-        scale: _isDetecting
-            ? _pulseAnimation
-            : const AlwaysStoppedAnimation(1.0),
-        child: SizedBox(
-          width: 220,
-          height: 220,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              SizedBox(
-                width: 220,
-                height: 220,
-                child: CircularProgressIndicator(
-                  value: progress,
-                  strokeWidth: 12,
-                  backgroundColor: Colors.white12,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    progress >= 1.0
-                        ? Colors.greenAccent
-                        : _accentColorShade,
-                  ),
-                ),
-              ),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '$_count',
-                    style: const TextStyle(
-                      fontSize: 56,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Text(
-                    '/ $_requiredPushups',
-                    style: TextStyle(
-                        fontSize: 18, color: Colors.grey.shade400),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCameraPreview() {
-    final controller = _pushupService.cameraDetector?.cameraController;
-    if (controller == null || !controller.value.isInitialized) {
-      return _buildProgressCircle(
-          (_count / _requiredPushups).clamp(0.0, 1.0));
-    }
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          CameraPreview(controller),
-          // Overlay rep count on top of camera
-          Container(
-            padding: const EdgeInsets.all(20),
+          // Big rep counter centered
+          Center(
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   '$_count',
-                  style: TextStyle(
-                    fontSize: 72,
+                  style: const TextStyle(
+                    fontSize: 100,
                     fontWeight: FontWeight.bold,
-                      color: Colors.white.withValues(alpha: 0.8),
-                      shadows: const [
-                        Shadow(
-                          blurRadius: 10,
-                          color: Colors.black54,
-                        ),
-                      ],
-                    ),
+                    color: Colors.white,
+                    shadows: [Shadow(blurRadius: 24, color: Colors.black)],
                   ),
-                  Text(
-                    '/ $_requiredPushups',
-                    style: TextStyle(
-                      fontSize: 20,
-                      color: Colors.white.withValues(alpha: 0.6),
+                ),
+                Text(
+                  '/ $_requiredPushups',
+                  style: TextStyle(
+                    fontSize: 22,
+                    color: Colors.white.withOpacity(0.55),
+                    shadows: const [Shadow(blurRadius: 8, color: Colors.black)],
                   ),
                 ),
               ],
             ),
           ),
-          // Progress ring
+
+          // Bottom — pose status + progress bar
           Positioned(
-            bottom: 16,
-            child: SizedBox(
-              width: 48,
-              height: 48,
-              child: CircularProgressIndicator(
-                value: (_count / _requiredPushups).clamp(0.0, 1.0),
-                strokeWidth: 4,
-                backgroundColor: Colors.white12,
-                valueColor:
-                    AlwaysStoppedAnimation<Color>(_accentColorShade),
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 8, height: 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _currentPose != null ? Colors.greenAccent : Colors.redAccent,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _currentPose != null ? 'Pose detected' : 'No pose — get in position',
+                          style: const TextStyle(color: Colors.white70, fontSize: 12,
+                              shadows: [Shadow(blurRadius: 4, color: Colors.black)]),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 6,
+                        backgroundColor: Colors.white12,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          progress >= 1.0 ? Colors.greenAccent : _accentColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
 
-  Widget _instructionRow(String num, String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        children: [
-          Container(
-            width: 22,
-            height: 22,
-            decoration: BoxDecoration(
-              color: _accentColor,
-              shape: BoxShape.circle,
+          // No camera permission fallback
+          if (!_cameraPermissionGranted)
+            Container(
+              color: Colors.black87,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.camera_alt, color: Colors.white54, size: 64),
+                    const SizedBox(height: 16),
+                    const Text('Camera permission required',
+                        style: TextStyle(color: Colors.white, fontSize: 18)),
+                    const SizedBox(height: 12),
+                    ElevatedButton(
+                      onPressed: openAppSettings,
+                      style: ElevatedButton.styleFrom(backgroundColor: Color(0xFFC6A85A)),
+                      child: const Text('Open Settings', style: TextStyle(color: Colors.black)),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            child: Center(
-              child: Text(num,
-                  style:
-                      const TextStyle(color: Colors.white, fontSize: 12)),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(text,
-                style:
-                    TextStyle(color: Colors.grey.shade300, fontSize: 13)),
-          ),
         ],
       ),
     );
