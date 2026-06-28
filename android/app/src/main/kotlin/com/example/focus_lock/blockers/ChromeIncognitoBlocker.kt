@@ -42,23 +42,51 @@ object ChromeIncognitoBlocker {
     fun evaluateIncognitoState(node: AccessibilityNodeInfo?) {
         if (node == null) return
         try {
-            // Fast Check 1: Do we see an explicit "incognito" node anywhere on screen?
-            val incognitoNodes = node.findAccessibilityNodeInfosByText("incognito")
-            if (incognitoNodes.isNotEmpty()) {
+            // Check 1: Look for incognito BADGE specifically (not just any "incognito" text)
+            // The badge/indicator has a specific view ID — the homepage button does NOT
+            val incognitoBadge = node.findAccessibilityNodeInfosByViewId("com.android.chrome:id/incognito_badge")
+            if (incognitoBadge.isNotEmpty()) {
                 isIncognitoCached = true
-                incognitoNodes.forEach { it.recycle() }
+                incognitoBadge.forEach { it.recycle() }
+                Log.d(TAG, "Incognito badge found — incognito mode ON")
                 return
             }
-            
-            // Fast Check 2: Do we see the Chrome tab switcher button?
+
+            val incognitoIndicator = node.findAccessibilityNodeInfosByViewId("com.android.chrome:id/incognito_indicator")
+            if (incognitoIndicator.isNotEmpty()) {
+                isIncognitoCached = true
+                incognitoIndicator.forEach { it.recycle() }
+                Log.d(TAG, "Incognito indicator found — incognito mode ON")
+                return
+            }
+
+            // Check 2: Tab switcher with incognito count label
+            // When in incognito, the tab switcher shows "incognito" in its content description
             val tabSwitchers = node.findAccessibilityNodeInfosByViewId("com.android.chrome:id/tab_switcher_button")
             if (tabSwitchers.isNotEmpty()) {
-                // If a tab switcher is visible but NO "incognito" text was found anywhere on screen,
-                // this is a normal tab window. (The incognito tab switcher explicitly contains "incognito").
-                isIncognitoCached = false
+                val isInIncognitoWindow = tabSwitchers.any { tab ->
+                    val desc = tab.contentDescription?.toString()?.lowercase() ?: ""
+                    // Real incognito tab switcher says something like "2 incognito tabs"
+                    // Homepage button just says "Incognito" with no number
+                    desc.matches(Regex(".*\d+.*incognito.*")) || desc.matches(Regex(".*incognito.*\d+.*"))
+                }
                 tabSwitchers.forEach { it.recycle() }
+                if (isInIncognitoWindow) {
+                    isIncognitoCached = true
+                    Log.d(TAG, "Incognito tab switcher found — incognito mode ON")
+                    return
+                }
+            }
+
+            // Check 3: URL bar background is dark in incognito — check toolbar color node
+            val toolbars = node.findAccessibilityNodeInfosByViewId("com.android.chrome:id/toolbar")
+            if (toolbars.isNotEmpty()) {
+                // Normal tab toolbar exists — we are NOT in incognito
+                toolbars.forEach { it.recycle() }
+                isIncognitoCached = false
                 return
             }
+
         } catch (e: Exception) {
             Log.e(TAG, "Error evaluating incognito state: ${e.message}")
         }
