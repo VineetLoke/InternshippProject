@@ -227,7 +227,7 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen> {
               painter: _SkeletonPainter(
                 pose: _currentPose,
                 imageSize: _imageSize,
-                isFrontCamera: false,
+                isFrontCamera: true,
               ),
             ),
 
@@ -302,11 +302,11 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen> {
                 ),
                 child: const Column(
                   children: [
-                    Text('Place phone face-up on the floor',
+                    Text('Prop phone upright facing your side',
                         style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
                         textAlign: TextAlign.center),
                     SizedBox(height: 4),
-                    Text('Get into pushup position — chest near screen',
+                    Text('Do pushups sideways so camera sees your full body',
                         style: TextStyle(color: Colors.white60, fontSize: 12),
                         textAlign: TextAlign.center),
                   ],
