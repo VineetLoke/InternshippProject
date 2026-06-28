@@ -25,7 +25,7 @@ class CameraPushupDetector {
   RepState _repState = RepState.idle;
   static const double _downThreshold = 80.0;
   static const double _upThreshold = 150.0;
-  static const double _minConfidence = 0.5;
+  static const double _minConfidence = 0.3;
 
   Size _imageSize = Size.zero;
   Size get imageSize => _imageSize;
@@ -39,7 +39,7 @@ class CameraPushupDetector {
     try {
       final cameras = await availableCameras();
       final camera = cameras.firstWhere(
-        (c) => c.lensDirection == CameraLensDirection.front,
+        (c) => c.lensDirection == CameraLensDirection.back,
         orElse: () => cameras.first,
       );
 

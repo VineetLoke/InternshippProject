@@ -227,7 +227,7 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen> {
               painter: _SkeletonPainter(
                 pose: _currentPose,
                 imageSize: _imageSize,
-                isFrontCamera: true,
+                isFrontCamera: false,
               ),
             ),
 
