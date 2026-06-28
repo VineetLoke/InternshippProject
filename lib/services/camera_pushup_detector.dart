@@ -103,41 +103,64 @@ class CameraPushupDetector {
       isFrontCamera ? (360 - sensorOrientation) % 360 : sensorOrientation,
     );
 
-    Uint8List fullBytes;
-    if (image.planes.length >= 2) {
-      final yPlane = image.planes[0];
-      final vuPlane = image.planes[1];
-      if (yPlane.bytesPerRow == image.width && vuPlane.bytesPerRow == image.width) {
-        fullBytes = Uint8List.fromList([...yPlane.bytes, ...vuPlane.bytes]);
-      } else {
-        final ySize = image.width * image.height;
-        final uvSize = image.width * image.height ~/ 2;
-        fullBytes = Uint8List(ySize + uvSize);
-        int destIdx = 0;
-        for (int row = 0; row < image.height; row++) {
-          final srcStart = row * yPlane.bytesPerRow;
-          fullBytes.setRange(destIdx, destIdx + image.width,
-              yPlane.bytes.sublist(srcStart, srcStart + image.width));
-          destIdx += image.width;
-        }
-        for (int row = 0; row < image.height ~/ 2; row++) {
-          final srcStart = row * vuPlane.bytesPerRow;
-          fullBytes.setRange(destIdx, destIdx + image.width,
-              vuPlane.bytes.sublist(srcStart, srcStart + image.width));
-          destIdx += image.width;
-        }
+    // MediaTek fix: convert YUV_420_888 to NV21 properly
+    // MediaTek devices have non-contiguous planes with strides != width
+    final int width = image.width;
+    final int height = image.height;
+    final int ySize = width * height;
+    final int uvSize = width * height ~/ 2;
+    final nv21 = Uint8List(ySize + uvSize);
+
+    // Copy Y plane row by row (handles stride)
+    final yPlane = image.planes[0];
+    int yIndex = 0;
+    for (int row = 0; row < height; row++) {
+      final rowStart = row * yPlane.bytesPerRow;
+      for (int col = 0; col < width; col++) {
+        nv21[yIndex++] = yPlane.bytes[rowStart + col];
       }
-    } else {
-      fullBytes = image.planes[0].bytes;
     }
 
+    // Interleave VU from planes[1] and planes[2] into NV21
+    // NV21 = Y plane + interleaved V,U
+    if (image.planes.length >= 3) {
+      final uPlane = image.planes[1]; // U (Cb)
+      final vPlane = image.planes[2]; // V (Cr)
+      int uvIndex = ySize;
+      final uvHeight = height ~/ 2;
+      final uvWidth = width ~/ 2;
+      for (int row = 0; row < uvHeight; row++) {
+        for (int col = 0; col < uvWidth; col++) {
+          final uIdx = row * uPlane.bytesPerRow + col * uPlane.bytesPerPixel!;
+          final vIdx = row * vPlane.bytesPerRow + col * vPlane.bytesPerPixel!;
+          nv21[uvIndex++] = vPlane.bytes[vIdx]; // V first in NV21
+          nv21[uvIndex++] = uPlane.bytes[uIdx]; // then U
+        }
+      }
+    } else if (image.planes.length == 2) {
+      // Some devices give interleaved UV in plane[1] already
+      final vuPlane = image.planes[1];
+      int uvIndex = ySize;
+      final uvHeight = height ~/ 2;
+      for (int row = 0; row < uvHeight; row++) {
+        final rowStart = row * vuPlane.bytesPerRow;
+        for (int col = 0; col < width; col++) {
+          if (rowStart + col < vuPlane.bytes.length) {
+            nv21[uvIndex++] = vuPlane.bytes[rowStart + col];
+          }
+        }
+      }
+    }
+
+    debugPrint('CameraPushup: planes=\${image.planes.length} w=\$width h=\$height rot=\$rotation sensor=\$sensorOrientation');
+
     return InputImage.fromBytes(
-      bytes: fullBytes,
+      bytes: nv21,
       metadata: InputImageMetadata(
-        size: Size(image.width.toDouble(), image.height.toDouble()),
+        size: Size(width.toDouble(), height.toDouble()),
         rotation: rotation,
         format: InputImageFormat.nv21,
-        bytesPerRow: image.width,
+        bytesPerRow: width,
       ),
     );
   }
