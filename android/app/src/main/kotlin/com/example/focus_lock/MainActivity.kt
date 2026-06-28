@@ -135,6 +135,10 @@ class MainActivity : FlutterActivity() {
                         val redeemed = redeemPushupsForRedditTime()
                         result.success(redeemed)
                     }
+                    "completeUninstallChallenge" -> {
+                        UninstallProtectionManager.onChallengeCompleted()
+                        result.success(true)
+                    }
 
                     // ── Screen time (UsageStatsManager) ──────────
                     "getScreenTimeData" -> {

@@ -449,10 +449,17 @@ class AccessibilityMonitor : AccessibilityService() {
             val uninstallNodes = rootNode.findAccessibilityNodeInfosByText("Uninstall")
 
             if (focusLockNodes.isNotEmpty() && uninstallNodes.isNotEmpty()) {
-                Log.d(TAG, "Uninstall attempt detected — launching challenge overlay")
-                val intent = Intent(this, com.example.focus_lock.ui.UninstallChallengeOverlay::class.java)
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                startService(intent)
+                Log.d(TAG, "Uninstall attempt detected — launching pushup challenge")
+                val intent = packageManager.getLaunchIntentForPackage(applicationContext.packageName)?.apply {
+                    putExtra("navigate_to", "pushup_challenge")
+                    putExtra("appName", "FocusLock")
+                    putExtra("requiredPushups", 200)
+                    putExtra("rewardText", "protection disabled for 24h")
+                    putExtra("challengeMethod", "completeUninstallChallenge")
+                    putExtra("accentColor", 0xFFC6A85A.toInt())
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                }
+                if (intent != null) startActivity(intent)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error checking uninstall attempt: ${e.message}")
