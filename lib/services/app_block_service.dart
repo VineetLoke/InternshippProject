@@ -1,39 +1,15 @@
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 
 class AppBlockService {
-  static const String _lockStartTimeKey = 'lock_start_time';
-  static const String _lockDurationDaysKey = 'lock_duration_days';
-  static const int _defaultLockDays = 30;
-
   static const _channel = MethodChannel('com.example.focus_lock/app_block');
 
   /// Initialize lock with default 30-day duration
   Future<bool> initializeLock() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final now = DateTime.now();
-
-      await prefs.setString(
-        _lockStartTimeKey,
-        now.toUtc().toIso8601String(),
-      );
-
-      await prefs.setInt(
-        _lockDurationDaysKey,
-        _defaultLockDays,
-      );
-
-      // Tell native side to start the blocking service
-      try {
-        final result = await _channel.invokeMethod('startBlocking');
-        debugPrint('Native startBlocking result: $result');
-      } catch (e) {
-        debugPrint('Error calling startBlocking: $e');
-      }
-
+      // Native code creates the lock only once and owns its lifecycle.
+      await _channel.invokeMethod('startBlocking');
       return true;
     } catch (e) {
       debugPrint('Error initializing lock: $e');
@@ -44,16 +20,8 @@ class AppBlockService {
   /// Check if Instagram is currently locked
   Future<bool> isLocked() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      
-      final lockStartStr = prefs.getString(_lockStartTimeKey);
-      if (lockStartStr == null) return false;
-      
-      final lockStart = DateTime.parse(lockStartStr);
-      final lockDays = prefs.getInt(_lockDurationDaysKey) ?? _defaultLockDays;
-      final lockEnd = lockStart.add(Duration(days: lockDays));
-      
-      return DateTime.now().isBefore(lockEnd);
+      final status = await _channel.invokeMethod('getNativeLockStatus');
+      return (status as Map)['locked'] == true;
     } catch (e) {
       debugPrint('Error checking lock status: $e');
       return false;
@@ -63,17 +31,8 @@ class AppBlockService {
   /// Get remaining days until unlock
   Future<int> getRemainingDays() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      
-      final lockStartStr = prefs.getString(_lockStartTimeKey);
-      if (lockStartStr == null) return 0;
-      
-      final lockStart = DateTime.parse(lockStartStr);
-      final lockDays = prefs.getInt(_lockDurationDaysKey) ?? _defaultLockDays;
-      final lockEnd = lockStart.add(Duration(days: lockDays));
-      
-      final remaining = lockEnd.difference(DateTime.now()).inDays;
-      return remaining > 0 ? remaining : 0;
+      final status = await _channel.invokeMethod('getNativeLockStatus');
+      return ((status as Map)['remainingDays'] as int?) ?? 0;
     } catch (e) {
       debugPrint('Error getting remaining days: $e');
       return 0;
@@ -83,36 +42,21 @@ class AppBlockService {
   /// Get lock end date
   Future<DateTime?> getLockEndDate() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      
-      final lockStartStr = prefs.getString(_lockStartTimeKey);
-      if (lockStartStr == null) return null;
-      
-      final lockStart = DateTime.parse(lockStartStr);
-      final lockDays = prefs.getInt(_lockDurationDaysKey) ?? _defaultLockDays;
-      
-      return lockStart.add(Duration(days: lockDays));
+      return null; // Native state intentionally does not expose a mutable date.
     } catch (e) {
       debugPrint('Error getting lock end date: $e');
       return null;
     }
   }
 
-  /// Manually unlock (for testing or admin purposes)
+  /// Flutter has no authority to clear the native lock.
   Future<void> unlock() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_lockStartTimeKey);
-      await prefs.remove(_lockDurationDaysKey);
-    } catch (e) {
-      debugPrint('Error unlocking: $e');
-    }
+    debugPrint('Ignoring Flutter unlock request; native lock is authoritative.');
   }
 
-  /// Reset lock status
+  /// Re-checks native state; reset is deliberately unsupported.
   Future<void> resetLock() async {
-    await unlock();
-    await initializeLock();
+    await getLockStatus();
   }
 
   /// Get lock status details

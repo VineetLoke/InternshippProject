@@ -26,6 +26,7 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import com.example.focus_lock.services.AccessibilityMonitor
+import com.example.focus_lock.services.FocusForeground
 
 /**
  * Psychologically designed blocking overlay (PART 6 & 7).
@@ -59,6 +60,7 @@ class LockScreenOverlay : Service() {
     private val handler = Handler(Looper.getMainLooper())
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        FocusForeground.promote(this, 1102, "FocusLock blocking", "A protected app is blocked")
         val source = intent?.getStringExtra("source") ?: "instagram"
         val quoteText = intent?.getStringExtra("quote") ?: ""
         val author = intent?.getStringExtra("author") ?: ""
@@ -264,11 +266,15 @@ class LockScreenOverlay : Service() {
             // "Return to focus" button (PART 7)
             val focusBtn = createButton("Return to focus") {
                 Log.d(TAG, "User tapped Return to focus")
-                hideOverlay()
-                // Navigate back (not to home screen)
                 val svc = AccessibilityMonitor.instance
-                svc?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
-                stopSelf()
+                svc?.onOverlayDismissalRequested(source)
+                // A Chrome incognito overlay is enforcement, not a dismissible
+                // warning. The monitor rechecks before any overlay is removed.
+                if (!isChrome) {
+                    hideOverlay()
+                    svc?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
+                    stopSelf()
+                }
             }
             buttonContainer.addView(focusBtn)
 

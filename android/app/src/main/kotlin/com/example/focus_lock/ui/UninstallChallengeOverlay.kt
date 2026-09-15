@@ -24,10 +24,11 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import com.example.focus_lock.services.UninstallProtectionManager
+import com.example.focus_lock.services.FocusForeground
 
 /**
  * Full-screen overlay for the uninstall protection challenge.
- * User must complete 200 pushups (via proximity sensor or tap counter)
+ * User must complete 200 proximity-sensor pushups.
  * to disable protection. After completion, a 5-minute cooldown window opens.
  *
  * Design: Dark background (#0D0D0D), large centered text, progress bar.
@@ -58,12 +59,12 @@ class UninstallChallengeOverlay : Service(), SensorEventListener {
     private var countText: TextView? = null
     private var progressBar: ProgressBar? = null
     private var statusText: TextView? = null
-    private var tapButton: TextView? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
+        FocusForeground.promote(this, 1105, "FocusLock protection", "Uninstall challenge active")
         UninstallProtectionManager.init(this)
         showOverlay()
         startProximitySensor()
@@ -207,25 +208,6 @@ class UninstallChallengeOverlay : Service(), SensorEventListener {
             LinearLayout.LayoutParams.WRAP_CONTENT
         ).apply { bottomMargin = 60 })
 
-        // Manual tap counter button (fallback)
-        tapButton = TextView(this).apply {
-            text = "TAP TO COUNT"
-            setTextColor(Color.parseColor("#0D0D0D"))
-            setBackgroundColor(Color.parseColor("#C6A85A"))
-            textSize = 16f
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            setPadding(60, 30, 60, 30)
-            setOnClickListener { onManualTap() }
-        }
-        container.addView(tapButton, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply {
-            gravity = Gravity.CENTER_HORIZONTAL
-            bottomMargin = 40
-        })
-
         // Dismiss button (only visible after completion)
         val dismissText = TextView(this).apply {
             text = "CLOSE"
@@ -260,9 +242,9 @@ class UninstallChallengeOverlay : Service(), SensorEventListener {
             sensorManager?.registerListener(this, proximitySensor, SensorManager.SENSOR_DELAY_UI)
             Log.d(TAG, "Proximity sensor registered")
         } else {
-            Log.w(TAG, "No proximity sensor — manual tap mode only")
+            Log.w(TAG, "No proximity sensor — uninstall challenge cannot be completed on this device")
             handler.post {
-                statusText?.text = "No proximity sensor available.\nUse the tap button."
+                statusText?.text = "No proximity sensor available.\nProtection remains enabled."
             }
         }
     }
@@ -299,23 +281,6 @@ class UninstallChallengeOverlay : Service(), SensorEventListener {
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
     // ══════════════════════════════════════════════════════════════════
-    // Manual tap counter
-    // ══════════════════════════════════════════════════════════════════
-
-    private var lastTapTime = 0L
-
-    private fun onManualTap() {
-        if (challengeCompleted) return
-        val now = System.currentTimeMillis()
-        // Debounce taps: minimum 800ms between taps (anti-spam)
-        if (now - lastTapTime < MIN_CYCLE_MS) return
-        lastTapTime = now
-        pushupCount++
-        updateUI()
-        checkCompletion()
-    }
-
-    // ══════════════════════════════════════════════════════════════════
     // UI updates
     // ══════════════════════════════════════════════════════════════════
 
@@ -338,7 +303,6 @@ class UninstallChallengeOverlay : Service(), SensorEventListener {
                 progressBar?.progress = REQUIRED_PUSHUPS
                 statusText?.text = "Protection disabled for 5 minutes.\nYou may now uninstall the app."
                 statusText?.setTextColor(Color.parseColor("#C6A85A"))
-                tapButton?.visibility = View.GONE
             }
 
             // Auto-dismiss after 10 seconds

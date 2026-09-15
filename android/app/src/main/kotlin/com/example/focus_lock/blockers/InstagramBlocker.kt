@@ -10,6 +10,8 @@ import android.util.Log
 import com.example.focus_lock.storage.database.AppDatabase
 import com.example.focus_lock.storage.database.AppOpenLog
 import com.example.focus_lock.ui.BlockingOverlayScreen
+import com.example.focus_lock.services.NativeLockState
+import com.example.focus_lock.services.FocusForeground
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -19,11 +21,7 @@ import java.util.concurrent.Executors
  * Deterministic Instagram blocker — completely isolated module.
  *
  * Design rules:
- *  • Uses its OWN SharedPreferences file ("instagram_blocker_prefs"),
- *    so Flutter "Reset Focus" (which clears FlutterSharedPreferences) has ZERO effect.
- *  • Only [grantTempUnlock] can allow temporary access (15 minutes).
- *  • The volume-up emergency bypass in the accessibility service does NOT touch this module.
- *  • Lock period: exactly 17 days from first activation.
+ * Enforcement state is owned by [NativeLockState], shared by every target.
  */
 object InstagramBlocker {
     private const val TAG = "InstagramBlocker"
@@ -62,48 +60,27 @@ object InstagramBlocker {
         if (initialized) return
         appContext = context.applicationContext
         prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        ensureLockStarted()
-        restoreTempUnlockTimer()
         initialized = true
         Log.d(TAG, "Initialized. locked=${isLocked()}, tempUnlock=${isTempUnlockActive()}")
     }
 
-    /** Write lock start time once — never overwritten. */
-    private fun ensureLockStarted() {
-        if (prefs.getLong(KEY_LOCK_START, 0L) == 0L) {
-            prefs.edit().putLong(KEY_LOCK_START, System.currentTimeMillis()).apply()
-            Log.d(TAG, "Lock period started: $LOCK_DURATION_DAYS days from now")
-        }
-    }
-
-    /** True while the 17-day lock window is active. */
     fun isLocked(): Boolean {
-        val start = prefs.getLong(KEY_LOCK_START, 0L)
-        if (start == 0L) return false
-        return System.currentTimeMillis() - start < LOCK_DURATION_MS
+        return NativeLockState.isLockActive(appContext)
     }
 
     /** True during a 15-minute emergency temp unlock. */
     fun isTempUnlockActive(): Boolean {
-        val start = prefs.getLong(KEY_TEMP_UNLOCK_START, 0L)
-        if (start == 0L) return false
-        return System.currentTimeMillis() - start < TEMP_UNLOCK_DURATION_MS
+        return NativeLockState.isTempUnlockActive(appContext, INSTAGRAM_PACKAGE)
     }
 
     /** Remaining seconds of active temp unlock, or 0. */
     fun getTempUnlockRemainingSeconds(): Long {
-        val start = prefs.getLong(KEY_TEMP_UNLOCK_START, 0L)
-        if (start == 0L) return 0L
-        val remaining = TEMP_UNLOCK_DURATION_MS - (System.currentTimeMillis() - start)
-        return if (remaining > 0) remaining / 1000 else 0L
+        return NativeLockState.getTempUnlockRemainingSeconds(appContext, INSTAGRAM_PACKAGE)
     }
 
     /** Remaining full lock days. */
     fun getRemainingDays(): Int {
-        val start = prefs.getLong(KEY_LOCK_START, 0L)
-        if (start == 0L) return 0
-        val remaining = LOCK_DURATION_MS - (System.currentTimeMillis() - start)
-        return if (remaining > 0) (remaining / (24 * 60 * 60 * 1000)).toInt() + 1 else 0
+        return NativeLockState.getRemainingDays(appContext)
     }
 
     /** Total attempt count across all time. */
@@ -115,9 +92,10 @@ object InstagramBlocker {
      */
     fun onInstagramDetected(): Boolean {
         if (!initialized) return false
-        if (!isLocked()) return false
-        if (isTempUnlockActive()) {
+        if (!NativeLockState.isTargetBlocked(appContext, INSTAGRAM_PACKAGE)) {
+            if (isTempUnlockActive()) {
             Log.d(TAG, "Temp unlock active (${getTempUnlockRemainingSeconds()}s left) — allowing")
+            }
             return false
         }
 
@@ -145,7 +123,7 @@ object InstagramBlocker {
                 return
             }
             val intent = Intent(appContext, BlockingOverlayScreen::class.java)
-            appContext.startService(intent)
+            FocusForeground.start(appContext, intent)
             handler.postDelayed({ scheduleForceClose() }, OVERLAY_DISPLAY_MS)
         } catch (e: Exception) {
             Log.e(TAG, "Error showing overlay: ${e.message}")
@@ -179,8 +157,7 @@ object InstagramBlocker {
      * Only called after the emergency pushup challenge is completed.
      */
     fun grantTempUnlock() {
-        val now = System.currentTimeMillis()
-        prefs.edit().putLong(KEY_TEMP_UNLOCK_START, now).apply()
+        NativeLockState.grantTemporaryUnlock(appContext, INSTAGRAM_PACKAGE)
         dismissOverlay()
         handler.removeCallbacks(tempUnlockExpiryRunnable)
         handler.postDelayed(tempUnlockExpiryRunnable, TEMP_UNLOCK_DURATION_MS)
@@ -189,23 +166,9 @@ object InstagramBlocker {
 
     /** Clears temp unlock when 15 minutes expire. */
     private fun onTempUnlockExpired() {
-        prefs.edit().remove(KEY_TEMP_UNLOCK_START).apply()
         Log.d(TAG, "Temp unlock EXPIRED — Instagram re-locked")
     }
 
-    /** Restore temp unlock timer if active across service restart. */
-    private fun restoreTempUnlockTimer() {
-        val start = prefs.getLong(KEY_TEMP_UNLOCK_START, 0L)
-        if (start > 0L) {
-            val remaining = TEMP_UNLOCK_DURATION_MS - (System.currentTimeMillis() - start)
-            if (remaining > 0) {
-                handler.postDelayed(tempUnlockExpiryRunnable, remaining)
-                Log.d(TAG, "Restored temp unlock timer: ${remaining / 1000}s remaining")
-            } else {
-                prefs.edit().remove(KEY_TEMP_UNLOCK_START).apply()
-            }
-        }
-    }
 
     /** Log every attempt to Room database. */
     private fun logAttempt(attemptCount: Int) {

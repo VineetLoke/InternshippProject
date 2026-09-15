@@ -36,7 +36,7 @@ class FocusLockDeviceAdminReceiver : DeviceAdminReceiver() {
         try {
             val overlayIntent = Intent(context, com.example.focus_lock.ui.UninstallChallengeOverlay::class.java)
             overlayIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startService(overlayIntent)
+            FocusForeground.start(context, overlayIntent)
         } catch (e: Exception) {
             Log.e(TAG, "Error launching challenge overlay: ${e.message}")
         }

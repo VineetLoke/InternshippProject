@@ -8,6 +8,8 @@ import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 enum RepState { idle, goingDown, bottom, goingUp }
 
 class CameraPushupDetector {
+  // Known limitation: ML Kit pose angles provide no liveness/anti-replay proof.
+  // Hardening that signal is intentionally outside this enforcement change.
   CameraController? _cameraController;
   PoseDetector? _poseDetector;
 

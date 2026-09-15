@@ -101,6 +101,10 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen> {
   int _requiredPushups = 50;
   String _rewardText = '';
   String _challengeMethod = '';
+  String _targetPackage = '';
+  String? _challengeToken;
+  int _nativeRecordedCount = 0;
+  bool _sessionRequested = false;
   Color _accentColor = const Color(0xFFC6A85A);
 
   @override
@@ -124,6 +128,7 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen> {
     _countSub = detector.onCountChanged.listen((count) {
       if (!mounted) return;
       setState(() => _count = count);
+      _recordNativeReps(count);
       if (count >= _requiredPushups && !_redeemed) _onChallengeComplete();
     });
 
@@ -151,7 +156,37 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen> {
       _requiredPushups = args['requiredPushups'] ?? 50;
       _rewardText = args['rewardText'] ?? '15 min access';
       _challengeMethod = args['challengeMethod'] ?? '';
+      _targetPackage = args['targetPackage'] ?? '';
       _accentColor = Color(args['accentColor'] ?? 0xFFC6A85A);
+      if (!_sessionRequested && _targetPackage.isNotEmpty) {
+        _sessionRequested = true;
+        _beginNativeChallenge();
+      }
+    }
+  }
+
+  Future<void> _beginNativeChallenge() async {
+    try {
+      final token = await _channel.invokeMethod<String>('beginPushupChallenge', {
+        'target': _targetPackage,
+        'requiredPushups': _requiredPushups,
+      });
+      if (mounted) setState(() => _challengeToken = token);
+    } catch (_) {
+      // No token means no temporary access can be redeemed.
+    }
+  }
+
+  Future<void> _recordNativeReps(int count) async {
+    final token = _challengeToken;
+    if (token == null) return;
+    while (_nativeRecordedCount < count) {
+      _nativeRecordedCount++;
+      try {
+        await _channel.invokeMethod<bool>('recordPushupChallengeRep', {'token': token});
+      } catch (_) {
+        return;
+      }
     }
   }
 
@@ -165,9 +200,20 @@ class _PushupChallengeScreenState extends State<PushupChallengeScreen> {
   }
 
   Future<void> _onChallengeComplete() async {
+    await _recordNativeReps(_count);
     await _stopDetection();
     bool success = false;
-    if (_challengeMethod.isNotEmpty) {
+    if (_targetPackage.isNotEmpty && _challengeToken != null) {
+      try {
+        final result = await _channel.invokeMethod<bool>('redeemPushupChallenge', {
+          'token': _challengeToken,
+          'target': _targetPackage,
+        });
+        success = result == true;
+      } catch (e) {
+        debugPrint('Error redeeming challenge session: $e');
+      }
+    } else if (_challengeMethod.isNotEmpty) {
       try {
         final result = await _channel.invokeMethod(_challengeMethod);
         success = result == true;

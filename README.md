@@ -215,6 +215,13 @@ jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 \
 
 ## Notes
 
+## Known Limitations
+
+- Incognito detection is limited to the declared Chrome package variants and their accessibility trees; it is not a general private-browsing API and may vary with Chrome UI/localization changes.
+- ML Kit pose counting does not provide liveness or anti-replay protection; that hardening is intentionally out of scope.
+- Only the declared social-app and Chrome packages are covered; alternate apps, browser variants outside that list, and web versions are not blocked.
+- Without device-owner/profile-owner MDM enrollment, Android still permits force-stop, manual Accessibility disablement, and Safe Mode. Those OS-level escape routes cannot be closed by a normal app.
+
 - The overlay display is simplified in this implementation. For production, consider:
   - More sophisticated overlay animations
   - Gesture detection to prevent swipe-away

@@ -2,6 +2,7 @@ package com.example.focus_lock.blockers
 
 import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
+import com.example.focus_lock.services.NativeLockState
 
 /**
  * Chrome incognito typing blocker — accessibility-tree approach.
@@ -21,6 +22,8 @@ object ChromeIncognitoBlocker {
     private const val TAG = "ChromeIncognitoBlocker"
     const val CHROME_PACKAGE = "com.android.chrome"
 
+    fun isChromePackage(packageName: String) = packageName in NativeLockState.chromePackages
+
     // Debounce: don't re-trigger within 5 seconds of a block
     private const val BLOCK_DEBOUNCE_MS = 5000L
     @Volatile private var lastBlockTime = 0L
@@ -39,12 +42,12 @@ object ChromeIncognitoBlocker {
      * Fast-path heuristic to track incognito mode state across UI changes.
      * Evaluates whether the screen definitively shows an incognito indicator or a normal tab indicator.
      */
-    fun evaluateIncognitoState(node: AccessibilityNodeInfo?) {
+    fun evaluateIncognitoState(node: AccessibilityNodeInfo?, packageName: String = CHROME_PACKAGE) {
         if (node == null) return
         try {
             // Check 1: Look for incognito BADGE specifically (not just any "incognito" text)
             // The badge/indicator has a specific view ID — the homepage button does NOT
-            val incognitoBadge = node.findAccessibilityNodeInfosByViewId("com.android.chrome:id/incognito_badge")
+            val incognitoBadge = node.findAccessibilityNodeInfosByViewId("$packageName:id/incognito_badge")
             if (incognitoBadge.isNotEmpty()) {
                 isIncognitoCached = true
                 incognitoBadge.forEach { it.recycle() }
@@ -52,7 +55,7 @@ object ChromeIncognitoBlocker {
                 return
             }
 
-            val incognitoIndicator = node.findAccessibilityNodeInfosByViewId("com.android.chrome:id/incognito_indicator")
+            val incognitoIndicator = node.findAccessibilityNodeInfosByViewId("$packageName:id/incognito_indicator")
             if (incognitoIndicator.isNotEmpty()) {
                 isIncognitoCached = true
                 incognitoIndicator.forEach { it.recycle() }
@@ -62,13 +65,13 @@ object ChromeIncognitoBlocker {
 
             // Check 2: Tab switcher with incognito count label
             // When in incognito, the tab switcher shows "incognito" in its content description
-            val tabSwitchers = node.findAccessibilityNodeInfosByViewId("com.android.chrome:id/tab_switcher_button")
+            val tabSwitchers = node.findAccessibilityNodeInfosByViewId("$packageName:id/tab_switcher_button")
             if (tabSwitchers.isNotEmpty()) {
                 val isInIncognitoWindow = tabSwitchers.any { tab ->
                     val desc = tab.contentDescription?.toString()?.lowercase() ?: ""
                     // Real incognito tab switcher says something like "2 incognito tabs"
                     // Homepage button just says "Incognito" with no number
-                    desc.matches(Regex(".*\d+.*incognito.*")) || desc.matches(Regex(".*incognito.*\d+.*"))
+                    desc.matches(Regex(""".*\d+.*incognito.*""")) || desc.matches(Regex(""".*incognito.*\d+.*"""))
                 }
                 tabSwitchers.forEach { it.recycle() }
                 if (isInIncognitoWindow) {
@@ -79,7 +82,7 @@ object ChromeIncognitoBlocker {
             }
 
             // Check 3: URL bar background is dark in incognito — check toolbar color node
-            val toolbars = node.findAccessibilityNodeInfosByViewId("com.android.chrome:id/toolbar")
+            val toolbars = node.findAccessibilityNodeInfosByViewId("$packageName:id/toolbar")
             if (toolbars.isNotEmpty()) {
                 // Normal tab toolbar exists — we are NOT in incognito
                 toolbars.forEach { it.recycle() }
@@ -98,6 +101,8 @@ object ChromeIncognitoBlocker {
      * for incognito-specific UI elements (badge, buttons, descriptions).
      */
     fun isIncognitoMode(rootNode: AccessibilityNodeInfo): Boolean {
+        // Known limitation: accessibility trees are not a stable, localized
+        // private-mode API; this does not cover arbitrary browsers or locales.
         return try {
             // Fast path: search for nodes containing "incognito" text
             val incognitoNodes = rootNode.findAccessibilityNodeInfosByText("incognito")

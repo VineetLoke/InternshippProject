@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.example.focus_lock.services.AppBlockingService
+import com.example.focus_lock.services.FocusForeground
 import com.example.focus_lock.services.AppIconManager
 import com.example.focus_lock.services.UninstallProtectionManager
 
@@ -14,17 +15,15 @@ class BootReceiver : BroadcastReceiver() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
-            Log.d(TAG, "Device booted — starting monitoring service")
+        if (intent.action in setOf(Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_LOCKED_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED)) {
+            Log.d(TAG, "System restart/update event — starting monitoring service")
             try {
-                // Use plain startService (not startForegroundService) to avoid
-                // ForegroundServiceStartNotAllowedException when launched from
-                // a background broadcast context on Android 12+.
                 val serviceIntent = Intent(context, AppBlockingService::class.java)
-                context.startService(serviceIntent)
+                FocusForeground.start(context, serviceIntent)
                 Log.d(TAG, "Monitoring service started after boot")
             } catch (e: Exception) {
                 Log.e(TAG, "Error starting service on boot: ${e.message}")
+                FocusForeground.postHealth(context, "FocusLock restart failed", "Open FocusLock to restore enforcement", false)
             }
 
             // Re-hide icon if it was hidden before reboot

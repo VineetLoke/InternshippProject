@@ -352,6 +352,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             'requiredPushups': pushups,
                             'rewardText': reward,
                             'challengeMethod': method,
+                            'targetPackage': app['pkg'],
                             'accentColor': accentColor,
                           },
                         );

@@ -18,6 +18,7 @@ import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.example.focus_lock.services.FocusForeground
 
 /**
  * Shared full-screen blocking overlay for all deterministic app blockers
@@ -43,6 +44,7 @@ class BlockingOverlayScreen : Service() {
     private val handler = Handler(Looper.getMainLooper())
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        FocusForeground.promote(this, 1103, "FocusLock blocking", "A protected app is blocked")
         showOverlay()
         return START_NOT_STICKY
     }

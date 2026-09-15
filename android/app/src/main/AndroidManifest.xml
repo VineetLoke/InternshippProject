@@ -10,6 +10,8 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.front" android:required="false" />
 
@@ -62,28 +64,43 @@
         <service
             android:name=".ui.LockScreenOverlay"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="FocusLock blocking overlay" />
+        </service>
 
         <service
             android:name=".services.AppBlockingService"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="FocusLock enforcement watchdog" />
+        </service>
 
         <service
             android:name=".ui.DisciplineWarningOverlay"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="FocusLock blocking overlay" />
+        </service>
 
         <service
             android:name=".ui.BlockingOverlayScreen"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="FocusLock blocking overlay" />
+        </service>
 
         <receiver
             android:name=".BootReceiver"
-            android:exported="true">
+            android:exported="true"
+            android:directBootAware="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
 
@@ -99,19 +116,13 @@
             </intent-filter>
         </receiver>
 
-        <receiver
-            android:name=".SecretCodeReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.telephony.action.SECRET_CODE" />
-                <data android:scheme="android_secret_code" android:host="1717" />
-            </intent-filter>
-        </receiver>
-
         <service
             android:name=".ui.UninstallChallengeOverlay"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="FocusLock uninstall challenge" />
+        </service>
 
     </application>
 </manifest>

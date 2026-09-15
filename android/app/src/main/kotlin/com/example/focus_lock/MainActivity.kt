@@ -22,10 +22,13 @@ import com.example.focus_lock.blockers.RedditBlocker
 import com.example.focus_lock.blockers.TwitterBlocker
 import com.example.focus_lock.services.AccessibilityMonitor
 import com.example.focus_lock.services.AppBlockingService
+import com.example.focus_lock.services.FocusForeground
 import com.example.focus_lock.services.AppIconManager
 import com.example.focus_lock.services.FocusLockDeviceAdminReceiver
 import com.example.focus_lock.services.PushupDetectorService
 import com.example.focus_lock.services.UninstallProtectionManager
+import com.example.focus_lock.services.NativeLockState
+import com.example.focus_lock.services.PushupChallengeSession
 import com.example.focus_lock.storage.database.AppDatabase
 import com.example.focus_lock.ui.BlockingOverlayScreen
 import com.example.focus_lock.ui.LockScreenOverlay
@@ -81,9 +84,11 @@ class MainActivity : FlutterActivity() {
                     }
                     "startBlocking" -> {
                         Log.d(TAG, "startBlocking called from Flutter")
+                        NativeLockState.activateIfNeeded(applicationContext)
                         startMonitoringService()
                         result.success(isOurAccessibilityServiceEnabled())
                     }
+                    "getNativeLockStatus" -> result.success(NativeLockState.status(applicationContext))
                     "isServiceRunning" -> {
                         result.success(AccessibilityMonitor.isRunning)
                     }
@@ -135,6 +140,20 @@ class MainActivity : FlutterActivity() {
                         val redeemed = redeemPushupsForRedditTime()
                         result.success(redeemed)
                     }
+                    "beginPushupChallenge" -> {
+                        val target = call.argument<String>("target") ?: ""
+                        val required = call.argument<Int>("requiredPushups") ?: 0
+                        result.success(PushupChallengeSession.begin(applicationContext, target, required))
+                    }
+                    "recordPushupChallengeRep" -> {
+                        val token = call.argument<String>("token") ?: ""
+                        result.success(PushupChallengeSession.recordRep(token))
+                    }
+                    "redeemPushupChallenge" -> {
+                        val token = call.argument<String>("token") ?: ""
+                        val target = call.argument<String>("target") ?: ""
+                        result.success(PushupChallengeSession.redeem(applicationContext, token, target))
+                    }
                     "completeUninstallChallenge" -> {
                         UninstallProtectionManager.onChallengeCompleted()
                         result.success(true)
@@ -177,9 +196,9 @@ class MainActivity : FlutterActivity() {
                     // ── Chrome incognito keyword blocker (accessibility-based) ────
                     "getChromeFilterStatus" -> {
                         val policyStatus = ChromeIncognitoPolicy.getStatus(applicationContext)
-                        // isActive = policy-based blocking is applied, OR accessibility service is running
+                        // A running service alone is not enforcement; a native lock must be active.
                         val isActive = (policyStatus["isActive"] == true) ||
-                                       (AccessibilityMonitor.isRunning)
+                                       (NativeLockState.isLockActive(applicationContext) && AccessibilityMonitor.isRunning)
                         result.success(mapOf(
                             "isActive" to isActive,
                             "isDeviceOwner" to (policyStatus["isDeviceOwner"] == true),
@@ -226,10 +245,8 @@ class MainActivity : FlutterActivity() {
                         result.success(InstagramBlocker.getTempUnlockRemainingSeconds())
                     }
                     "completeInstagramEmergencyChallenge" -> {
-                        InstagramBlocker.init(applicationContext)
-                        InstagramBlocker.grantTempUnlock()
-                        Log.d(TAG, "Instagram emergency challenge completed — 15min unlock")
-                        result.success(true)
+                        val token = call.argument<String>("token") ?: ""
+                        result.success(PushupChallengeSession.redeem(applicationContext, token, NativeLockState.INSTAGRAM))
                     }
 
                     // ── Reddit blocker (deterministic module) ─────
@@ -246,10 +263,8 @@ class MainActivity : FlutterActivity() {
                         result.success(RedditBlocker.getTempUnlockRemainingSeconds())
                     }
                     "completeRedditEmergencyChallenge" -> {
-                        RedditBlocker.init(applicationContext)
-                        RedditBlocker.grantTempUnlock()
-                        Log.d(TAG, "Reddit emergency challenge completed — 15min unlock")
-                        result.success(true)
+                        val token = call.argument<String>("token") ?: ""
+                        result.success(PushupChallengeSession.redeem(applicationContext, token, NativeLockState.REDDIT))
                     }
 
                     // ── Twitter blocker (deterministic module) ────
@@ -266,10 +281,8 @@ class MainActivity : FlutterActivity() {
                         result.success(TwitterBlocker.getTempUnlockRemainingSeconds())
                     }
                     "completeTwitterEmergencyChallenge" -> {
-                        TwitterBlocker.init(applicationContext)
-                        TwitterBlocker.grantTempUnlock()
-                        Log.d(TAG, "Twitter emergency challenge completed — 15min unlock")
-                        result.success(true)
+                        val token = call.argument<String>("token") ?: ""
+                        result.success(PushupChallengeSession.redeem(applicationContext, token, NativeLockState.TWITTER))
                     }
 
                     // ── Uninstall protection ──────────────────────
@@ -345,7 +358,7 @@ class MainActivity : FlutterActivity() {
                     "launchUninstallChallenge" -> {
                         try {
                             val intent = Intent(this, UninstallChallengeOverlay::class.java)
-                            startService(intent)
+                            FocusForeground.start(applicationContext, intent)
                             result.success(true)
                         } catch (e: Exception) {
                             result.error("CHALLENGE_ERROR", e.message, null)
@@ -368,7 +381,7 @@ class MainActivity : FlutterActivity() {
                             intent.putExtra("quote", quote)
                             intent.putExtra("author", author)
                             intent.putExtra("category", category)
-                            startService(intent)
+                            FocusForeground.start(applicationContext, intent)
                             result.success(true)
                         } catch (e: Exception) {
                             result.error("OVERLAY_ERROR", e.message, null)
@@ -454,7 +467,7 @@ class MainActivity : FlutterActivity() {
         serviceStarted = true
         try {
             val intent = Intent(this, AppBlockingService::class.java)
-            startService(intent)
+            FocusForeground.start(applicationContext, intent)
             Log.d(TAG, "✅ Monitoring service started")
         } catch (e: Exception) {
             Log.e(TAG, "Could not start monitoring service: ${e.message}")

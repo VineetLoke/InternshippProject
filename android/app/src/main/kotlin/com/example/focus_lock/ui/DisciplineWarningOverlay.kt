@@ -26,6 +26,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import com.example.focus_lock.services.FocusForeground
 
 /**
  * Full-screen discipline warning overlay (PART 5 & 6).
@@ -51,6 +52,7 @@ class DisciplineWarningOverlay : Service() {
     private val handler = Handler(Looper.getMainLooper())
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        FocusForeground.promote(this, 1104, "FocusLock blocking", "Chrome incognito is blocked")
         Log.d(TAG, "DisciplineWarningOverlay started")
         showOverlay()
         return START_NOT_STICKY
